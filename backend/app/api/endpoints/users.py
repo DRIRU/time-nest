@@ -8,8 +8,31 @@ from ...db.models.user import User
 from ...schemas.user import UserCreate, UserResponse, UserLogin, Token
 from ...core.security import hash_password, verify_password, create_access_token
 from datetime import timedelta
+from fastapi.security import OAuth2PasswordBearer
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="users/login")
 
 router = APIRouter()
+
+def get_current_user_dependency(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+    from ...core.security import verify_token
+    
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    
+    email = verify_token(token)
+    if email is None:
+        raise credentials_exception
+    
+    user = db.query(User).filter(User.email == email).first()
+    if user is None:
+        raise credentials_exception
+    
+    return user
+
 
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 def register_user(user_data: UserCreate, db: Session = Depends(get_db)):
@@ -117,25 +140,5 @@ def get_all_users(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)
     return users
 
 # Dependency to get current user from token
-def get_current_user_dependency(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
-    from ...core.security import verify_token
-    
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
-    
-    email = verify_token(token)
-    if email is None:
-        raise credentials_exception
-    
-    user = db.query(User).filter(User.email == email).first()
-    if user is None:
-        raise credentials_exception
-    
-    return user
 
 # OAuth2 scheme for token authentication
-from fastapi.security import OAuth2PasswordBearer
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="users/login")
