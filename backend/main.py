@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.api import api_router
 from app.db.database import Base, engine
 import uvicorn
-
+import os
 # Create database tables
 Base.metadata.create_all(bind=engine)
 

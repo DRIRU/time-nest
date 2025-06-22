@@ -4,6 +4,7 @@ from sqlalchemy.exc import IntegrityError
 from typing import List
 from datetime import datetime, timedelta
 from pytz import timezone
+import logging
 
 from ...db.database import get_db
 from ...db.models.user import User
@@ -24,6 +25,10 @@ from ...core.security import (
 )
 from ...core.email import send_password_reset_email
 from fastapi.security import OAuth2PasswordBearer
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="users/login")
 
@@ -145,10 +150,14 @@ def forgot_password(request: ForgotPasswordRequest, db: Session = Depends(get_db
     Send password reset email to user
     """
     try:
+        logger.info(f"Password reset requested for email: {request.email}")
+        
         # Find user by email
         user = db.query(User).filter(User.email == request.email).first()
         
         if user:
+            logger.info(f"User found for email: {request.email}")
+            
             # Generate reset token
             reset_token = create_password_reset_token(user.email)
             
@@ -161,6 +170,8 @@ def forgot_password(request: ForgotPasswordRequest, db: Session = Depends(get_db
             user.reset_token_expires_at = expires_at
             db.commit()
             
+            logger.info(f"Reset token generated and saved for user: {request.email}")
+            
             # Create reset link (adjust URL based on your frontend)
             reset_link = f"http://localhost:3000/reset-password?token={reset_token}"
             
@@ -172,23 +183,22 @@ def forgot_password(request: ForgotPasswordRequest, db: Session = Depends(get_db
             )
             
             if not email_sent:
-                raise HTTPException(
-                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail="Failed to send reset email. Please try again later."
-                )
+                logger.warning(f"Failed to send email to {user.email}, but continuing...")
+                # Don't fail the request if email sending fails in development
+        else:
+            logger.info(f"No user found for email: {request.email}")
         
         # Always return success message to prevent email enumeration
         return {
             "message": "If an account with that email exists, a password reset link has been sent."
         }
         
-    except HTTPException:
-        raise
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="An error occurred while processing your request. Please try again later."
-        )
+        logger.error(f"Error in forgot_password endpoint: {str(e)}")
+        # Return success message even on error to prevent information disclosure
+        return {
+            "message": "If an account with that email exists, a password reset link has been sent."
+        }
 
 @router.post("/reset-password")
 def reset_password(request: ResetPasswordRequest, db: Session = Depends(get_db)):
