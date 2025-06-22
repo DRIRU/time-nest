@@ -2,6 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from typing import List
+from datetime import datetime
+from pytz import timezone
 
 from ...db.database import get_db
 from ...db.models.user import User
@@ -112,8 +114,9 @@ def login_user(user_credentials: UserLogin, db: Session = Depends(get_db)):
         )
     
     # Update last login
-    from datetime import datetime
-    user.last_login = datetime.utcnow()
+    
+    india_tz = timezone("Asia/Kolkata")
+    user.last_login = datetime.now(india_tz)
     db.commit()
     
     # Create access token
