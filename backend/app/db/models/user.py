@@ -22,6 +22,8 @@ class User(Base):
     status = Column(Enum('Active', 'Suspended', 'Deactivated'), default='Active')
     date_joined = Column(DateTime, default=func.now())
     last_login = Column(DateTime, nullable=True)
+    reset_token = Column(String(255), nullable=True)
+    reset_token_expires_at = Column(DateTime, nullable=True)
 
     def __repr__(self):
         return f"<User(user_id={self.user_id}, email='{self.email}', name='{self.first_name} {self.last_name}')>"

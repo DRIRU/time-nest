@@ -2,14 +2,27 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from typing import List
-from datetime import datetime
+from datetime import datetime, timedelta
 from pytz import timezone
 
 from ...db.database import get_db
 from ...db.models.user import User
-from ...schemas.user import UserCreate, UserResponse, UserLogin, Token
-from ...core.security import hash_password, verify_password, create_access_token
-from datetime import timedelta
+from ...schemas.user import (
+    UserCreate, 
+    UserResponse, 
+    UserLogin, 
+    Token, 
+    ForgotPasswordRequest,
+    ResetPasswordRequest
+)
+from ...core.security import (
+    hash_password, 
+    verify_password, 
+    create_access_token,
+    create_password_reset_token,
+    verify_password_reset_token
+)
+from ...core.email import send_password_reset_email
 from fastapi.security import OAuth2PasswordBearer
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="users/login")
@@ -114,7 +127,6 @@ def login_user(user_credentials: UserLogin, db: Session = Depends(get_db)):
         )
     
     # Update last login
-    
     india_tz = timezone("Asia/Kolkata")
     user.last_login = datetime.now(india_tz)
     db.commit()
@@ -126,6 +138,110 @@ def login_user(user_credentials: UserLogin, db: Session = Depends(get_db)):
     )
     
     return {"access_token": access_token, "token_type": "bearer"}
+
+@router.post("/forgot-password")
+def forgot_password(request: ForgotPasswordRequest, db: Session = Depends(get_db)):
+    """
+    Send password reset email to user
+    """
+    try:
+        # Find user by email
+        user = db.query(User).filter(User.email == request.email).first()
+        
+        if user:
+            # Generate reset token
+            reset_token = create_password_reset_token(user.email)
+            
+            # Set token expiration (15 minutes from now)
+            india_tz = timezone("Asia/Kolkata")
+            expires_at = datetime.now(india_tz) + timedelta(minutes=15)
+            
+            # Update user with reset token and expiration
+            user.reset_token = reset_token
+            user.reset_token_expires_at = expires_at
+            db.commit()
+            
+            # Create reset link (adjust URL based on your frontend)
+            reset_link = f"http://localhost:3000/reset-password?token={reset_token}"
+            
+            # Send email
+            email_sent = send_password_reset_email(
+                recipient_email=user.email,
+                reset_token=reset_token,
+                reset_link=reset_link
+            )
+            
+            if not email_sent:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="Failed to send reset email. Please try again later."
+                )
+        
+        # Always return success message to prevent email enumeration
+        return {
+            "message": "If an account with that email exists, a password reset link has been sent."
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An error occurred while processing your request. Please try again later."
+        )
+
+@router.post("/reset-password")
+def reset_password(request: ResetPasswordRequest, db: Session = Depends(get_db)):
+    """
+    Reset user password using the reset token
+    """
+    try:
+        # Verify the reset token
+        email = verify_password_reset_token(request.token)
+        if not email:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid or expired reset token"
+            )
+        
+        # Find user by email
+        user = db.query(User).filter(User.email == email).first()
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found"
+            )
+        
+        # Check if token matches and hasn't expired
+        india_tz = timezone("Asia/Kolkata")
+        current_time = datetime.now(india_tz)
+        
+        if (user.reset_token != request.token or 
+            not user.reset_token_expires_at or 
+            current_time > user.reset_token_expires_at):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid or expired reset token"
+            )
+        
+        # Hash the new password
+        hashed_password = hash_password(request.new_password)
+        
+        # Update user password and clear reset token
+        user.password_hash = hashed_password
+        user.reset_token = None
+        user.reset_token_expires_at = None
+        db.commit()
+        
+        return {"message": "Password has been reset successfully"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An error occurred while resetting your password. Please try again."
+        )
 
 @router.get("/me", response_model=UserResponse)
 def get_current_user(current_user: User = Depends(get_current_user_dependency)):
