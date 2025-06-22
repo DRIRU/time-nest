@@ -3,6 +3,9 @@
 # dependencies
 /node_modules
 
+#test
+/test/
+
 # next.js
 /.next/
 /out/
