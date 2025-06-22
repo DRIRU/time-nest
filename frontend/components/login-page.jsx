@@ -8,40 +8,123 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
-import { Eye, EyeOff, Mail, Lock } from "lucide-react"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Eye, EyeOff, Mail, Lock, AlertCircle, CheckCircle } from "lucide-react"
 import { useAuth } from "@/contexts/auth-context"
-import { users } from "@/lib/users-data"
 
 export default function LoginPage() {
   const router = useRouter()
   const { login } = useAuth()
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState("")
+  const [success, setSuccess] = useState("")
+
+  // State for form data
+  const [formData, setFormData] = useState({
+    email: "",
+    password: "",
+  })
+
+  // State for form validation
+  const [fieldErrors, setFieldErrors] = useState({})
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target
+    setFormData((prev) => ({ ...prev, [name]: value }))
+    
+    // Clear field error when user starts typing
+    if (fieldErrors[name]) {
+      setFieldErrors((prev) => ({ ...prev, [name]: "" }))
+    }
+    
+    // Clear general error when user starts typing
+    if (error) {
+      setError("")
+    }
+  }
+
+  const validateForm = () => {
+    const errors = {}
+
+    // Required field validation
+    if (!formData.email.trim()) {
+      errors.email = "Email is required"
+    } else {
+      // Email format validation
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+      if (!emailRegex.test(formData.email)) {
+        errors.email = "Please enter a valid email address"
+      }
+    }
+
+    if (!formData.password) {
+      errors.password = "Password is required"
+    }
+
+    setFieldErrors(errors)
+    return Object.keys(errors).length === 0
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+    setError("")
+    setSuccess("")
+
+    // Validate form
+    if (!validateForm()) {
+      setError("Please fix the errors below and try again.")
+      return
+    }
+
     setIsLoading(true)
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1500))
+    try {
+      const response = await fetch("http://localhost:8000/api/v1/users/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password,
+        }),
+      })
 
-    // Get form data using form elements directly
-    const form = e.target
-    const formData = new FormData(form)
-    const data = Object.fromEntries(formData.entries())
-    console.log("Login submitted:", data)
+      const result = await response.json()
 
-    // For demo purposes, use the first user from our data
-    // In a real app, you'd validate credentials and get the actual user
-    const mockUser = users[0] // Using Sarah Johnson as default logged-in user
-
-    // Set login state
-    login(mockUser)
-
-    setIsLoading(false)
-
-    // Redirect to home page after successful login
-    router.push("/")
+      if (response.ok) {
+        // Login successful
+        setSuccess("Login successful! Redirecting...")
+        
+        // Store the access token and user info
+        const userData = {
+          email: formData.email,
+          accessToken: result.access_token,
+          tokenType: result.token_type,
+        }
+        
+        // Use the login function from AuthContext
+        login(userData)
+        
+        // Redirect to home page after a short delay
+        setTimeout(() => {
+          router.push("/")
+        }, 1000)
+      } else {
+        // Handle login errors from backend
+        if (result.detail) {
+          setError(result.detail)
+        } else {
+          setError("Login failed. Please check your credentials and try again.")
+        }
+      }
+    } catch (err) {
+      console.error("Error during login:", err)
+      setError("Network error. Please check your connection and try again.")
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
@@ -53,13 +136,37 @@ export default function LoginPage() {
         </CardHeader>
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4">
+            {error && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+            {success && (
+              <Alert className="border-green-200 bg-green-50 text-green-800">
+                <CheckCircle className="h-4 w-4" />
+                <AlertDescription>{success}</AlertDescription>
+              </Alert>
+            )}
+
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <div className="relative">
                 <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input id="email" name="email" type="email" placeholder="Enter your email" className="pl-10" required />
+                <Input
+                  id="email"
+                  name="email"
+                  type="email"
+                  placeholder="Enter your email"
+                  className={`pl-10 ${fieldErrors.email ? "border-red-500" : ""}`}
+                  value={formData.email}
+                  onChange={handleInputChange}
+                  required
+                />
               </div>
+              {fieldErrors.email && <p className="text-sm text-red-500">{fieldErrors.email}</p>}
             </div>
+
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
               <div className="relative">
@@ -69,7 +176,9 @@ export default function LoginPage() {
                   name="password"
                   type={showPassword ? "text" : "password"}
                   placeholder="Enter your password"
-                  className="pl-10 pr-10"
+                  className={`pl-10 pr-10 ${fieldErrors.password ? "border-red-500" : ""}`}
+                  value={formData.password}
+                  onChange={handleInputChange}
                   required
                 />
                 <Button
@@ -86,7 +195,9 @@ export default function LoginPage() {
                   )}
                 </Button>
               </div>
+              {fieldErrors.password && <p className="text-sm text-red-500">{fieldErrors.password}</p>}
             </div>
+
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2">
                 <input type="checkbox" id="remember" name="remember" className="h-4 w-4 rounded border-gray-300" />
