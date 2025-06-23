@@ -222,13 +222,28 @@ def reset_password(request: ResetPasswordRequest, db: Session = Depends(get_db))
                 detail="User not found"
             )
         
-        # Check if token matches and hasn't expired
+        # Define the timezone
         india_tz = timezone("Asia/Kolkata")
+        
+        # Get current time as timezone-aware
         current_time = datetime.now(india_tz)
         
+        # Get the stored expiration time
+        stored_expires_at = user.reset_token_expires_at
+        
+        # CRITICAL: Ensure stored_expires_at is timezone-aware for comparison
+        # If it's naive (which is likely how SQLAlchemy's DateTime stores it),
+        # localize it to the expected timezone (Asia/Kolkata).
+        if stored_expires_at and stored_expires_at.tzinfo is None:
+            stored_expires_at = india_tz.localize(stored_expires_at)
+        # If it's already timezone-aware but in a different timezone, convert it.
+        elif stored_expires_at and stored_expires_at.tzinfo != india_tz:
+            stored_expires_at = stored_expires_at.astimezone(india_tz)
+        
+        # Check if token matches and hasn't expired
         if (user.reset_token != request.token or 
-            not user.reset_token_expires_at or 
-            current_time > user.reset_token_expires_at):
+            not stored_expires_at or  # Check if it's None
+            current_time > stored_expires_at):  # Compare timezone-aware with timezone-aware
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Invalid or expired reset token"
@@ -240,14 +255,19 @@ def reset_password(request: ResetPasswordRequest, db: Session = Depends(get_db))
         # Update user password and clear reset token
         user.password_hash = hashed_password
         user.reset_token = None
-        user.reset_token_expires_at = None
+        user.reset_token_expires_at = None  # Clear the expiration time
         db.commit()
         
         return {"message": "Password has been reset successfully"}
         
     except HTTPException:
+        # Re-raise HTTPExceptions to be handled by FastAPI
         raise
     except Exception as e:
+        # Log the actual error for debugging
+        logger.error(f"Unhandled error during password reset: {e}", exc_info=True)
+        # Rollback the session in case of an error
+        db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An error occurred while resetting your password. Please try again."
