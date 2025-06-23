@@ -1,8 +1,18 @@
-# TimeNest - Service Exchange Platform
+# TimeNest - Community Service Exchange Platform
 
-A community-driven platform for exchanging services using time credits.
+TimeNest is a revolutionary platform that enables community members to exchange services using time credits instead of money. Built on the principle that everyone's time is equally valuable, TimeNest allows users to earn credits by providing services and spend them to receive help from others. This creates a sustainable, inclusive economy where skills are valued regardless of market rates.
 
-## Project Structure
+With TimeNest, one hour of service equals one time credit, whether you're offering professional expertise or everyday assistance. The platform fosters stronger community connections, reduces financial barriers to accessing services, and encourages the sharing of diverse skills and knowledge.
+
+## Key Features
+
+- **Time-Based Currency**: Exchange services based on time spent, not market rates
+- **Skill Marketplace**: Offer your expertise or find help across diverse categories
+- **Community Building**: Connect with neighbors and build meaningful relationships
+- **Inclusive Economy**: Participate regardless of financial status
+- **Trust & Safety**: Verified profiles, ratings, and secure messaging
+
+# Project Structure
 
 ```
 ├── frontend/          # Next.js React frontend application
