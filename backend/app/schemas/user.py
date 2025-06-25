@@ -60,6 +60,10 @@ class UserLogin(BaseModel):
     email: EmailStr
     password: str
 
+class AdminLogin(BaseModel):
+    email: EmailStr = Field(..., description="Admin email address")
+    password: str = Field(..., description="Admin password")
+
 class ForgotPasswordRequest(BaseModel):
     email: EmailStr = Field(..., description="Email address to send password reset link")
 

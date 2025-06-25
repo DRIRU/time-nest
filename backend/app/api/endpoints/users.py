@@ -12,6 +12,7 @@ from ...schemas.user import (
     UserCreate, 
     UserResponse, 
     UserLogin, 
+    AdminLogin,
     Token, 
     ForgotPasswordRequest,
     ResetPasswordRequest
@@ -143,6 +144,52 @@ def login_user(user_credentials: UserLogin, db: Session = Depends(get_db)):
     )
     
     return {"access_token": access_token, "token_type": "bearer"}
+
+@router.post("/admin-login", response_model=Token)
+def admin_login(admin_credentials: AdminLogin):
+    """
+    Authenticate admin user and return access token
+    """
+    try:
+        logger.info(f"Admin login attempt for email: {admin_credentials.email}")
+        
+        # Hardcoded admin credentials (no hashing as requested)
+        ADMIN_EMAIL = "admin@timenest.com"
+        ADMIN_PASSWORD = "admin123"
+        
+        # Check admin credentials
+        if (admin_credentials.email != ADMIN_EMAIL or 
+            admin_credentials.password != ADMIN_PASSWORD):
+            logger.warning(f"Failed admin login attempt for email: {admin_credentials.email}")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid admin credentials",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        
+        logger.info(f"Successful admin login for email: {admin_credentials.email}")
+        
+        # Create access token for admin
+        access_token_expires = timedelta(hours=8)  # Longer session for admin
+        access_token = create_access_token(
+            data={
+                "sub": admin_credentials.email,
+                "role": "admin"
+            }, 
+            expires_delta=access_token_expires
+        )
+        
+        return {"access_token": access_token, "token_type": "bearer"}
+        
+    except HTTPException:
+        # Re-raise HTTPExceptions to be handled by FastAPI
+        raise
+    except Exception as e:
+        logger.error(f"Unhandled error during admin login: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An error occurred during admin authentication. Please try again."
+        )
 
 @router.post("/forgot-password")
 def forgot_password(request: ForgotPasswordRequest, db: Session = Depends(get_db)):
