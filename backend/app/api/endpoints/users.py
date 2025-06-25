@@ -8,6 +8,7 @@ import logging
 
 from ...db.database import get_db
 from ...db.models.user import User
+from ...db.models.admin import Admin
 from ...schemas.user import (
     UserCreate, 
     UserResponse, 
@@ -146,20 +147,35 @@ def login_user(user_credentials: UserLogin, db: Session = Depends(get_db)):
     return {"access_token": access_token, "token_type": "bearer"}
 
 @router.post("/admin-login", response_model=Token)
-def admin_login(admin_credentials: AdminLogin):
+def admin_login(admin_credentials: AdminLogin, db: Session = Depends(get_db)):
     """
     Authenticate admin user and return access token
     """
     try:
         logger.info(f"Admin login attempt for email: {admin_credentials.email}")
         
-        # Hardcoded admin credentials (no hashing as requested)
-        ADMIN_EMAIL = "admin@timenest.com"
-        ADMIN_PASSWORD = "admin123"
+        # Find admin by email in the database
+        admin = db.query(Admin).filter(Admin.email == admin_credentials.email).first()
         
-        # Check admin credentials
-        if (admin_credentials.email != ADMIN_EMAIL or 
-            admin_credentials.password != ADMIN_PASSWORD):
+        if not admin:
+            logger.warning(f"Admin not found for email: {admin_credentials.email}")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid admin credentials",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        
+        # Check if admin is active
+        if not admin.is_active:
+            logger.warning(f"Inactive admin login attempt for email: {admin_credentials.email}")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Admin account is deactivated",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        
+        # Verify password (plain text comparison as requested)
+        if admin_credentials.password != admin.password:
             logger.warning(f"Failed admin login attempt for email: {admin_credentials.email}")
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
@@ -167,14 +183,21 @@ def admin_login(admin_credentials: AdminLogin):
                 headers={"WWW-Authenticate": "Bearer"},
             )
         
+        # Update last login
+        india_tz = timezone("Asia/Kolkata")
+        admin.last_login = datetime.now(india_tz)
+        db.commit()
+        
         logger.info(f"Successful admin login for email: {admin_credentials.email}")
         
         # Create access token for admin
         access_token_expires = timedelta(hours=8)  # Longer session for admin
         access_token = create_access_token(
             data={
-                "sub": admin_credentials.email,
-                "role": "admin"
+                "sub": admin.email,
+                "role": "admin",
+                "admin_id": admin.admin_id,
+                "name": f"{admin.first_name} {admin.last_name}"
             }, 
             expires_delta=access_token_expires
         )
