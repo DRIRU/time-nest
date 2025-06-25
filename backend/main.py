@@ -4,6 +4,14 @@ from app.api.api import api_router
 from app.db.database import Base, engine
 import uvicorn
 import os
+import logging
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+)
+
 # Create database tables
 Base.metadata.create_all(bind=engine)
 

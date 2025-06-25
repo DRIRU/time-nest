@@ -77,22 +77,35 @@ export default function AdminLoginPage() {
     setIsLoading(true)
 
     try {
-      // TODO: Replace with actual admin authentication API call
-      // For now, we'll simulate an admin login
+      console.log("Attempting admin login with:", { email: formData.email })
       
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 1500))
-      
-      // Mock admin credentials check
-      if (formData.email === "admin@timenest.com" && formData.password === "admin123") {
+      const response = await fetch("http://localhost:8000/api/v1/users/admin-login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password,
+        }),
+      })
+
+      console.log("Response status:", response.status)
+      console.log("Response headers:", response.headers)
+
+      const result = await response.json()
+      console.log("Response data:", result)
+
+      if (response.ok) {
         setSuccess("Admin login successful! Redirecting to dashboard...")
         
-        // Store admin session (you'll want to implement proper JWT handling)
+        // Store admin session
         localStorage.setItem("adminAuth", "true")
         localStorage.setItem("adminUser", JSON.stringify({
           email: formData.email,
           role: "admin",
-          name: "Admin User"
+          name: "Admin User",
+          accessToken: result.access_token
         }))
         
         // Redirect to admin dashboard after a short delay
@@ -100,7 +113,12 @@ export default function AdminLoginPage() {
           router.push("/admin/dashboard")
         }, 1000)
       } else {
-        setError("Invalid admin credentials. Please check your email and password.")
+        // Handle login errors from backend
+        if (result.detail) {
+          setError(result.detail)
+        } else {
+          setError("Invalid admin credentials. Please check your email and password.")
+        }
       }
     } catch (err) {
       console.error("Error during admin login:", err)

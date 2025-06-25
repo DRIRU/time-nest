@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, Boolean
+from sqlalchemy import Column, Integer, String, DateTime
 from sqlalchemy.sql import func
 from ..database import Base
 
@@ -10,8 +10,6 @@ class Admin(Base):
     password = Column(String(255), nullable=False)  # Plain text as requested
     first_name = Column(String(50), nullable=False)
     last_name = Column(String(50), nullable=False)
-    role = Column(String(50), default='admin')
-    is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=func.now())
     last_login = Column(DateTime, nullable=True)
 

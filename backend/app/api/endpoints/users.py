@@ -165,18 +165,11 @@ def admin_login(admin_credentials: AdminLogin, db: Session = Depends(get_db)):
                 headers={"WWW-Authenticate": "Bearer"},
             )
         
-        # Check if admin is active
-        if not admin.is_active:
-            logger.warning(f"Inactive admin login attempt for email: {admin_credentials.email}")
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Admin account is deactivated",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
+        logger.info(f"Admin found: {admin.email}, checking password...")
         
         # Verify password (plain text comparison as requested)
         if admin_credentials.password != admin.password:
-            logger.warning(f"Failed admin login attempt for email: {admin_credentials.email}")
+            logger.warning(f"Password mismatch for admin: {admin_credentials.email}")
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid admin credentials",
@@ -190,14 +183,12 @@ def admin_login(admin_credentials: AdminLogin, db: Session = Depends(get_db)):
         
         logger.info(f"Successful admin login for email: {admin_credentials.email}")
         
-        # Create access token for admin
+        # Create access token for admin (simplified payload since role is implicit)
         access_token_expires = timedelta(hours=8)  # Longer session for admin
         access_token = create_access_token(
             data={
                 "sub": admin.email,
-                "role": "admin",
-                "admin_id": admin.admin_id,
-                "name": f"{admin.first_name} {admin.last_name}"
+                "admin_id": admin.admin_id
             }, 
             expires_delta=access_token_expires
         )
