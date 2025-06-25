@@ -341,3 +341,23 @@ export function getCategories() {
     { id: 13, name: "Other", description: "Miscellaneous services", icon: "Plus" },
   ]
 }
+
+// Get service overview statistics for admin dashboard
+export function getServiceOverviewStats() {
+  const services = getAllServices()
+  const totalReviews = services.reduce((sum, service) => sum + service.totalReviews, 0)
+  const totalRating = services.reduce((sum, service) => sum + (service.rating * service.totalReviews), 0)
+  const averageRating = totalReviews > 0 ? (totalRating / totalReviews).toFixed(1) : 0
+
+  return {
+    totalServices: services.length,
+    activeServices: services.filter(service => service.rating > 0).length,
+    averageRating: parseFloat(averageRating),
+    totalReviews: totalReviews,
+    topCategories: [
+      { name: "Tutoring", count: services.filter(s => s.category === "Tutoring").length },
+      { name: "Home & Garden", count: services.filter(s => s.category === "Home & Garden").length },
+      { name: "Fitness", count: services.filter(s => s.category === "Fitness").length },
+    ]
+  }
+}

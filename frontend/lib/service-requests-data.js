@@ -339,3 +339,31 @@ export const sortServiceRequests = (requests, sortBy) => {
       return sortedRequests
   }
 }
+
+// Get service request overview statistics for admin dashboard
+export function getServiceRequestOverviewStats() {
+  const requests = getAllServiceRequests()
+  const openRequests = requests.filter(req => req.status === "Open").length
+  const totalBudget = requests.reduce((sum, req) => sum + req.budget, 0)
+  const avgBudget = (totalBudget / requests.length).toFixed(1)
+  
+  // Calculate completion rate (mocked for demo)
+  const completionRate = 78
+
+  return {
+    totalRequests: requests.length,
+    openRequests: openRequests,
+    averageBudget: parseFloat(avgBudget),
+    completionRate: completionRate,
+    topCategories: [
+      { name: "Web Development", count: 3 },
+      { name: "Education", count: 2 },
+      { name: "Photography", count: 2 }
+    ],
+    urgencyBreakdown: {
+      high: requests.filter(req => req.urgency === "High").length,
+      medium: requests.filter(req => req.urgency === "Medium").length,
+      low: requests.filter(req => req.urgency === "Low").length
+    }
+  }
+}
