@@ -306,7 +306,8 @@ export default function ListServicePage() {
       const result = await response.json()
 
       if (!response.ok) {
-        throw new Error(result.detail || `Failed to create ${postType}`)
+        const errorMessage = result.detail || result.message || `Failed to create ${postType}`;
+        throw new Error(errorMessage);
       }
 
       console.log(`${postType} successfully created:`, result)
