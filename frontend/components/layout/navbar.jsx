@@ -17,6 +17,7 @@ import { ThemeToggle } from "@/components/ui/theme-toggle"
 export default function Navbar() {
   const pathname = usePathname()
   const { isLoggedIn, currentUser, logout } = useAuth()
+  console.log(currentUser)
 
   // Navigation items with their paths and labels
   const navItems = [
