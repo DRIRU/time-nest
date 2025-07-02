@@ -312,7 +312,7 @@ function transformBackendServiceToFrontend(backendService) {
     timeCredits: parseFloat(backendService.time_credits_per_hour) || backendService.timeCredits,
     location: backendService.location,
     rating: 4.5, // Placeholder - not yet implemented in backend
-    provider: backendService.creator_name || "Service Provider",
+    provider: backendService.creator_name || "Service Provider", // Use creator_name from backend
     providerImage: "/placeholder.svg?height=40&width=40&text=SP", // Placeholder
     image: "/placeholder.svg?height=200&width=300&text=" + encodeURIComponent(backendService.title || "Service"), // Placeholder
     availability: availability,

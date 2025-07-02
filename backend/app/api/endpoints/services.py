@@ -24,6 +24,8 @@ def create_service(
     """
     Create a new service listing
     """
+    from ...db.models.user import User
+    
     try:
         # Map availability list to individual boolean fields
         availability_map = {
@@ -66,6 +68,10 @@ def create_service(
         db.add(new_service)
         db.commit()
         db.refresh(new_service)
+
+        # Get creator name for the response
+        creator = db.query(User).filter(User.user_id == current_user.user_id).first()
+        creator_name = f"{creator.first_name} {creator.last_name}" if creator else "Unknown"
         
         # Convert the service model to response format
         # Map boolean fields back to list for response
@@ -83,6 +89,7 @@ def create_service(
         response_data = {
             "service_id": new_service.service_id,
             "creator_id": new_service.creator_id,
+            "creator_name": creator_name,
             "title": new_service.title,
             "description": new_service.description,
             "category": new_service.category,
@@ -182,6 +189,8 @@ def get_service(
     """
     Get a specific service by ID
     """
+    from ...db.models.user import User
+    
     service = db.query(Service).filter(Service.service_id == service_id).first()
     
     if not service:
@@ -203,6 +212,10 @@ def get_service(
     
     availability_response = [option for option, value in availability_map.items() if value]
     
+    # Get creator name
+    creator = db.query(User).filter(User.user_id == service.creator_id).first()
+    creator_name = f"{creator.first_name} {creator.last_name}" if creator else "Unknown"
+    
     # Convert tags string to list
     tags_response = []
     if service.tags:
@@ -211,6 +224,7 @@ def get_service(
     response_data = {
         "service_id": service.service_id,
         "creator_id": service.creator_id,
+        "creator_name": creator_name,
         "title": service.title,
         "description": service.description,
         "category": service.category,
