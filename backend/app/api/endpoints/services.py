@@ -122,6 +122,8 @@ def get_services(
     """
     Get all services with optional filtering by category
     """
+    from ...db.models.user import User
+    
     query = db.query(Service)
     
     if category:
@@ -143,6 +145,10 @@ def get_services(
             "flexible": service.availability_flexible
         }
         
+        # Get creator name
+        creator = db.query(User).filter(User.user_id == service.creator_id).first()
+        creator_name = f"{creator.first_name} {creator.last_name}" if creator else "Unknown"
+        
         availability_response = [option for option, value in availability_map.items() if value]
         
         # Convert tags string to list
@@ -153,6 +159,7 @@ def get_services(
         response_services.append({
             "service_id": service.service_id,
             "creator_id": service.creator_id,
+            "creator_name": creator_name,
             "title": service.title,
             "description": service.description,
             "category": service.category,
