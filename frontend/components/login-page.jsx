@@ -100,6 +100,7 @@ export default function LoginPage() {
         // Store the access token and user info
         const userData = {
           email: formData.email,
+          firstName: formData.firstName,
           accessToken: result.access_token,
           tokenType: result.token_type,
         }
