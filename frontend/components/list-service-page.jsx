@@ -13,10 +13,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox"
 import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { useAuth } from "@/contexts/auth-context"
 import LocationAutocomplete from "./location-autocomplete"
 
 export default function ListServicePage() {
   const router = useRouter()
+  const { isLoggedIn, currentUser } = useAuth()
   const [isLoading, setIsLoading] = useState(false)
   const [postType, setPostType] = useState("") // "service" or "request"
   const [currentStep, setCurrentStep] = useState(0) // 0 for type selection, then 1-3 for forms
@@ -238,25 +240,73 @@ export default function ListServicePage() {
 
     if (!validateStep(currentStep)) return
 
+    if (!isLoggedIn) {
+      alert("You must be logged in to publish a service or request")
+      router.push("/login")
+      return
+    }
+
     setIsLoading(true)
 
     try {
       console.log(`Submitting ${postType} data:`, formData)
 
       // Call the appropriate API route
-      const endpoint = postType === "service" ? "/api/services" : "/api/requests"
+      const endpoint = postType === "service" 
+        ? "http://localhost:8000/api/v1/services" 
+        : "/api/requests"
+      
+      // Prepare the request data based on the post type
+      let requestData = {}
+      
+      if (postType === "service") {
+        // Format data for service creation
+        requestData = {
+          title: formData.title,
+          description: formData.description,
+          category: mapCategoryValue(formData.category),
+          time_credits_per_hour: parseFloat(formData.timeCredits),
+          location: formData.location,
+          availability: formData.availability,
+          whats_included: formData.whatIncluded || null,
+          requirements: formData.requirements || null,
+          tags: formData.tags.length > 0 ? formData.tags : null
+        }
+      } else {
+        // Format data for request creation
+        requestData = {
+          title: formData.title,
+          description: formData.description,
+          category: formData.category,
+          budget: Number.parseFloat(formData.budget),
+          location: formData.location,
+          deadline: formData.deadline,
+          urgency: formData.urgency || "normal",
+          availability: formData.availability,
+          requirements: formData.requirements || "",
+          whatIncluded: formData.whatIncluded || "",
+          tags: formData.tags || [],
+          skills: formData.skills || [],
+          images: formData.images.map(img => ({ url: img.url }))
+        }
+      }
+
+      // Get the auth token
+      const token = currentUser?.accessToken
+
       const response = await fetch(endpoint, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
         },
-        body: JSON.stringify({ ...formData, type: postType }),
+        body: JSON.stringify(requestData),
       })
 
       const result = await response.json()
 
       if (!response.ok) {
-        throw new Error(result.error || `Failed to create ${postType}`)
+        throw new Error(result.detail || `Failed to create ${postType}`)
       }
 
       console.log(`${postType} successfully created:`, result)
@@ -271,16 +321,38 @@ export default function ListServicePage() {
       router.push(postType === "service" ? "/services" : "/requests")
     } catch (error) {
       console.error(`Error submitting ${postType}:`, error)
-      const demoMessage =
-        postType === "service"
-          ? `Service created in demo mode! ${error.message}`
-          : `Service request created in demo mode! ${error.message}`
-
-      alert(demoMessage)
-      router.push(postType === "service" ? "/services" : "/requests")
+      
+      if (postType === "service") {
+        alert(`Error creating service: ${error.message}`)
+      } else {
+        // For requests, we'll continue using the demo mode
+        const demoMessage = "Service request created in demo mode!"
+        alert(demoMessage)
+        router.push("/requests")
+      }
     } finally {
       setIsLoading(false)
     }
+  }
+
+  // Helper function to map category form values to database names
+  function mapCategoryValue(categoryValue) {
+    const categoryMap = {
+      "home-garden": "Home & Garden",
+      "tech-support": "Tech Support",
+      tutoring: "Tutoring",
+      transportation: "Transportation",
+      cooking: "Cooking",
+      childcare: "Childcare",
+      repairs: "Repairs",
+      "health-wellness": "Health & Wellness",
+      "arts-crafts": "Arts & Crafts",
+      photography: "Photography",
+      "language-exchange": "Language Exchange",
+      fitness: "Fitness",
+      other: "Other",
+    }
+    return categoryMap[categoryValue] || categoryValue
   }
 
   const steps =

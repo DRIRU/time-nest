@@ -1,1 +1,5 @@
 # This file makes the models directory a Python package
+from ..database import Base
+from .user import User
+from .admin import Admin
+from .service import Service

@@ -1,5 +1,6 @@
 from sqlalchemy import Column, Integer, String, DateTime, DECIMAL, Enum
 from sqlalchemy.sql import func
+from sqlalchemy.orm import relationship
 from ..database import Base
 
 class User(Base):
@@ -24,6 +25,9 @@ class User(Base):
     last_login = Column(DateTime, nullable=True)
     reset_token = Column(String(255), nullable=True)
     reset_token_expires_at = Column(DateTime, nullable=True)
+
+    # Relationship with the Service model
+    services = relationship("Service", back_populates="creator", cascade="all, delete-orphan")
 
     def __repr__(self):
         return f"<User(user_id={self.user_id}, email='{self.email}', name='{self.first_name} {self.last_name}')>"
