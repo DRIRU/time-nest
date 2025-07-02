@@ -72,7 +72,7 @@ export default function Navbar() {
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" className="flex items-center space-x-2">
                     <User className="h-4 w-4" />
-                    <span>{currentUser?.email || "User"}</span>
+                    <span>{currentUser?.firstName || "User"}</span>
                     <ChevronDown className="h-4 w-4" />
                   </Button>
                 </DropdownMenuTrigger>
