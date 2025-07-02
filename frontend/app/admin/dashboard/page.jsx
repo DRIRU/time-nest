@@ -1,10 +1,6 @@
-import AdminDashboardPage from "@/components/admin/admin-dashboard-page"
+import { redirect } from "next/navigation"
 
-export const metadata = {
-  title: "Admin Dashboard | TimeNest",
-  description: "TimeNest administration dashboard with statistics and management tools",
-}
-
-export default function AdminDashboard() {
-  return <AdminDashboardPage />
+export default function AdminDashboardRedirect() {
+  redirect("/admin")
+  return null
 }

@@ -110,7 +110,7 @@ export default function AdminLoginPage() {
         
         // Redirect to admin dashboard after a short delay
         setTimeout(() => {
-          router.push("/admin/dashboard")
+          router.push("/admin")
         }, 1000)
       } else {
         // Handle login errors from backend
