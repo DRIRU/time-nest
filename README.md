@@ -84,7 +84,7 @@ cd backend
 ### Backend (Planned)
 - FastAPI
 - Python
-- MySQL
+- My SQL
 - JWT Authentication
 - WebSocket support
 
