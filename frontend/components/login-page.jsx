@@ -94,13 +94,16 @@ export default function LoginPage() {
       const result = await response.json()
 
       if (response.ok) {
+        // Decode the JWT token to extract user information
+        const tokenData = parseJwt(result.access_token);
+        
         // Login successful
         setSuccess("Login successful! Redirecting...")
         
         // Store the access token and user info
         const userData = {
           email: formData.email,
-          firstName: formData.firstName,
+          firstName: tokenData.firstName || "User", // Get firstName from token
           accessToken: result.access_token,
           tokenType: result.token_type,
         }
@@ -127,6 +130,21 @@ export default function LoginPage() {
       setIsLoading(false)
     }
   }
+
+  // Helper function to decode JWT token
+  const parseJwt = (token) => {
+    try {
+      const base64Url = token.split('.')[1];
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+      const jsonPayload = decodeURIComponent(atob(base64).split('').map((c) => {
+        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+      }).join(''));
+      return JSON.parse(jsonPayload);
+    } catch (error) {
+      console.error("Error parsing JWT token:", error);
+      return {};
+    }
+  };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 dark:from-gray-900 dark:to-gray-800 p-4">

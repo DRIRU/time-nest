@@ -39,6 +39,7 @@ router = APIRouter()
 def get_current_user_dependency(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
     from ...core.security import verify_token
     
+    # Get the email from the token
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -49,6 +50,7 @@ def get_current_user_dependency(token: str = Depends(oauth2_scheme), db: Session
     if email is None:
         raise credentials_exception
     
+    # Get the user from the database
     user = db.query(User).filter(User.email == email).first()
     if user is None:
         raise credentials_exception
