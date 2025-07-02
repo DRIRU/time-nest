@@ -269,8 +269,8 @@ export default function ListServicePage() {
           location: formData.location,
           availability: formData.availability,
           whats_included: formData.whatIncluded || null,
-          requirements: formData.requirements || null,
-          tags: formData.tags.length > 0 ? formData.tags : null
+          requirements: formData.requirements || null
+          // Removed tags field as requested
         }
       } else {
         // Format data for request creation
@@ -306,7 +306,21 @@ export default function ListServicePage() {
       const result = await response.json()
 
       if (!response.ok) {
-        const errorMessage = result.detail || result.message || `Failed to create ${postType}`;
+        let errorMessage = "Failed to create service";
+        
+        // Try to extract detailed error message
+        if (result.detail) {
+          if (Array.isArray(result.detail)) {
+            // Handle validation errors array
+            errorMessage = result.detail.map(err => `${err.loc.join('.')}: ${err.msg}`).join(', ');
+          } else {
+            // Handle string error message
+            errorMessage = result.detail;
+          }
+        } else if (result.message) {
+          errorMessage = result.message;
+        }
+        
         throw new Error(errorMessage);
       }
 
