@@ -1,6 +1,6 @@
 import Layout from "@/components/layout/layout"
 import ServicesPageClient from "@/components/services/services-page-client"
-import { getAllServices } from "@/lib/services-data"
+import { getAllServices } from "@/lib/database-services"
 
 export const metadata = {
   title: "Browse Services | TimeNest",
@@ -9,8 +9,8 @@ export const metadata = {
 
 export default async function Services({ searchParams }) {
   try {
-    // Get services directly from mock data
-    const services = getAllServices()
+    // Get services from the backend
+    const services = await getAllServices()
     return (
       <Layout>
         <ServicesPageClient initialServices={services} searchParams={searchParams} />

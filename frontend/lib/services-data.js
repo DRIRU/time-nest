@@ -244,107 +244,10 @@ const MOCK_SERVICES = [
   },
 ]
 
-// Get all services
-export function getAllServices() {
-  return MOCK_SERVICES
-}
-
-// Get service by ID
-export function getServiceById(id) {
-  return MOCK_SERVICES.find((service) => service.id === id)
-}
-
-// Filter services based on criteria
-export function filterServices(filters = {}) {
-  let filtered = [...MOCK_SERVICES]
-
-  // Apply search query
-  if (filters.search) {
-    const query = filters.search.toLowerCase()
-    filtered = filtered.filter(
-      (service) =>
-        service.title.toLowerCase().includes(query) ||
-        service.description.toLowerCase().includes(query) ||
-        service.category.toLowerCase().includes(query) ||
-        (service.tags && service.tags.some((tag) => tag.toLowerCase().includes(query))),
-    )
-  }
-
-  // Apply category filter
-  if (filters.category && filters.category !== "all") {
-    filtered = filtered.filter((service) => service.category === filters.category)
-  }
-
-  // Apply price range filter
-  if (filters.minCredits !== undefined) {
-    filtered = filtered.filter((service) => service.timeCredits >= filters.minCredits)
-  }
-  if (filters.maxCredits !== undefined) {
-    filtered = filtered.filter((service) => service.timeCredits <= filters.maxCredits)
-  }
-
-  // Apply location filter
-  if (filters.location && filters.location !== "any") {
-    filtered = filtered.filter((service) => {
-      if (!service.location) return false
-      const serviceLocationParts = service.location
-        .toLowerCase()
-        .split(",")
-        .map((part) => part.trim())
-      const filterLocationParts = filters.location
-        .toLowerCase()
-        .split(",")
-        .map((part) => part.trim())
-      return filterLocationParts.some((filterPart) =>
-        serviceLocationParts.some((servicePart) => servicePart.includes(filterPart)),
-      )
-    })
-  }
-
-  // Apply rating filter
-  if (filters.minRating !== undefined) {
-    filtered = filtered.filter((service) => service.rating >= filters.minRating)
-  }
-
-  // Apply availability filter
-  if (filters.availability && filters.availability.length > 0) {
-    filtered = filtered.filter((service) =>
-      filters.availability.some((day) =>
-        service.availability.some((serviceDay) => serviceDay.toLowerCase().includes(day.toLowerCase())),
-      ),
-    )
-  }
-
-  return filtered
-}
-
-// Get categories (static data)
-export function getCategories() {
-  return [
-    { id: 1, name: "Home & Garden", description: "Home maintenance, gardening, and outdoor services", icon: "Home" },
-    {
-      id: 2,
-      name: "Tech Support",
-      description: "Computer repair, software help, and technical assistance",
-      icon: "Laptop",
-    },
-    { id: 3, name: "Tutoring", description: "Educational services and skill teaching", icon: "BookOpen" },
-    { id: 4, name: "Transportation", description: "Travel assistance and vehicle services", icon: "Car" },
-    { id: 5, name: "Cooking", description: "Meal preparation and culinary services", icon: "Utensils" },
-    { id: 6, name: "Childcare", description: "Child supervision and care services", icon: "Baby" },
-    { id: 7, name: "Repairs", description: "General repair and maintenance services", icon: "Wrench" },
-    { id: 8, name: "Health & Wellness", description: "Fitness, health, and wellness services", icon: "Heart" },
-    { id: 9, name: "Arts & Crafts", description: "Creative and artistic services", icon: "Palette" },
-    { id: 10, name: "Photography", description: "Photo and video services", icon: "Camera" },
-    { id: 11, name: "Language Exchange", description: "Language learning and practice", icon: "MessageCircle" },
-    { id: 12, name: "Fitness", description: "Physical fitness and exercise services", icon: "Dumbbell" },
-    { id: 13, name: "Other", description: "Miscellaneous services", icon: "Plus" },
-  ]
-}
 
 // Get service overview statistics for admin dashboard
 export function getServiceOverviewStats() {
-  const services = getAllServices()
+  const services = MOCK_SERVICES
   const totalReviews = services.reduce((sum, service) => sum + service.totalReviews, 0)
   const totalRating = services.reduce((sum, service) => sum + (service.rating * service.totalReviews), 0)
   const averageRating = totalReviews > 0 ? (totalRating / totalReviews).toFixed(1) : 0

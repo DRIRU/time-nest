@@ -1,10 +1,9 @@
-import { addService } from "@/lib/database-services"
-import { getAllServices } from "@/lib/services-data" // Import directly from services-data
+import { addService, getAllServices } from "@/lib/database-services"
 import { NextResponse } from "next/server"
 
 export async function GET() {
   try {
-    const services = getAllServices() // Call directly without await
+    const services = await getAllServices() // Now we need to await since it's an async function
     return NextResponse.json({ services })
   } catch (error) {
     console.error("Error fetching services:", error)
@@ -22,7 +21,7 @@ export async function POST(request) {
     }
 
     const newService = await addService(serviceData)
-
+    
     return NextResponse.json({
       success: true,
       service: newService,

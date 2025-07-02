@@ -22,7 +22,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Separator } from "@/components/ui/separator"
 import ServiceCard from "./service-card"
 import ServiceListItem from "./service-list-item"
-import { filterServices, getCategories } from "@/lib/services-data"
+import { filterServices, getCategories } from "@/lib/database-services"
 
 export default function ServicesPageClient({ initialServices, searchParams }) {
   const router = useRouter()
@@ -52,8 +52,9 @@ export default function ServicesPageClient({ initialServices, searchParams }) {
     setIsLoading(true)
 
     // Simulate API call delay
-    const timer = setTimeout(() => {
-      const filters = {
+    const timer = setTimeout(async () => {
+      try {
+        const filters = {
         search: searchQuery,
         category: selectedCategory !== "all" ? selectedCategory : undefined,
         minCredits: priceRange[0],
@@ -62,10 +63,14 @@ export default function ServicesPageClient({ initialServices, searchParams }) {
         minRating: rating !== "any" ? Number.parseInt(rating) : undefined,
         availability: availability,
       }
-
-      const results = filterServices(filters)
-      setFilteredServices(results)
-      setIsLoading(false)
+        
+        const results = await filterServices(filters)
+        setFilteredServices(results)
+        setIsLoading(false)
+      } catch (error) {
+        console.error("Error filtering services:", error)
+        setIsLoading(false)
+      }
     }, 300)
 
     return () => clearTimeout(timer)

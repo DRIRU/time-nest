@@ -1,10 +1,10 @@
 import Layout from "@/components/layout/layout"
 import ServiceDetailPage from "@/components/services/service-detail-page"
-import { getServiceById } from "@/lib/services-data"
+import { getServiceById } from "@/lib/database-services"
 
 export async function generateMetadata({ params }) {
   try {
-    const service = getServiceById(params.id)
+    const service = await getServiceById(params.id)
 
     if (!service) {
       return {
@@ -26,7 +26,7 @@ export async function generateMetadata({ params }) {
 
 export default async function ServiceDetail({ params }) {
   try {
-    const service = getServiceById(params.id)
+    const service = await getServiceById(params.id)
 
     if (!service) {
       return (

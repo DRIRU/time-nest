@@ -13,8 +13,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox"
 import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { useAuth } from "@/contexts/auth-context"
+import { useAuth } from "@/contexts/auth-context" 
 import LocationAutocomplete from "./location-autocomplete"
+import { mapCategoryValue } from "@/lib/database-services"
 
 export default function ListServicePage() {
   const router = useRouter()
@@ -264,13 +265,12 @@ export default function ListServicePage() {
         requestData = {
           title: formData.title,
           description: formData.description,
-          category: mapCategoryValue(formData.category),
+          category: formData.category,
           time_credits_per_hour: parseFloat(formData.timeCredits),
           location: formData.location,
           availability: formData.availability,
           whats_included: formData.whatIncluded || null,
           requirements: formData.requirements || null
-          // Removed tags field as requested
         }
       } else {
         // Format data for request creation
@@ -293,47 +293,6 @@ export default function ListServicePage() {
 
       // Get the auth token
       const token = currentUser?.accessToken
-
-      const response = await fetch(endpoint, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
-        },
-        body: JSON.stringify(requestData),
-      })
-
-      const result = await response.json()
-
-      if (!response.ok) {
-        let errorMessage = "Failed to create service";
-        
-        // Try to extract detailed error message
-        if (result.detail) {
-          if (Array.isArray(result.detail)) {
-            // Handle validation errors array
-            errorMessage = result.detail.map(err => `${err.loc.join('.')}: ${err.msg}`).join(', ');
-          } else {
-            // Handle string error message
-            errorMessage = result.detail;
-          }
-        } else if (result.message) {
-          errorMessage = result.message;
-        }
-        
-        throw new Error(errorMessage);
-      }
-
-      console.log(`${postType} successfully created:`, result)
-
-      // Show success message and redirect
-      const successMessage =
-        postType === "service"
-          ? "Service listed successfully! You can now see it in the services list."
-          : "Service request posted successfully! Providers will be able to see and respond to your request."
-
-      alert(successMessage)
-      router.push(postType === "service" ? "/services" : "/requests")
     } catch (error) {
       console.error(`Error submitting ${postType}:`, error)
       

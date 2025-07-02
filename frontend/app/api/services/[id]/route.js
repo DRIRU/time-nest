@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { getServiceById } from "@/lib/database-services"
+import { getServiceById } from "@/lib/database-services" // This import is already correct
 
 export async function GET(request, { params }) {
   try {
