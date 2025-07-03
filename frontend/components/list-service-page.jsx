@@ -15,7 +15,7 @@ import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useAuth } from "@/contexts/auth-context" 
 import LocationAutocomplete from "./location-autocomplete"
-import { mapCategoryValue } from "@/lib/database-services"
+import { mapCategoryValue, addService } from "@/lib/database-services"
 
 export default function ListServicePage() {
   const router = useRouter()
@@ -236,48 +236,56 @@ export default function ListServicePage() {
 
   const handlePublish = async () => {
     if (currentStep !== 3) {
-      return
+      return;
     }
-
-    if (!validateStep(currentStep)) return
-
+  
+    if (!validateStep(currentStep)) return;
+  
     if (!isLoggedIn) {
-      alert("You must be logged in to publish a service or request")
-      router.push("/login")
-      return
+      alert("You must be logged in to publish a service or request");
+      router.push("/login");
+      return;
     }
-
-    setIsLoading(true)
-
+  
+    setIsLoading(true);
+  
     try {
-      console.log(`Submitting ${postType} data:`, formData)
-
-      // Call the appropriate API route
+      console.log(`Submitting ${postType} data:`, formData);
+  
+      // Call the appropriate API route using addService
       const endpoint = postType === "service" 
         ? "http://localhost:8000/api/v1/services" 
-        : "/api/requests"
+        : "/api/requests";
       
       // Prepare the request data based on the post type
-      let requestData = {}
+      let requestData = {};
       
       if (postType === "service") {
         // Format data for service creation
         requestData = {
           title: formData.title,
           description: formData.description,
-          category: formData.category,
-          time_credits_per_hour: parseFloat(formData.timeCredits),
+          category: mapCategoryValue(formData.category), // Map category value to database name
+          timeCredits: formData.timeCredits, // Use timeCredits as is, transformed in addService
           location: formData.location,
           availability: formData.availability,
-          whats_included: formData.whatIncluded || null,
-          requirements: formData.requirements || null
-        }
+          whatIncluded: formData.whatIncluded || null,
+          requirements: formData.requirements || null,
+        };
+        
+        // Call addService from database-services.js
+        const response = await addService(requestData);
+        console.log("Service created:", response);
+  
+        // Redirect to services page or show success message
+        alert("Service created successfully!");
+        router.push("/services");
       } else {
-        // Format data for request creation
+        // Format data for request creation (demo mode as per current logic)
         requestData = {
           title: formData.title,
           description: formData.description,
-          category: formData.category,
+          category: mapCategoryValue(formData.category),
           budget: Number.parseFloat(formData.budget),
           location: formData.location,
           deadline: formData.deadline,
@@ -287,28 +295,26 @@ export default function ListServicePage() {
           whatIncluded: formData.whatIncluded || "",
           tags: formData.tags || [],
           skills: formData.skills || [],
-          images: formData.images.map(img => ({ url: img.url }))
-        }
+          images: formData.images.map(img => ({ url: img.url })),
+        };
+  
+        // Demo mode for requests
+        const demoMessage = "Service request created in demo mode!";
+        alert(demoMessage);
+        router.push("/requests");
       }
-
-      // Get the auth token
-      const token = currentUser?.accessToken
     } catch (error) {
-      console.error(`Error submitting ${postType}:`, error)
-      
+      console.error(`Error submitting ${postType}:`, error);
       if (postType === "service") {
-        alert(`Error creating service: ${error.message}`)
+        alert(`Error creating service: ${error.message}`);
       } else {
-        // For requests, we'll continue using the demo mode
-        const demoMessage = "Service request created in demo mode!"
-        alert(demoMessage)
-        router.push("/requests")
+        alert(`Error creating request: ${error.message}`);
       }
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
-
+};
+  
   // Helper function to map category form values to database names
   function mapCategoryValue(categoryValue) {
     const categoryMap = {
