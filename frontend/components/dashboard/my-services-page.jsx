@@ -17,7 +17,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/componen
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { useAuth } from "@/contexts/auth-context"
-import { getAllServices } from "@/lib/database-services"
+import { getAllServices, deleteService } from "@/lib/database-services"
 import DashboardSidebar from "./dashboard-sidebar"
 import Link from "next/link"
 
@@ -29,9 +29,9 @@ export default function MyServicesPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState(null)
   const [searchTerm, setSearchTerm] = useState("")
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(null)
 
   useEffect(() => {
-    // Wait for auth to be checked
     if (loading) return;
     
     if (!isLoggedIn) {
@@ -47,7 +47,6 @@ export default function MyServicesPage() {
       setIsLoading(true)
       setError(null)
       
-      // Pass the creator_id to filter services on the backend
       const myServices = await getAllServices({
         creatorId: currentUser?.user_id
       })
@@ -62,8 +61,27 @@ export default function MyServicesPage() {
     }
   }
 
+  const handleDelete = async (serviceId) => {
+    if (showDeleteConfirm === serviceId) {
+      try {
+        setIsLoading(true)
+        await deleteService(serviceId)
+        setServices(services.filter(service => service.id !== serviceId))
+        setFilteredServices(filteredServices.filter(service => service.id !== serviceId))
+        setShowDeleteConfirm(null)
+        setError(null)
+      } catch (error) {
+        setError("Failed to delete service. Please try again.")
+        console.error("Delete error:", error)
+      } finally {
+        setIsLoading(false)
+      }
+    } else {
+      setShowDeleteConfirm(serviceId)
+    }
+  }
+
   useEffect(() => {
-    // Filter services based on search term
     if (searchTerm) {
       const term = searchTerm.toLowerCase()
       const filtered = services.filter(service => 
@@ -86,7 +104,7 @@ export default function MyServicesPage() {
   }
 
   if (!isLoggedIn) {
-    return null // Redirect handled in useEffect
+    return null
   }
 
   return (
@@ -96,7 +114,6 @@ export default function MyServicesPage() {
         
         <div className="flex-1 p-8 md:ml-64">
           <div className="max-w-6xl mx-auto">
-            {/* Header */}
             <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-8 gap-4">
               <div>
                 <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">My Services</h1>
@@ -112,7 +129,6 @@ export default function MyServicesPage() {
               </Link>
             </div>
 
-            {/* Search */}
             <div className="mb-6">
               <div className="relative">
                 <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
@@ -125,7 +141,6 @@ export default function MyServicesPage() {
               </div>
             </div>
 
-            {/* Error Message */}
             {error && (
               <div className="mb-6 bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 p-4">
                 <div className="flex">
@@ -135,7 +150,6 @@ export default function MyServicesPage() {
               </div>
             )}
 
-            {/* Services List */}
             {isLoading ? (
               <div className="flex justify-center items-center h-64">
                 <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
@@ -195,11 +209,25 @@ export default function MyServicesPage() {
                         </Link>
                       </Button>
                       <div className="flex gap-2">
-                        <Button variant="outline" size="icon" className="h-9 w-9">
-                          <Edit className="h-4 w-4" />
+                        <Button variant="outline" size="icon" className="h-9 w-9" asChild>
+                          <Link href={`/edit-service/${service.id}`}>
+                            <Edit className="h-4 w-4" />
+                          </Link>
                         </Button>
-                        <Button variant="outline" size="icon" className="h-9 w-9 text-red-500 hover:text-red-600">
-                          <Trash className="h-4 w-4" />
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className={`h-9 w-9 ${showDeleteConfirm === service.id ? "text-red-500 hover:text-red-600" : "text-red-500 hover:text-red-600"}`}
+                          onClick={() => handleDelete(service.id)}
+                        >
+                          {showDeleteConfirm === service.id ? (
+                            <>
+                              <span className="sr-only">Confirm Delete</span>
+                              <AlertCircle className="h-4 w-4" />
+                            </>
+                          ) : (
+                            <Trash className="h-4 w-4" />
+                          )}
                         </Button>
                       </div>
                     </CardFooter>
