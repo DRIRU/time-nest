@@ -7,15 +7,15 @@ class BookingBase(BaseModel):
     service_id: int
     scheduled_datetime: datetime 
     message: Optional[str] = None
-    duration_minutes: Optional[int] = Field(60, ge=1, le=480)
-    time_credits_used: Optional[Decimal] = Field(0.0, ge=0.0)
+    duration_minutes: int = Field(60, ge=1, le=480)  # ✅ Required with default
+    time_credits_used: Decimal = Field(0.0, ge=0.0)   # ✅ Required with default
 
 class BookingCreate(BookingBase):
     pass
 
 class BookingUpdate(BaseModel):
     scheduled_datetime: Optional[datetime] = None 
-    duration_minutes: Optional[int] = Field(60, ge=1, le=480)
+    duration_minutes: Optional[int] = Field(None, ge=1, le=480)  # ✅ optional with no default
     message: Optional[str] = None
     status: Optional[str] = Field(None, description="One of: pending, confirmed, completed, cancelled, rejected")
 
