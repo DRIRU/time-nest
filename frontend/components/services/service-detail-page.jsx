@@ -16,6 +16,7 @@ import {
   Clock,
   X,
   CalendarIcon,
+  AlertCircle,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -27,9 +28,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Calendar as CalendarComponent } from "@/components/ui/calendar"
 import { Textarea } from "@/components/ui/textarea"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { getServiceById, addServiceBooking } from "@/lib/database-services"
 import { useAuth } from "@/contexts/auth-context"
-import { format } from "date-fns"
+import { format, parseISO, set } from "date-fns"
 
 export default function ServiceDetailPage({ initialService = null }) {
   const [service, setService] = useState(initialService)
@@ -41,6 +44,8 @@ export default function ServiceDetailPage({ initialService = null }) {
   // Booking modal state
   const [showBookingModal, setShowBookingModal] = useState(false)
   const [selectedDate, setSelectedDate] = useState(new Date())
+  const [selectedTime, setSelectedTime] = useState("09:00")
+  const [durationMinutes, setDurationMinutes] = useState(60)
   const [bookingMessage, setBookingMessage] = useState("")
   const [bookingLoading, setBookingLoading] = useState(false)
   const [bookingError, setBookingError] = useState("")
@@ -134,11 +139,20 @@ export default function ServiceDetailPage({ initialService = null }) {
     setBookingError("")
 
     try {
+      // Combine date and time into a single datetime
+      const [hours, minutes] = selectedTime.split(':').map(Number)
+      const scheduledDatetime = set(selectedDate, { hours, minutes })
+      
+      // Calculate time credits based on duration
+      const timeCreditsPerHour = parseFloat(service.timeCredits)
+      const timeCreditsUsed = (timeCreditsPerHour / 60) * durationMinutes
+      
       const bookingData = {
         service_id: parseInt(service.id),
-        scheduled_date: selectedDate,
+        scheduled_datetime: scheduledDatetime.toISOString(),
+        duration_minutes: durationMinutes,
         message: bookingMessage,
-        time_credits_used: service.timeCredits
+        time_credits_used: timeCreditsUsed
       }
 
       const result = await addServiceBooking(bookingData)
@@ -457,7 +471,7 @@ export default function ServiceDetailPage({ initialService = null }) {
           <DialogHeader>
             <DialogTitle>Book Service</DialogTitle>
             <DialogDescription>
-              Select a date and add an optional message to book this service.
+              Select a date, time, and duration to book this service.
             </DialogDescription>
           </DialogHeader>
           
@@ -478,7 +492,7 @@ export default function ServiceDetailPage({ initialService = null }) {
               <div className="py-4">
                 <div className="mb-4">
                   <h3 className="text-sm font-medium mb-2">Select Date</h3>
-                  <div className="border rounded-md p-2">
+                  <div className="border rounded-md p-2 flex justify-center">
                     <CalendarComponent
                       mode="single"
                       selected={selectedDate}
@@ -493,8 +507,37 @@ export default function ServiceDetailPage({ initialService = null }) {
                 </div>
 
                 <div className="mb-4">
-                  <h3 className="text-sm font-medium mb-2">Message (Optional)</h3>
+                  <Label htmlFor="time" className="text-sm font-medium mb-2 block">Select Time</Label>
+                  <Input
+                    id="time"
+                    type="time"
+                    value={selectedTime}
+                    onChange={(e) => setSelectedTime(e.target.value)}
+                    className="w-full"
+                  />
+                </div>
+
+                <div className="mb-4">
+                  <Label htmlFor="duration" className="text-sm font-medium mb-2 block">Duration (minutes)</Label>
+                  <Input
+                    id="duration"
+                    type="number"
+                    min="15"
+                    max="480"
+                    step="15"
+                    value={durationMinutes}
+                    onChange={(e) => setDurationMinutes(parseInt(e.target.value))}
+                    className="w-full"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Minimum: 15 minutes, Maximum: 8 hours (480 minutes)
+                  </p>
+                </div>
+
+                <div className="mb-4">
+                  <Label htmlFor="message" className="text-sm font-medium mb-2 block">Message (Optional)</Label>
                   <Textarea
+                    id="message"
                     placeholder="Add any specific details or questions for the service provider..."
                     value={bookingMessage}
                     onChange={(e) => setBookingMessage(e.target.value)}
@@ -504,14 +547,26 @@ export default function ServiceDetailPage({ initialService = null }) {
                 </div>
 
                 <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-md">
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm font-medium">Service Cost:</span>
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-sm font-medium">Service Rate:</span>
                     <span className="font-bold">{service.timeCredits} credits/hour</span>
+                  </div>
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-sm font-medium">Duration:</span>
+                    <span className="font-medium">{durationMinutes} minutes</span>
+                  </div>
+                  <Separator className="my-2" />
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm font-medium">Total Cost:</span>
+                    <span className="font-bold text-blue-600">
+                      {((service.timeCredits / 60) * durationMinutes).toFixed(2)} credits
+                    </span>
                   </div>
                 </div>
 
                 {bookingError && (
                   <Alert variant="destructive" className="mt-4">
+                    <AlertCircle className="h-4 w-4 mr-2" />
                     <AlertDescription>{bookingError}</AlertDescription>
                   </Alert>
                 )}

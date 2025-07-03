@@ -182,7 +182,6 @@ export async function addRequest(requestData) {
 /**
  * Creates a new service booking
  * @param {Object} bookingData Booking data to add
- * @param {string} token Authentication token
  * @returns {Promise<Object>} Created booking
  */
 export async function addServiceBooking(bookingData) {

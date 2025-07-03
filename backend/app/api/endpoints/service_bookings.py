@@ -40,7 +40,8 @@ def create_booking(
         new_booking = ServiceBooking(
             service_id=booking_data.service_id,
             user_id=current_user.user_id,
-            scheduled_date=booking_data.scheduled_date,
+            scheduled_datetime=booking_data.scheduled_datetime,
+            duration_minutes=booking_data.duration_minutes,
             message=booking_data.message,
             time_credits_used=booking_data.time_credits_used,
             status=BookingStatusEnum.pending
@@ -62,7 +63,8 @@ def create_booking(
             "booking_id": new_booking.booking_id,
             "service_id": new_booking.service_id,
             "user_id": new_booking.user_id,
-            "scheduled_date": new_booking.scheduled_date,
+            "scheduled_datetime": new_booking.scheduled_datetime,
+            "duration_minutes": new_booking.duration_minutes,
             "message": new_booking.message,
             "time_credits_used": new_booking.time_credits_used,
             "status": new_booking.status,
@@ -127,7 +129,8 @@ def get_bookings(
                 "booking_id": booking.booking_id,
                 "service_id": booking.service_id,
                 "user_id": booking.user_id,
-                "scheduled_date": booking.scheduled_date,
+                "scheduled_datetime": booking.scheduled_datetime,
+                "duration_minutes": booking.duration_minutes,
                 "message": booking.message,
                 "time_credits_used": booking.time_credits_used,
                 "status": booking.status,
@@ -181,7 +184,8 @@ def get_booking(
         "booking_id": booking.booking_id,
         "service_id": booking.service_id,
         "user_id": booking.user_id,
-        "scheduled_date": booking.scheduled_date,
+        "scheduled_datetime": booking.scheduled_datetime,
+        "duration_minutes": booking.duration_minutes,
         "message": booking.message,
         "time_credits_used": booking.time_credits_used,
         "status": booking.status,
@@ -219,8 +223,10 @@ def update_booking(
         )
     
     # Update fields if provided
-    if booking_data.scheduled_date is not None:
-        booking.scheduled_date = booking_data.scheduled_date
+    if booking_data.scheduled_datetime is not None:
+        booking.scheduled_datetime = booking_data.scheduled_datetime
+    if booking_data.duration_minutes is not None:
+        booking.duration_minutes = booking_data.duration_minutes
     if booking_data.message is not None:
         booking.message = booking_data.message
     if booking_data.status is not None:
@@ -248,7 +254,8 @@ def update_booking(
             "booking_id": booking.booking_id,
             "service_id": booking.service_id,
             "user_id": booking.user_id,
-            "scheduled_date": booking.scheduled_date,
+            "scheduled_datetime": booking.scheduled_datetime,
+            "duration_minutes": booking.duration_minutes,
             "message": booking.message,
             "time_credits_used": booking.time_credits_used,
             "status": booking.status,
