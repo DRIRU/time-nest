@@ -227,6 +227,90 @@ export async function addServiceBooking(bookingData) {
 }
 
 /**
+ * Fetches all service bookings for the current user
+ * @returns {Promise<Array>} Array of bookings
+ */
+export async function getServiceBookings() {
+  try {
+    // Get the auth token from localStorage
+    const currentUser = JSON.parse(localStorage.getItem("currentUser") || "{}");
+    const token = currentUser?.accessToken;
+
+    if (!token) {
+      throw new Error("Authentication token not found. Please log in.");
+    }
+
+    const response = await fetch("http://localhost:8000/api/v1/service-bookings", {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Error fetching bookings: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error("Error fetching service bookings:", error);
+    throw error;
+  }
+}
+
+/**
+ * Updates a service booking status
+ * @param {number} bookingId The ID of the booking to update
+ * @param {string} newStatus The new status to set (confirmed, completed, cancelled, rejected)
+ * @returns {Promise<Object>} Updated booking
+ */
+export async function updateServiceBookingStatus(bookingId, newStatus) {
+  try {
+    // Get the auth token from localStorage
+    const currentUser = JSON.parse(localStorage.getItem("currentUser") || "{}");
+    const token = currentUser?.accessToken;
+
+    if (!token) {
+      throw new Error("Authentication token not found. Please log in.");
+    }
+
+    const response = await fetch(`http://localhost:8000/api/v1/service-bookings/${bookingId}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        status: newStatus
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      let errorMessage = "Failed to update booking status";
+      
+      if (errorData.detail) {
+        if (Array.isArray(errorData.detail)) {
+          errorMessage = errorData.detail.map(err => `${err.loc.join('.')}: ${err.msg}`).join(', ');
+        } else {
+          errorMessage = errorData.detail;
+        }
+      }
+      
+      throw new Error(errorMessage);
+    }
+
+    const result = await response.json();
+    return result;
+  } catch (error) {
+    console.error(`Error updating booking status to ${newStatus}:`, error);
+    throw error;
+  }
+}
+
+/**
  * Filters services based on criteria
  * @param {Object} filters Filter criteria
  * @returns {Promise<Array>} Filtered services
