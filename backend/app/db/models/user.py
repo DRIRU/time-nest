@@ -27,6 +27,7 @@ class User(Base):
     reset_token_expires_at = Column(DateTime, nullable=True)
 
     # Relationship with the Service model
+    #
     services = relationship("Service", back_populates="creator", cascade="all, delete-orphan")
 
     def __repr__(self):
