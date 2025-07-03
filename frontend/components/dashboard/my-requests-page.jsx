@@ -52,6 +52,7 @@ export default function MyRequestsPage() {
   const [processingProposalId, setProcessingProposalId] = useState(null)
 
   useEffect(() => {
+    // Wait for auth to be checked
     if (loading) return;
     
     if (!isLoggedIn) {
@@ -67,23 +68,34 @@ export default function MyRequestsPage() {
       setIsLoading(true)
       setError(null)
       
+      // Fetch all requests
       const allRequests = await getAllServiceRequests()
+      
+      // Filter requests created by the current user
       const myPostedRequests = allRequests.filter(request => 
         request.creator_id === parseInt(currentUser?.user_id)
       )
+      
       setRequests(myPostedRequests)
       setFilteredRequests(myPostedRequests)
       
+      // Fetch proposals submitted by the current user
       try {
+        // This will fetch all proposals where the user is either the request creator or the proposer
         const allProposals = await getProposalsForRequest()
+        
+        // Filter to only include proposals submitted by the current user
         const submittedProposals = allProposals.filter(proposal => 
           parseInt(proposal.proposer_id) === parseInt(currentUser?.user_id)
         )
+        
         setMyProposals(submittedProposals)
         setFilteredProposals(submittedProposals)
       } catch (proposalError) {
         console.error("Error fetching proposals:", proposalError)
+        // Don't set the main error state, as we still have the requests data
       }
+      
     } catch (error) {
       console.error("Error fetching requests:", error)
       setError("Failed to load requests. Please try again later.")
@@ -93,6 +105,7 @@ export default function MyRequestsPage() {
   }
 
   useEffect(() => {
+    // Filter requests based on search term
     if (activeTab === "posted") {
       if (searchTerm) {
         const term = searchTerm.toLowerCase()
@@ -106,6 +119,7 @@ export default function MyRequestsPage() {
         setFilteredRequests(requests)
       }
     } else {
+      // Filter proposals based on search term
       if (searchTerm) {
         const term = searchTerm.toLowerCase()
         const filtered = myProposals.filter(proposal => 
@@ -156,6 +170,7 @@ export default function MyRequestsPage() {
     
     setExpandedRequestId(requestId)
     
+    // Fetch proposals for this request if not already loaded
     if (!requestProposals[requestId]) {
       try {
         setLoadingProposals(prev => ({ ...prev, [requestId]: true }))
@@ -173,7 +188,11 @@ export default function MyRequestsPage() {
     try {
       setProcessingProposalId(proposalId)
       await updateProposal(proposalId, { status: "accepted" })
+      
+      // Refresh the data
       await fetchData()
+      
+      // Close the expanded view
       setExpandedRequestId(null)
     } catch (error) {
       console.error("Error accepting proposal:", error)
@@ -187,6 +206,8 @@ export default function MyRequestsPage() {
     try {
       setProcessingProposalId(proposalId)
       await updateProposal(proposalId, { status: "rejected" })
+      
+      // Refresh the data
       await fetchData()
     } catch (error) {
       console.error("Error rejecting proposal:", error)
@@ -200,6 +221,8 @@ export default function MyRequestsPage() {
     try {
       setProcessingProposalId(proposalId)
       await updateProposal(proposalId, { status: "withdrawn" })
+      
+      // Refresh the data
       await fetchData()
     } catch (error) {
       console.error("Error withdrawing proposal:", error)
@@ -210,12 +233,12 @@ export default function MyRequestsPage() {
   }
   
   const getInitials = (name) => {
-    if (!name) return "U"
+    if (!name) return "U";
     return name
       .split(" ")
       .map((n) => n[0])
       .join("")
-      .toUpperCase()
+      .toUpperCase();
   }
 
   if (loading) {
@@ -227,7 +250,7 @@ export default function MyRequestsPage() {
   }
 
   if (!isLoggedIn) {
-    return null
+    return null // Redirect handled in useEffect
   }
 
   return (
@@ -237,6 +260,7 @@ export default function MyRequestsPage() {
         
         <div className="flex-1 p-8 md:ml-64">
           <div className="max-w-6xl mx-auto">
+            {/* Header */}
             <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-8 gap-4">
               <div>
                 <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">My Requests</h1>
@@ -252,13 +276,37 @@ export default function MyRequestsPage() {
               </Link>
             </div>
 
+            {/* Error Message */}
+            {error && (
+              <div className="mb-6 bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 p-4">
+                <div className="flex">
+                  <AlertCircle className="h-6 w-6 text-red-500 mr-3" />
+                  <p className="text-red-700 dark:text-red-400">{error}</p>
+                </div>
+              </div>
+            )}
+
+            {/* Tabs with Content */}
             <Tabs defaultValue="posted" value={activeTab} onValueChange={setActiveTab} className="mb-6">
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="posted">My Posted Requests</TabsTrigger>
                 <TabsTrigger value="proposals">Proposals I Submitted</TabsTrigger>
               </TabsList>
 
-              {/* Move TabsContent inside Tabs */}
+              {/* Search */}
+              <div className="my-6">
+                <div className="relative">
+                  <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                  <Input
+                    placeholder={activeTab === "posted" ? "Search your requests..." : "Search your proposals..."}
+                    className="pl-10"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              {/* Tab Content - Posted Requests */}
               <TabsContent value="posted" className="mt-0">
                 {isLoading ? (
                   <div className="flex justify-center items-center h-64">
@@ -318,6 +366,7 @@ export default function MyRequestsPage() {
                           </div>
                         </CardHeader>
                         
+                        {/* Expanded view with proposals */}
                         {expandedRequestId === request.id && (
                           <CardContent className="border-t pt-4">
                             <h3 className="text-lg font-semibold mb-4">Proposals</h3>
@@ -422,6 +471,7 @@ export default function MyRequestsPage() {
                 )}
               </TabsContent>
 
+              {/* Tab Content - Proposals */}
               <TabsContent value="proposals" className="mt-0">
                 {isLoading ? (
                   <div className="flex justify-center items-center h-64">
