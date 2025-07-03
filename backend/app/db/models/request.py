@@ -2,6 +2,7 @@ from sqlalchemy import Column, Integer, String, Text, Numeric, Enum as SQLAlchem
 from ..database import Base
 from sqlalchemy.orm import relationship
 from datetime import datetime
+from enum import Enum  # Add this import
 
 class RequestUrgencyEnum(Enum):
     low = "low"
