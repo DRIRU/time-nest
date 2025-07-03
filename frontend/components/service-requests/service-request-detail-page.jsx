@@ -25,9 +25,9 @@ import { Separator } from "@/components/ui/separator"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 import { Textarea } from "@/components/ui/textarea"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Alert, AlertDescription } from "@/components/ui/alert"
 import { getServiceRequestById, submitProposal, getProposalsForRequest } from "@/lib/service-requests-data"
 import { useAuth } from "@/contexts/auth-context"
 
@@ -517,7 +517,7 @@ export default function ServiceRequestDetailPage({ id, initialRequest = null }) 
                             <div className="flex items-center">
                               <Avatar className="h-10 w-10 mr-3">
                                 <AvatarImage 
-                                  src={`/placeholder.svg?height=40&width=40&text=${proposal.proposer_name?.charAt(0) || "P"}`} 
+                                  src={`/placeholder.svg?height=40&width=40&text=${getInitials(proposal.proposer_name)}`} 
                                   alt={proposal.proposer_name} 
                                 />
                                 <AvatarFallback>{getInitials(proposal.proposer_name)}</AvatarFallback>
@@ -537,7 +537,11 @@ export default function ServiceRequestDetailPage({ id, initialRequest = null }) 
                           <p className="text-gray-700 dark:text-gray-300 mb-4">{proposal.proposal_text}</p>
                           
                           <div className="flex justify-end gap-2">
-                            <Button variant="outline" size="sm">
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => router.push(`/chat/${proposal.proposer_id}`)}
+                            >
                               Message
                             </Button>
                             <Button size="sm">

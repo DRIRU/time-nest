@@ -314,7 +314,7 @@ export async function submitProposal(proposalData) {
 
 /**
  * Get proposals for a specific request
- * @param {number} requestId Request ID
+ * @param {number} requestId Request ID (optional - if not provided, gets all proposals for the user)
  * @returns {Promise<Array>} Array of proposals
  */
 export async function getProposalsForRequest(requestId) {
@@ -326,7 +326,12 @@ export async function getProposalsForRequest(requestId) {
       throw new Error("Authentication token not found. Please log in.");
     }
 
-    const response = await fetch(`http://localhost:8000/api/v1/request-proposals?request_id=${requestId}`, {
+    let url = "http://localhost:8000/api/v1/request-proposals";
+    if (requestId) {
+      url += `?request_id=${requestId}`;
+    }
+
+    const response = await fetch(url, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
@@ -343,6 +348,53 @@ export async function getProposalsForRequest(requestId) {
     return data;
   } catch (error) {
     console.error("Error fetching proposals:", error);
+    throw error;
+  }
+}
+
+/**
+ * Update a proposal (status, text, or credits)
+ * @param {number} proposalId Proposal ID
+ * @param {Object} updateData Data to update
+ * @returns {Promise<Object>} Updated proposal
+ */
+export async function updateProposal(proposalId, updateData) {
+  try {
+    const currentUser = JSON.parse(localStorage.getItem("currentUser") || "{}");
+    const token = currentUser?.accessToken;
+
+    if (!token) {
+      throw new Error("Authentication token not found. Please log in.");
+    }
+
+    const response = await fetch(`http://localhost:8000/api/v1/request-proposals/${proposalId}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      },
+      body: JSON.stringify(updateData),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      let errorMessage = "Failed to update proposal";
+      
+      if (errorData.detail) {
+        if (Array.isArray(errorData.detail)) {
+          errorMessage = errorData.detail.map(err => `${err.loc.join('.')}: ${err.msg}`).join(', ');
+        } else {
+          errorMessage = errorData.detail;
+        }
+      }
+      
+      throw new Error(errorMessage);
+    }
+
+    const result = await response.json();
+    return result;
+  } catch (error) {
+    console.error("Error updating proposal:", error);
     throw error;
   }
 }
