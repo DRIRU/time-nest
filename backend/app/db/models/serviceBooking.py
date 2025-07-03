@@ -22,7 +22,7 @@ class ServiceBooking(Base):
     user_id = Column(Integer, ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False)
 
     booking_date = Column(DateTime, default=datetime.utcnow)
-    scheduled_date = Column(Date, nullable=False)
+    scheduled_date = Column(DateTime, nullable=False)
 
     status = Column(SQLAlchemyEnum(BookingStatusEnum), default=BookingStatusEnum.pending)
 
