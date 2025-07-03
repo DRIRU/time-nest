@@ -13,7 +13,7 @@ class BookingCreate(BookingBase):
     pass
 
 class BookingUpdate(BaseModel):
-    scheduled_date: Optional[datetime] = None  # ✅ updated
+    scheduled_datetime: Optional[datetime] = None  # ✅ updated
     message: Optional[str] = None
     status: Optional[str] = Field(None, description="One of: pending, confirmed, completed, cancelled, rejected")
 
