@@ -2,11 +2,38 @@
 
 /**
  * Fetches all services from the backend
+ * @param {Object} options Optional parameters
+ * @param {number} options.creatorId Filter services by creator ID
+ * @param {string} options.category Filter services by category
+ * @param {number} options.skip Number of items to skip for pagination
+ * @param {number} options.limit Maximum number of items to return
  * @returns {Promise<Array>} Array of services
  */
-export async function getAllServices() {
+export async function getAllServices(options = {}) {
   try {
-    const response = await fetch("http://localhost:8000/api/v1/services", {
+    // Build query parameters
+    const queryParams = new URLSearchParams();
+    
+    if (options.creatorId) {
+      queryParams.append("creator_id", options.creatorId);
+    }
+    
+    if (options.category) {
+      queryParams.append("category", options.category);
+    }
+    
+    if (options.skip) {
+      queryParams.append("skip", options.skip);
+    }
+    
+    if (options.limit) {
+      queryParams.append("limit", options.limit);
+    }
+    
+    // Build URL with query parameters
+    const url = `http://localhost:8000/api/v1/services${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+    
+    const response = await fetch(url, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
@@ -326,6 +353,11 @@ export async function filterServices(filters = {}) {
     // Currently, the backend only supports category filtering
     if (filters.category && filters.category !== "all") {
       queryParams.append("category", filters.category);
+    }
+    
+    // Add creator_id if provided
+    if (filters.creatorId) {
+      queryParams.append("creator_id", filters.creatorId);
     }
     
     // Add skip and limit if provided

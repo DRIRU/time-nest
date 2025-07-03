@@ -39,29 +39,28 @@ export default function MyServicesPage() {
       return
     }
 
-    const fetchServices = async () => {
-      try {
-        setIsLoading(true)
-        setError(null)
-        const allServices = await getAllServices()
-        
-        // Filter services created by the current user
-        const myServices = allServices.filter(service => 
-          service.creator_id === parseInt(currentUser?.user_id)
-        )
-        
-        setServices(myServices)
-        setFilteredServices(myServices)
-      } catch (error) {
-        console.error("Error fetching services:", error)
-        setError("Failed to load services. Please try again later.")
-      } finally {
-        setIsLoading(false)
-      }
-    }
-
     fetchServices()
   }, [isLoggedIn, router, currentUser, loading])
+
+  const fetchServices = async () => {
+    try {
+      setIsLoading(true)
+      setError(null)
+      
+      // Pass the creator_id to filter services on the backend
+      const myServices = await getAllServices({
+        creatorId: currentUser?.user_id
+      })
+      
+      setServices(myServices)
+      setFilteredServices(myServices)
+    } catch (error) {
+      console.error("Error fetching services:", error)
+      setError("Failed to load services. Please try again later.")
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   useEffect(() => {
     // Filter services based on search term

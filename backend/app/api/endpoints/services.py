@@ -124,10 +124,11 @@ def get_services(
     skip: int = 0, 
     limit: int = 100, 
     category: str = None,
+    creator_id: int = None,
     db: Session = Depends(get_db)
 ):
     """
-    Get all services with optional filtering by category
+    Get all services with optional filtering by category and creator_id
     """
     from ...db.models.user import User
     
@@ -135,6 +136,10 @@ def get_services(
     
     if category:
         query = query.filter(Service.category == category)
+    
+    # Add filter by creator_id if provided
+    if creator_id:
+        query = query.filter(Service.creator_id == creator_id)
     
     services = query.offset(skip).limit(limit).all()
     
