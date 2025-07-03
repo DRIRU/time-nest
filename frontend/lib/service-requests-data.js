@@ -266,6 +266,88 @@ export function getServiceRequestOverviewStats() {
 }
 
 /**
+ * Submit a proposal for a service request
+ * @param {Object} proposalData Proposal data to submit
+ * @returns {Promise<Object>} Created proposal
+ */
+export async function submitProposal(proposalData) {
+  try {
+    // Get the auth token from localStorage
+    const currentUser = JSON.parse(localStorage.getItem("currentUser") || "{}");
+    const token = currentUser?.accessToken;
+
+    if (!token) {
+      throw new Error("Authentication token not found. Please log in.");
+    }
+
+    const response = await fetch("http://localhost:8000/api/v1/request-proposals", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      },
+      body: JSON.stringify(proposalData),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      let errorMessage = "Failed to submit proposal";
+      
+      if (errorData.detail) {
+        if (Array.isArray(errorData.detail)) {
+          errorMessage = errorData.detail.map(err => `${err.loc.join('.')}: ${err.msg}`).join(', ');
+        } else {
+          errorMessage = errorData.detail;
+        }
+      }
+      
+      throw new Error(errorMessage);
+    }
+
+    const result = await response.json();
+    return result;
+  } catch (error) {
+    console.error("Error submitting proposal:", error);
+    throw error;
+  }
+}
+
+/**
+ * Get proposals for a specific request
+ * @param {number} requestId Request ID
+ * @returns {Promise<Array>} Array of proposals
+ */
+export async function getProposalsForRequest(requestId) {
+  try {
+    const currentUser = JSON.parse(localStorage.getItem("currentUser") || "{}");
+    const token = currentUser?.accessToken;
+
+    if (!token) {
+      throw new Error("Authentication token not found. Please log in.");
+    }
+
+    const response = await fetch(`http://localhost:8000/api/v1/request-proposals?request_id=${requestId}`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.detail || "Failed to fetch proposals");
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error("Error fetching proposals:", error);
+    throw error;
+  }
+}
+
+/**
  * Transform backend request format to frontend format
  * @param {Object} backendRequest Request from backend
  * @returns {Object} Request in frontend format
@@ -313,6 +395,7 @@ function transformBackendRequestToFrontend(backendRequest) {
     createdAt: backendRequest.created_at || new Date().toISOString(),
     status: "Open", // Placeholder - not yet implemented in backend
     proposals: 0, // Placeholder - not yet implemented in backend
-    user: user // Add user object for components that expect it
+    user: user, // Add user object for components that expect it
+    creator_id: backendRequest.creator_id // Keep creator_id for authorization checks
   };
 }

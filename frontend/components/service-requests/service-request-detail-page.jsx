@@ -14,6 +14,8 @@ import {
   MessageSquare,
   AlertCircle,
   DollarSign,
+  Send,
+  X,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -21,7 +23,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Separator } from "@/components/ui/separator"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { getServiceRequestById } from "@/lib/service-requests-data"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
+import { Textarea } from "@/components/ui/textarea"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { getServiceRequestById, submitProposal, getProposalsForRequest } from "@/lib/service-requests-data"
+import { useAuth } from "@/contexts/auth-context"
 
 export default function ServiceRequestDetailPage({ id, initialRequest = null }) {
   const [request, setRequest] = useState(initialRequest)
@@ -29,6 +37,21 @@ export default function ServiceRequestDetailPage({ id, initialRequest = null }) 
   const [error, setError] = useState(null)
   const [isFavorited, setIsFavorited] = useState(false)
   const router = useRouter()
+  const { isLoggedIn, currentUser } = useAuth()
+  
+  // Proposal modal state
+  const [showProposalModal, setShowProposalModal] = useState(false)
+  const [proposalText, setProposalText] = useState("")
+  const [proposedCredits, setProposedCredits] = useState("")
+  const [proposalLoading, setProposalLoading] = useState(false)
+  const [proposalError, setProposalError] = useState("")
+  const [proposalSuccess, setProposalSuccess] = useState(false)
+  
+  // Proposals state
+  const [proposals, setProposals] = useState([])
+  const [proposalsLoading, setProposalsLoading] = useState(false)
+  const [proposalsError, setProposalsError] = useState("")
+  const [hasSubmittedProposal, setHasSubmittedProposal] = useState(false)
 
   useEffect(() => {
     const fetchRequestDetails = async () => {
@@ -57,6 +80,43 @@ export default function ServiceRequestDetailPage({ id, initialRequest = null }) 
 
     fetchRequestDetails()
   }, [id, initialRequest])
+  
+  // Fetch proposals if user is logged in and request is loaded
+  useEffect(() => {
+    if (!isLoggedIn || !request || !currentUser) return;
+    
+    const fetchProposals = async () => {
+      try {
+        setProposalsLoading(true)
+        setProposalsError("")
+        
+        // Only fetch proposals if the user is the request creator
+        if (parseInt(request.creator_id) === parseInt(currentUser.user_id)) {
+          const fetchedProposals = await getProposalsForRequest(request.id)
+          setProposals(fetchedProposals)
+        } else {
+          // Check if the current user has already submitted a proposal
+          const fetchedProposals = await getProposalsForRequest(request.id)
+          const userProposal = fetchedProposals.find(
+            p => parseInt(p.proposer_id) === parseInt(currentUser.user_id)
+          )
+          setHasSubmittedProposal(!!userProposal)
+        }
+      } catch (err) {
+        // If the error is 403 Forbidden, it means the user is not the request creator
+        if (err.message.includes("403")) {
+          // This is expected for non-creators, so we don't show an error
+        } else {
+          setProposalsError("Failed to load proposals")
+          console.error(err)
+        }
+      } finally {
+        setProposalsLoading(false)
+      }
+    }
+    
+    fetchProposals()
+  }, [isLoggedIn, request, currentUser])
 
   const getUrgencyColor = (urgency) => {
     switch (urgency) {
@@ -115,6 +175,73 @@ export default function ServiceRequestDetailPage({ id, initialRequest = null }) 
   const handleContactRequester = () => {
     // Navigate to chat with the requester
     router.push(`/chat/${request.user.id}?context=request&id=${id}&title=${encodeURIComponent(request.title)}`)
+  }
+  
+  const handleSubmitProposal = async () => {
+    if (!isLoggedIn) {
+      alert("Please log in to submit a proposal")
+      router.push(`/login?redirect=/requests/${id}`)
+      return
+    }
+    
+    // Check if this is the user's own request
+    if (parseInt(request.creator_id) === parseInt(currentUser.user_id)) {
+      alert("You cannot submit a proposal to your own request")
+      return
+    }
+    
+    // Check if user has already submitted a proposal
+    if (hasSubmittedProposal) {
+      alert("You have already submitted a proposal for this request")
+      return
+    }
+    
+    setShowProposalModal(true)
+  }
+  
+  const handleConfirmProposal = async () => {
+    // Validate inputs
+    if (!proposalText.trim()) {
+      setProposalError("Please enter a proposal description")
+      return
+    }
+    
+    if (!proposedCredits || parseFloat(proposedCredits) <= 0) {
+      setProposalError("Please enter a valid credit amount")
+      return
+    }
+    
+    setProposalLoading(true)
+    setProposalError("")
+    
+    try {
+      const proposalData = {
+        request_id: parseInt(request.id),
+        proposal_text: proposalText.trim(),
+        proposed_credits: parseFloat(proposedCredits)
+      }
+      
+      await submitProposal(proposalData)
+      
+      setProposalSuccess(true)
+      setHasSubmittedProposal(true)
+      
+      // Reset form
+      setProposalText("")
+      setProposedCredits("")
+      
+      // Close modal after a delay
+      setTimeout(() => {
+        setShowProposalModal(false)
+        setProposalSuccess(false)
+      }, 3000)
+      
+    } catch (error) {
+      console.error("Error submitting proposal:", error)
+      setProposalError(error.message || "Failed to submit proposal. Please try again.")
+    } finally {
+      setProposalLoading(false)
+    }
   }
 
   if (loading) {
@@ -354,6 +481,76 @@ export default function ServiceRequestDetailPage({ id, initialRequest = null }) 
                 </Tabs>
               </CardContent>
             </Card>
+            
+            {/* Proposals Section - Only visible to the request creator */}
+            {isLoggedIn && parseInt(request.creator_id) === parseInt(currentUser?.user_id) && (
+              <Card className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-gray-900 dark:text-white">
+                    <MessageSquare className="h-5 w-5" />
+                    Proposals ({proposals.length})
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {proposalsLoading ? (
+                    <div className="flex justify-center py-6">
+                      <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+                    </div>
+                  ) : proposalsError ? (
+                    <Alert variant="destructive">
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertDescription>{proposalsError}</AlertDescription>
+                    </Alert>
+                  ) : proposals.length === 0 ? (
+                    <div className="text-center py-6">
+                      <MessageSquare className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                      <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">No proposals yet</h3>
+                      <p className="text-gray-600 dark:text-gray-400">
+                        When service providers submit proposals, they'll appear here.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {proposals.map((proposal) => (
+                        <div key={proposal.proposal_id} className="border rounded-lg p-4">
+                          <div className="flex items-start justify-between mb-3">
+                            <div className="flex items-center">
+                              <Avatar className="h-10 w-10 mr-3">
+                                <AvatarImage 
+                                  src={`/placeholder.svg?height=40&width=40&text=${proposal.proposer_name?.charAt(0) || "P"}`} 
+                                  alt={proposal.proposer_name} 
+                                />
+                                <AvatarFallback>{getInitials(proposal.proposer_name)}</AvatarFallback>
+                              </Avatar>
+                              <div>
+                                <h4 className="font-medium">{proposal.proposer_name}</h4>
+                                <p className="text-sm text-gray-500">
+                                  Submitted {new Date(proposal.submitted_at).toLocaleDateString()}
+                                </p>
+                              </div>
+                            </div>
+                            <Badge>
+                              {proposal.proposed_credits} credits
+                            </Badge>
+                          </div>
+                          
+                          <p className="text-gray-700 dark:text-gray-300 mb-4">{proposal.proposal_text}</p>
+                          
+                          <div className="flex justify-end gap-2">
+                            <Button variant="outline" size="sm">
+                              Message
+                            </Button>
+                            <Button size="sm">
+                              Accept Proposal
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
           </div>
 
           {/* Sidebar */}
@@ -373,17 +570,35 @@ export default function ServiceRequestDetailPage({ id, initialRequest = null }) 
                   <p className="text-sm text-blue-700">Budget for this request</p>
                 </div>
 
-                <Button className="w-full" size="lg">
-                  Submit Proposal
-                </Button>
+                {isLoggedIn && parseInt(request.creator_id) === parseInt(currentUser?.user_id) ? (
+                  <Alert>
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>
+                      This is your own request. You cannot submit a proposal to your own request.
+                    </AlertDescription>
+                  </Alert>
+                ) : hasSubmittedProposal ? (
+                  <Alert className="bg-green-50 border-green-200 text-green-800">
+                    <CheckCircle className="h-4 w-4" />
+                    <AlertDescription>
+                      You have already submitted a proposal for this request.
+                    </AlertDescription>
+                  </Alert>
+                ) : (
+                  <Button className="w-full" onClick={handleSubmitProposal}>
+                    Submit Proposal
+                  </Button>
+                )}
 
                 <Button variant="outline" className="w-full" onClick={handleContactRequester}>
                   Contact Requester
                 </Button>
 
-                <p className="text-xs text-gray-500 text-center">
-                  Join TimeNest to submit proposals and contact requesters
-                </p>
+                {!isLoggedIn && (
+                  <p className="text-xs text-gray-500 text-center">
+                    Join TimeNest to submit proposals and contact requesters
+                  </p>
+                )}
               </CardContent>
             </Card>
 
@@ -435,6 +650,101 @@ export default function ServiceRequestDetailPage({ id, initialRequest = null }) 
           </div>
         </div>
       </div>
+      
+      {/* Proposal Modal */}
+      <Dialog open={showProposalModal} onOpenChange={setShowProposalModal}>
+        <DialogContent className="sm:max-w-[550px]">
+          <DialogHeader>
+            <DialogTitle>Submit Proposal</DialogTitle>
+            <DialogDescription>
+              Describe how you can help with this request and propose your price.
+            </DialogDescription>
+          </DialogHeader>
+          
+          {proposalSuccess ? (
+            <div className="py-6">
+              <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg border border-green-200 dark:border-green-800">
+                <div className="flex items-center">
+                  <CheckCircle className="h-5 w-5 text-green-500 mr-2" />
+                  <h3 className="text-green-800 dark:text-green-300 font-medium">Proposal Submitted Successfully!</h3>
+                </div>
+                <p className="text-green-700 dark:text-green-400 mt-2 text-sm">
+                  Your proposal has been sent to the requester. They will review it and get back to you if interested.
+                </p>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className="py-4 space-y-4">
+                <div>
+                  <Label htmlFor="proposedCredits" className="text-sm font-medium mb-2 block">Your Proposed Price (Credits)</Label>
+                  <Input
+                    id="proposedCredits"
+                    type="number"
+                    min="0.1"
+                    step="0.1"
+                    value={proposedCredits}
+                    onChange={(e) => setProposedCredits(e.target.value)}
+                    className="w-full"
+                    placeholder="Enter your price in time credits"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    The requester's budget is {request.budget} credits
+                  </p>
+                </div>
+                
+                <div>
+                  <Label htmlFor="proposalText" className="text-sm font-medium mb-2 block">Proposal Details</Label>
+                  <Textarea
+                    id="proposalText"
+                    placeholder="Describe how you can help with this request, your experience, approach, and timeline..."
+                    value={proposalText}
+                    onChange={(e) => setProposalText(e.target.value)}
+                    className="resize-none"
+                    rows={6}
+                  />
+                </div>
+                
+                <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-md">
+                  <h4 className="text-sm font-medium text-blue-800 dark:text-blue-300 mb-2">Tips for a Great Proposal:</h4>
+                  <ul className="text-xs text-blue-700 dark:text-blue-400 space-y-1">
+                    <li>• Be specific about your experience and qualifications</li>
+                    <li>• Explain your approach to the request</li>
+                    <li>• Mention your availability and timeline</li>
+                    <li>• Address any specific requirements mentioned in the request</li>
+                  </ul>
+                </div>
+
+                {proposalError && (
+                  <Alert variant="destructive">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>{proposalError}</AlertDescription>
+                  </Alert>
+                )}
+              </div>
+
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setShowProposalModal(false)}>
+                  Cancel
+                </Button>
+                <Button onClick={handleConfirmProposal} disabled={proposalLoading}>
+                  {proposalLoading ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white mr-2"></div>
+                      Submitting...
+                    </>
+                  ) : (
+                    <>
+                      <Send className="h-4 w-4 mr-2" />
+                      Submit Proposal
+                    </>
+                  )}
+                </Button>
+              </DialogFooter>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
