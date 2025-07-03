@@ -23,10 +23,8 @@ class ServiceBooking(Base):
 
     booking_date = Column(DateTime, default=datetime.utcnow)
     scheduled_datetime = Column(DateTime, nullable=False)
-    
-
+    duration_minutes = Column(Integer, default=60)  
     status = Column(SQLAlchemyEnum(BookingStatusEnum), default=BookingStatusEnum.pending)
-
     message = Column(Text, nullable=True)
     time_credits_used = Column(Numeric(5, 2), default=0.00)
 
