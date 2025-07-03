@@ -23,25 +23,27 @@ import { Separator } from "@/components/ui/separator"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { getServiceRequestById } from "@/lib/service-requests-data"
 
-export default function ServiceRequestDetailPage({ id }) {
-  const [request, setRequest] = useState(null)
-  const [loading, setLoading] = useState(true)
+export default function ServiceRequestDetailPage({ id, initialRequest = null }) {
+  const [request, setRequest] = useState(initialRequest)
+  const [loading, setLoading] = useState(!initialRequest)
   const [error, setError] = useState(null)
   const [isFavorited, setIsFavorited] = useState(false)
   const router = useRouter()
 
   useEffect(() => {
     const fetchRequestDetails = async () => {
+      if (initialRequest) {
+        setRequest(initialRequest)
+        setLoading(false)
+        return
+      }
+
       try {
         setLoading(true)
-        // Simulate network delay
-        await new Promise((resolve) => setTimeout(resolve, 500))
+        const fetchedRequest = await getServiceRequestById(id)
 
-        // Get the request by ID from external data
-        const foundRequest = getServiceRequestById(id)
-
-        if (foundRequest) {
-          setRequest(foundRequest)
+        if (fetchedRequest) {
+          setRequest(fetchedRequest)
         } else {
           setError("Service request not found")
         }
@@ -54,14 +56,16 @@ export default function ServiceRequestDetailPage({ id }) {
     }
 
     fetchRequestDetails()
-  }, [id])
+  }, [id, initialRequest])
 
   const getUrgencyColor = (urgency) => {
     switch (urgency) {
-      case "High":
+      case "Urgent":
         return "bg-red-100 text-red-800"
-      case "Medium":
-        return "bg-yellow-100 text-yellow-800"
+      case "High":
+        return "bg-orange-100 text-orange-800"
+      case "Normal":
+        return "bg-blue-100 text-blue-800"
       case "Low":
         return "bg-green-100 text-green-800"
       default:
@@ -86,6 +90,7 @@ export default function ServiceRequestDetailPage({ id }) {
 
   // Get user initials for avatar fallback
   const getInitials = (name) => {
+    if (!name || typeof name !== "string") return "U"
     return name
       .split(" ")
       .map((n) => n[0])
@@ -97,7 +102,7 @@ export default function ServiceRequestDetailPage({ id }) {
     if (navigator.share) {
       navigator.share({
         title: request.title,
-        text: `Check out this service request: ${request.title} by ${request.user.name}`,
+        text: `Check out this service request: ${request.title} by ${request.requester}`,
         url: window.location.href,
       })
     } else {
@@ -220,7 +225,7 @@ export default function ServiceRequestDetailPage({ id }) {
                       <div className="flex items-center justify-between">
                         <div>
                           <p className="text-sm text-gray-600 dark:text-gray-300">Budget</p>
-                          <p className="text-2xl font-bold text-blue-600">{request.budget} credits/hour</p>
+                          <p className="text-2xl font-bold text-blue-600">{request.budget} credits</p>
                         </div>
                         <DollarSign className="h-8 w-8 text-blue-600" />
                       </div>
@@ -288,11 +293,15 @@ export default function ServiceRequestDetailPage({ id }) {
 
                       <div className="space-y-4">
                         <div className="flex flex-wrap gap-2">
-                          {request.skills.map((skill, index) => (
-                            <Badge key={index} variant="secondary" className="text-sm">
-                              {skill}
-                            </Badge>
-                          ))}
+                          {request.skills && request.skills.length > 0 ? (
+                            request.skills.map((skill, index) => (
+                              <Badge key={index} variant="secondary" className="text-sm">
+                                {skill}
+                              </Badge>
+                            ))
+                          ) : (
+                            <p className="text-gray-500">No specific skills required</p>
+                          )}
                         </div>
                         <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
                           <h4 className="font-medium mb-2 text-gray-900 dark:text-white">Looking for someone with:</h4>
@@ -317,7 +326,7 @@ export default function ServiceRequestDetailPage({ id }) {
                         <div>
                           <h3 className="text-xl font-semibold text-gray-900 dark:text-white">{request.user.name}</h3>
                           <p className="text-gray-600 dark:text-gray-300">
-                            TimeNest Member since {new Date(request.user.memberSince).toLocaleDateString()}
+                            TimeNest Member since {new Date(request.user.memberSince || "2023-01-01").toLocaleDateString()}
                           </p>
                           <div className="flex items-center mt-1">
                             <Shield className="h-4 w-4 text-green-500 mr-1" />
@@ -328,11 +337,11 @@ export default function ServiceRequestDetailPage({ id }) {
 
                       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                         <div className="text-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                          <p className="text-2xl font-bold text-blue-600">{request.user.completedProjects}</p>
+                          <p className="text-2xl font-bold text-blue-600">{request.user.completedProjects || 0}</p>
                           <p className="text-sm text-gray-600 dark:text-gray-300">Projects Completed</p>
                         </div>
                         <div className="text-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                          <p className="text-2xl font-bold text-blue-600">{request.user.rating}</p>
+                          <p className="text-2xl font-bold text-blue-600">{request.user.rating || 0}</p>
                           <p className="text-sm text-gray-600 dark:text-gray-300">Average Rating</p>
                         </div>
                         <div className="text-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
@@ -360,7 +369,7 @@ export default function ServiceRequestDetailPage({ id }) {
               <CardContent className="space-y-4">
                 <div className="text-center p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
                   <DollarSign className="h-8 w-8 text-blue-600 mx-auto mb-2" />
-                  <p className="font-semibold text-blue-900">{request.budget} Time Credits per hour</p>
+                  <p className="font-semibold text-blue-900">{request.budget} Time Credits</p>
                   <p className="text-sm text-blue-700">Budget for this request</p>
                 </div>
 

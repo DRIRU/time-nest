@@ -1,369 +1,318 @@
-// Mock data for service requests
-export const serviceRequestsData = [
-  {
-    id: "req1",
-    title: "Need help with website development",
-    description:
-      "I'm looking for someone to help me build a personal portfolio website. I need a clean, modern design with a portfolio section, about me, and contact form. I have some design ideas but am open to suggestions.",
-    category: "Web Development",
-    budget: 15,
-    location: "Remote",
-    urgency: "Medium",
-    deadline: "2023-12-15",
-    createdAt: "2023-10-20",
-    status: "Open",
-    skills: ["HTML", "CSS", "JavaScript", "React"],
-    preferredAvailability: "Weekends",
-    additionalNotes:
-      "I'd prefer someone who has experience with React and can implement some simple animations. The site should be responsive and work well on mobile devices.",
-    user: {
-      id: "u1",
-      name: "Alex Johnson",
-      image: "/placeholder.svg?height=200&width=200",
-      rating: 4.8,
-      memberSince: "2022-05-10",
-      completedProjects: 12,
-      responseRate: "95%",
-      location: "New York, USA",
-    },
-    availability: ["weekends", "weekday-evenings"], // From form availability options
-    requirements: "Must have experience with React and responsive design",
-    whatIncluded: "All design mockups and content will be provided",
-    tags: ["react", "portfolio", "responsive", "beginner-friendly"],
-    images: [
-      {
-        id: 1,
-        url: "/placeholder.svg?height=200&width=300&text=Website+Mockup",
-        name: "website-mockup.jpg",
+// This file handles interactions with the backend API for service requests
+
+/**
+ * Fetches all service requests from the backend
+ * @param {Object} filters Filter criteria
+ * @returns {Promise<Array>} Array of service requests
+ */
+export async function getAllServiceRequests(filters = {}) {
+  try {
+    // Start with the base URL
+    let url = "http://localhost:8000/api/v1/requests";
+    
+    // Add query parameters for backend filtering
+    const queryParams = new URLSearchParams();
+    
+    // Add backend-supported filters
+    if (filters.category && filters.category !== "all") {
+      queryParams.append("category", filters.category);
+    }
+    
+    if (filters.urgency && filters.urgency !== "all") {
+      queryParams.append("urgency", filters.urgency);
+    }
+    
+    // Add skip and limit if provided
+    if (filters.skip) {
+      queryParams.append("skip", filters.skip);
+    }
+    
+    if (filters.limit) {
+      queryParams.append("limit", filters.limit);
+    }
+    
+    // Append query parameters to URL if any exist
+    if (queryParams.toString()) {
+      url += `?${queryParams.toString()}`;
+    }
+    
+    const response = await fetch(url, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
       },
-    ],
-  },
-  {
-    id: "req2",
-    title: "Social media content creation for small business",
-    description:
-      "I run a small coffee shop and need help creating engaging social media content for Instagram and Facebook. I'm looking for someone who can create posts, stories, and short videos that showcase our products and create a warm, welcoming brand presence. I need content for about 2-3 posts per week.",
-    category: "Digital Marketing",
-    budget: 18,
-    location: "Remote",
-    urgency: "Medium",
-    deadline: "2023-12-01",
-    createdAt: "2023-10-22",
-    status: "Open",
-    skills: ["Social Media Marketing", "Content Creation", "Photography", "Video Editing", "Brand Strategy"],
-    preferredAvailability: "Flexible",
-    additionalNotes:
-      "I can provide photos of our products and space, but would love someone who can also help with styling and creative direction. Experience with food/beverage brands is a plus. Looking for someone who understands the local coffee culture.",
-    user: {
-      id: "u5",
-      name: "David Kim",
-      image: "/placeholder.svg?height=200&width=200",
-      rating: 4.6,
-      memberSince: "2021-11-20",
-      completedProjects: 7,
-      responseRate: "88%",
-      location: "Seattle, USA",
-    },
-    availability: ["weekdays", "weekday-evenings"],
-    requirements: "Experience with food/beverage brands is a plus",
-    whatIncluded: "Photos of our products and space",
-    tags: ["social-media", "content-creation", "coffee-shop", "instagram"],
-    images: [
-      {
-        id: 2,
-        url: "/placeholder.svg?height=200&width=300&text=Coffee+Shop",
-        name: "coffee-shop.jpg",
-      },
-    ],
-  },
-  {
-    id: "req3",
-    title: "Looking for a graphic designer for logo creation",
-    description:
-      "I need a professional logo for my new bakery business. I want something that conveys warmth, tradition, and quality. The name of the bakery is 'Sweet Mornings' and I'd like the logo to incorporate some bakery elements.",
-    category: "Graphic Design",
-    budget: 20,
-    location: "Remote",
-    urgency: "High",
-    deadline: "2023-11-05",
-    createdAt: "2023-10-15",
-    status: "Open",
-    skills: ["Logo Design", "Branding", "Illustrator", "Photoshop"],
-    preferredAvailability: "Flexible",
-    additionalNotes:
-      "I need the logo in various formats (PNG, SVG, etc.) and would also like a simple brand guide with color codes and font recommendations.",
-    user: {
-      id: "u2",
-      name: "Sarah Miller",
-      image: "/placeholder.svg?height=200&width=200",
-      rating: 4.5,
-      memberSince: "2021-08-15",
-      completedProjects: 8,
-      responseRate: "90%",
-      location: "Chicago, USA",
-    },
-    availability: ["weekdays", "weekends"],
-    requirements: "Logo in various formats (PNG, SVG, etc.) and a simple brand guide",
-    whatIncluded: "Bakery name and design preferences",
-    tags: ["logo-design", "branding", "bakery", "sweet-mornings"],
-    images: [
-      {
-        id: 3,
-        url: "/placeholder.svg?height=200&width=300&text=Bakery+Logo",
-        name: "bakery-logo.jpg",
-      },
-    ],
-  },
-  {
-    id: "req4",
-    title: "Math tutor needed for high school student",
-    description:
-      "Looking for a math tutor for my 16-year-old son who is struggling with calculus. He needs help understanding the concepts and preparing for upcoming exams.",
-    category: "Education",
-    budget: 25,
-    location: "Local Only - Boston",
-    urgency: "Medium",
-    deadline: "2023-12-20",
-    createdAt: "2023-10-18",
-    status: "Open",
-    skills: ["Calculus", "Teaching", "Patience"],
-    preferredAvailability: "Weekday evenings",
-    additionalNotes:
-      "We're looking for someone who can explain concepts clearly and has experience teaching high school students. Sessions would be twice a week, 1.5 hours each.",
-    user: {
-      id: "u3",
-      name: "Michael Chen",
-      image: "/placeholder.svg?height=200&width=200",
-      rating: 4.9,
-      memberSince: "2022-01-05",
-      completedProjects: 5,
-      responseRate: "100%",
-      location: "Boston, USA",
-    },
-    availability: ["weekday-evenings"],
-    requirements: "Experience teaching high school students",
-    whatIncluded: "Textbooks and past exams",
-    tags: ["math-tutor", "calculus", "high-school", "boston"],
-    images: [],
-  },
-  {
-    id: "req5",
-    title: "Home garden design consultation",
-    description:
-      "I need help designing my home garden. I have a small backyard (approximately 500 sq ft) and would like to create a low-maintenance garden with native plants that attract pollinators. I'm looking for someone with experience in sustainable gardening who can provide plant recommendations and a basic layout.",
-    category: "Home & Garden",
-    budget: 12,
-    location: "Local Only - Portland",
-    urgency: "Low",
-    deadline: "2024-01-15",
-    createdAt: "2023-10-25",
-    status: "Open",
-    skills: ["Garden Design", "Native Plants", "Sustainable Landscaping"],
-    preferredAvailability: "Weekends",
-    additionalNotes:
-      "I have a partial shade yard with clay soil. I'd like to include some edible plants if possible. Budget for plants is separate from the consultation fee.",
-    user: {
-      id: "u4",
-      name: "Emily Rodriguez",
-      image: "/placeholder.svg?height=200&width=200",
-      rating: 4.7,
-      memberSince: "2022-03-12",
-      completedProjects: 3,
-      responseRate: "85%",
-      location: "Portland, USA",
-    },
-    availability: ["weekends"],
-    requirements: "Experience in sustainable gardening",
-    whatIncluded: "Backyard dimensions and soil information",
-    tags: ["garden-design", "native-plants", "sustainable-landscaping", "portland"],
-    images: [
-      {
-        id: 4,
-        url: "/placeholder.svg?height=200&width=300&text=Backyard+Garden",
-        name: "backyard-garden.jpg",
-      },
-    ],
-  },
-  {
-    id: "req6",
-    title: "Personal fitness training sessions",
-    description:
-      "I'm looking for a certified personal trainer to help me get back in shape. I need someone who can create a customized workout plan and provide motivation. I prefer outdoor workouts when weather permits, but also need indoor alternatives.",
-    category: "Health & Fitness",
-    budget: 30,
-    location: "Local Only - San Francisco",
-    urgency: "Low",
-    deadline: "2024-02-01",
-    createdAt: "2023-10-28",
-    status: "Open",
-    skills: ["Personal Training", "Fitness Planning", "Motivation", "Outdoor Workouts"],
-    preferredAvailability: "Mornings and evenings",
-    additionalNotes:
-      "I have some old injuries (knee and shoulder) so I need someone who understands how to work around physical limitations. I'm a complete beginner but very motivated to get healthy.",
-    user: {
-      id: "u6",
-      name: "Jessica Wong",
-      image: "/placeholder.svg?height=200&width=200",
-      rating: 4.4,
-      memberSince: "2023-02-14",
-      completedProjects: 2,
-      responseRate: "92%",
-      location: "San Francisco, USA",
-    },
-    availability: ["mornings", "weekday-evenings"],
-    requirements: "Certified personal trainer",
-    whatIncluded: "Access to a gym",
-    tags: ["personal-training", "fitness-planning", "san-francisco", "workout"],
-    images: [],
-  },
-  {
-    id: "req7",
-    title: "Spanish language tutoring for beginner",
-    description:
-      "I'm planning a trip to Spain next year and want to learn basic Spanish conversation skills. Looking for a patient tutor who can help me with pronunciation, basic grammar, and everyday phrases. Prefer someone who is a native speaker or has lived in Spain.",
-    category: "Education",
-    budget: 22,
-    location: "Remote",
-    urgency: "Low",
-    deadline: "2024-03-15",
-    createdAt: "2023-10-30",
-    status: "Open",
-    skills: ["Spanish Language", "Teaching", "Conversation Practice", "Cultural Knowledge"],
-    preferredAvailability: "Evenings",
-    additionalNotes:
-      "I'm a complete beginner but I learn quickly. I'd like to focus on practical conversation skills rather than formal grammar. Cultural tips about Spain would be a bonus!",
-    user: {
-      id: "u7",
-      name: "Robert Taylor",
-      image: "/placeholder.svg?height=200&width=200",
-      rating: 4.3,
-      memberSince: "2021-09-08",
-      completedProjects: 6,
-      responseRate: "87%",
-      location: "Denver, USA",
-    },
-    availability: ["weekday-evenings"],
-    requirements: "Native speaker or has lived in Spain",
-    whatIncluded: "Willingness to learn",
-    tags: ["spanish-language", "tutoring", "conversation", "remote"],
-    images: [],
-  },
-  {
-    id: "req8",
-    title: "Wedding photography consultation",
-    description:
-      "Getting married in 6 months and need help choosing the right photographer and planning the photo timeline for our wedding day. Looking for someone with wedding planning experience who can guide us through the process and help us make the best decisions.",
-    category: "Photography",
-    budget: 35,
-    location: "Local Only - Austin",
-    urgency: "High",
-    deadline: "2023-11-30",
-    createdAt: "2023-10-26",
-    status: "Open",
-    skills: ["Wedding Photography", "Event Planning", "Vendor Coordination", "Timeline Planning"],
-    preferredAvailability: "Weekends",
-    additionalNotes:
-      "This is our first wedding so we're pretty overwhelmed with all the decisions. We want someone who can help us understand what to look for in a photographer and how to plan the day for the best photos.",
-    user: {
-      id: "u8",
-      name: "Amanda Foster",
-      image: "/placeholder.svg?height=200&width=200",
-      rating: 4.9,
-      memberSince: "2020-06-22",
-      completedProjects: 15,
-      responseRate: "98%",
-      location: "Austin, USA",
-    },
-    availability: ["weekends"],
-    requirements: "Wedding planning experience",
-    whatIncluded: "Wedding date and venue",
-    tags: ["wedding-photography", "event-planning", "austin", "timeline"],
-    images: [],
-  },
-]
+    });
 
-// Helper function to get a service request by ID
-export const getServiceRequestById = (id) => {
-  return serviceRequestsData.find((request) => request.id === id)
-}
+    if (!response.ok) {
+      throw new Error(`Error fetching service requests: ${response.status}`);
+    }
 
-// Helper function to get all service requests
-export const getAllServiceRequests = () => {
-  return serviceRequestsData
-}
-
-// Helper function to get unique categories
-export const getServiceRequestCategories = () => {
-  return [...new Set(serviceRequestsData.map((request) => request.category))]
-}
-
-// Helper function to filter service requests
-export const filterServiceRequests = (filters) => {
-  const { searchTerm, category, urgency, location } = filters
-
-  return serviceRequestsData.filter((request) => {
-    const matchesSearch =
-      !searchTerm ||
-      request.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      request.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      request.category.toLowerCase().includes(searchTerm.toLowerCase())
-
-    const matchesCategory = !category || category === "all" || request.category === category
-    const matchesUrgency = !urgency || urgency === "all" || request.urgency === urgency
-    const matchesLocation =
-      !location ||
-      location === "all" ||
-      (location === "remote" && request.location === "Remote") ||
-      (location === "local" && request.location.includes("Local"))
-
-    return matchesSearch && matchesCategory && matchesUrgency && matchesLocation
-  })
-}
-
-// Helper function to sort service requests
-export const sortServiceRequests = (requests, sortBy) => {
-  const sortedRequests = [...requests]
-
-  switch (sortBy) {
-    case "newest":
-      return sortedRequests.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-    case "oldest":
-      return sortedRequests.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt))
-    case "budget-high":
-      return sortedRequests.sort((a, b) => b.budget - a.budget)
-    case "budget-low":
-      return sortedRequests.sort((a, b) => a.budget - b.budget)
-    case "deadline":
-      return sortedRequests.sort((a, b) => new Date(a.deadline) - new Date(b.deadline))
-    default:
-      return sortedRequests
+    const data = await response.json();
+    
+    // Transform all requests to frontend format
+    let requests = data.map(transformBackendRequestToFrontend);
+    
+    // Apply additional frontend filtering
+    if (filters.search) {
+      const query = filters.search.toLowerCase();
+      requests = requests.filter(
+        (request) =>
+          request.title.toLowerCase().includes(query) ||
+          request.description.toLowerCase().includes(query) ||
+          request.category.toLowerCase().includes(query) ||
+          (request.tags && request.tags.some((tag) => tag.toLowerCase().includes(query)))
+      );
+    }
+    
+    if (filters.location && filters.location !== "any") {
+      requests = requests.filter((request) => {
+        if (!request.location) return false;
+        return request.location.toLowerCase().includes(filters.location.toLowerCase());
+      });
+    }
+    
+    return requests;
+  } catch (error) {
+    console.error("Error fetching service requests:", error);
+    // Return empty array in case of error
+    return [];
   }
 }
 
-// Get service request overview statistics for admin dashboard
-export function getServiceRequestOverviewStats() {
-  const requests = getAllServiceRequests()
-  const openRequests = requests.filter(req => req.status === "Open").length
-  const totalBudget = requests.reduce((sum, req) => sum + req.budget, 0)
-  const avgBudget = (totalBudget / requests.length).toFixed(1)
-  
-  // Calculate completion rate (mocked for demo)
-  const completionRate = 78
+/**
+ * Fetches a service request by ID from the backend
+ * @param {string} id Request ID
+ * @returns {Promise<Object|null>} Request object or null if not found
+ */
+export async function getServiceRequestById(id) {
+  try {
+    const response = await fetch(`http://localhost:8000/api/v1/requests/${id}`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
 
+    if (!response.ok) {
+      if (response.status === 404) {
+        return null;
+      }
+      throw new Error(`Error fetching service request: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return transformBackendRequestToFrontend(data);
+  } catch (error) {
+    console.error(`Error fetching service request with ID ${id}:`, error);
+    return null;
+  }
+}
+
+/**
+ * Adds a new service request to the backend
+ * @param {Object} requestData Request data to add
+ * @returns {Promise<Object>} Created request
+ */
+export async function addServiceRequest(requestData) {
+  try {
+    // Get the auth token from localStorage
+    const currentUser = JSON.parse(localStorage.getItem("currentUser") || "{}");
+    const token = currentUser?.accessToken;
+
+    if (!token) {
+      throw new Error("Authentication token not found. Please log in.");
+    }
+
+    // Format the data for the backend
+    const backendRequestData = {
+      title: requestData.title,
+      description: requestData.description,
+      category: requestData.category,
+      budget: parseFloat(requestData.budget),
+      location: requestData.location,
+      deadline: requestData.deadline,
+      urgency: requestData.urgency || "normal",
+      whats_included: requestData.whatIncluded || null,
+      requirements: requestData.requirements || null,
+      tags: requestData.tags || [],
+      skills: requestData.skills || []
+    };
+
+    const response = await fetch("http://localhost:8000/api/v1/requests", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      },
+      body: JSON.stringify(backendRequestData),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      let errorMessage = "Failed to create service request";
+      
+      if (errorData.detail) {
+        if (Array.isArray(errorData.detail)) {
+          errorMessage = errorData.detail.map(err => `${err.loc.join('.')}: ${err.msg}`).join(', ');
+        } else {
+          errorMessage = errorData.detail;
+        }
+      }
+      
+      throw new Error(errorMessage);
+    }
+
+    const result = await response.json();
+    return transformBackendRequestToFrontend(result);
+  } catch (error) {
+    console.error("Error creating service request:", error);
+    throw error;
+  }
+}
+
+/**
+ * Filters service requests based on criteria
+ * @param {Object} filters Filter criteria
+ * @returns {Promise<Array>} Filtered service requests
+ */
+export async function filterServiceRequests(filters = {}) {
+  try {
+    const requests = await getAllServiceRequests(filters);
+    return requests;
+  } catch (error) {
+    console.error("Error filtering service requests:", error);
+    return [];
+  }
+}
+
+/**
+ * Sorts service requests based on criteria
+ * @param {Array} requests Array of service requests
+ * @param {string} sortBy Sort criteria
+ * @returns {Array} Sorted service requests
+ */
+export function sortServiceRequests(requests, sortBy) {
+  const sortedRequests = [...requests];
+
+  switch (sortBy) {
+    case "newest":
+      return sortedRequests.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    case "oldest":
+      return sortedRequests.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+    case "budget-high":
+      return sortedRequests.sort((a, b) => b.budget - a.budget);
+    case "budget-low":
+      return sortedRequests.sort((a, b) => a.budget - b.budget);
+    case "deadline":
+      return sortedRequests.sort((a, b) => new Date(a.deadline) - new Date(b.deadline));
+    case "urgent":
+      // Sort by urgency level (urgent > high > normal > low)
+      const urgencyOrder = { urgent: 3, high: 2, normal: 1, low: 0 };
+      return sortedRequests.sort((a, b) => {
+        const aValue = urgencyOrder[a.urgency] || 0;
+        const bValue = urgencyOrder[b.urgency] || 0;
+        return bValue - aValue;
+      });
+    default:
+      return sortedRequests;
+  }
+}
+
+/**
+ * Get service request categories
+ * @returns {Array} Array of unique categories
+ */
+export function getServiceRequestCategories() {
+  // This will be replaced with a backend call in the future
+  return [
+    "Home & Garden",
+    "Tech Support",
+    "Tutoring",
+    "Transportation",
+    "Cooking",
+    "Childcare",
+    "Repairs",
+    "Health & Wellness",
+    "Arts & Crafts",
+    "Photography",
+    "Language Exchange",
+    "Fitness",
+    "Other"
+  ];
+}
+
+/**
+ * Get service request overview statistics for admin dashboard
+ * @returns {Object} Statistics object
+ */
+export function getServiceRequestOverviewStats() {
+  // This will be replaced with a backend call in the future
   return {
-    totalRequests: requests.length,
-    openRequests: openRequests,
-    averageBudget: parseFloat(avgBudget),
-    completionRate: completionRate,
+    totalRequests: 8,
+    openRequests: 6,
+    averageBudget: 3.5,
+    completionRate: 78,
     topCategories: [
       { name: "Web Development", count: 3 },
       { name: "Education", count: 2 },
       { name: "Photography", count: 2 }
     ],
     urgencyBreakdown: {
-      high: requests.filter(req => req.urgency === "High").length,
-      medium: requests.filter(req => req.urgency === "Medium").length,
-      low: requests.filter(req => req.urgency === "Low").length
+      high: 2,
+      medium: 4,
+      low: 2
     }
-  }
+  };
+}
+
+/**
+ * Transform backend request format to frontend format
+ * @param {Object} backendRequest Request from backend
+ * @returns {Object} Request in frontend format
+ */
+function transformBackendRequestToFrontend(backendRequest) {
+  if (!backendRequest) return null;
+
+  // Map urgency from backend to frontend format
+  const urgencyMap = {
+    low: "Low",
+    normal: "Normal",
+    high: "High",
+    urgent: "Urgent"
+  };
+
+  // Create a placeholder user object
+  const user = {
+    id: backendRequest.creator_id?.toString(),
+    name: backendRequest.creator_name || "Unknown",
+    image: `/placeholder.svg?height=40&width=40&text=${backendRequest.creator_name?.charAt(0) || "U"}`,
+    rating: 4.5, // Placeholder
+    memberSince: "2023-01-01", // Placeholder
+    completedProjects: 5, // Placeholder
+    responseRate: "90%", // Placeholder
+    location: backendRequest.location || "Unknown"
+  };
+
+  return {
+    id: backendRequest.request_id?.toString(),
+    title: backendRequest.title,
+    description: backendRequest.description,
+    budget: parseFloat(backendRequest.budget),
+    location: backendRequest.location,
+    category: backendRequest.category,
+    requester: backendRequest.creator_name || "Unknown",
+    requesterImage: `/placeholder.svg?height=40&width=40&text=${backendRequest.creator_name?.charAt(0) || "U"}`,
+    deadline: backendRequest.deadline || new Date().toISOString().split('T')[0],
+    urgency: urgencyMap[backendRequest.urgency] || "Normal",
+    image: "/placeholder.svg?height=200&width=300&text=" + encodeURIComponent(backendRequest.title || "Request"),
+    availability: [], // Not implemented in backend yet
+    requirements: backendRequest.requirements || "",
+    whatIncluded: backendRequest.whats_included || "",
+    tags: backendRequest.tags || [],
+    skills: backendRequest.skills || [],
+    createdAt: backendRequest.created_at || new Date().toISOString(),
+    status: "Open", // Placeholder - not yet implemented in backend
+    proposals: 0, // Placeholder - not yet implemented in backend
+    user: user // Add user object for components that expect it
+  };
 }
