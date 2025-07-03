@@ -51,11 +51,15 @@ def create_booking(
         db.commit()
         db.refresh(new_booking)
 
-        # Get user name for the response
-        user = db.query(User).filter(User.user_id == current_user.user_id).first()
-        creator_name = f"{user.first_name} {user.last_name}" if user else "Unknown"
+        # Get booker name (person making the booking)
+        booker = db.query(User).filter(User.user_id == current_user.user_id).first()
+        booker_name = f"{booker.first_name} {booker.last_name}" if booker else "Unknown"
         
-        # Get service title and creator_id for the response
+        # Get service provider name (person who created the service)
+        service_provider = db.query(User).filter(User.user_id == service.creator_id).first()
+        service_provider_name = f"{service_provider.first_name} {service_provider.last_name}" if service_provider else "Unknown"
+        
+        # Get service title for the response
         service_title = service.title if service else "Unknown Service"
         
         # Create response data
@@ -69,9 +73,10 @@ def create_booking(
             "time_credits_used": new_booking.time_credits_used,
             "status": new_booking.status,
             "booking_date": new_booking.booking_date,
-            "creator_name": creator_name,
+            "booker_name": booker_name,
+            "service_provider_name": service_provider_name,
             "service_title": service_title,
-            "creator_id": service.creator_id  # New field added
+            "creator_id": service.creator_id  # Keep this for backward compatibility
         }
 
         return response_data
@@ -122,22 +127,30 @@ def get_bookings(
             service_title = service.title if service else "Unknown Service"
             creator_id = service.creator_id if service else None
             
-            # Get user details
-            user = db.query(User).filter(User.user_id == booking.user_id).first()
-            creator_name = f"{user.first_name} {user.last_name}" if user else "Unknown"
+            # Get booker details (person who made the booking)
+            booker = db.query(User).filter(User.user_id == booking.user_id).first()
+            booker_name = f"{booker.first_name} {booker.last_name}" if booker else "Unknown"
+            
+            # Get service provider details (person who created the service)
+            if service and service.creator_id:
+                service_provider = db.query(User).filter(User.user_id == service.creator_id).first()
+                service_provider_name = f"{service_provider.first_name} {service_provider.last_name}" if service_provider else "Unknown"
+            else:
+                service_provider_name = "Unknown"
             
             response_bookings.append({
                 "booking_id": booking.booking_id,
                 "service_id": booking.service_id,
                 "user_id": booking.user_id,
-                "creator_id": creator_id,  # New field added
+                "creator_id": creator_id,  # Keep for backward compatibility
                 "scheduled_datetime": booking.scheduled_datetime,
                 "duration_minutes": booking.duration_minutes,
                 "message": booking.message,
                 "time_credits_used": booking.time_credits_used,
                 "status": booking.status,
                 "booking_date": booking.booking_date,
-                "creator_name": creator_name,
+                "booker_name": booker_name,
+                "service_provider_name": service_provider_name,
                 "service_title": service_title
             })
         
@@ -178,22 +191,30 @@ def get_booking(
     # Get service title
     service_title = service.title if service else "Unknown Service"
     
-    # Get user name
-    user = db.query(User).filter(User.user_id == booking.user_id).first()
-    creator_name = f"{user.first_name} {user.last_name}" if user else "Unknown"
+    # Get booker details (person who made the booking)
+    booker = db.query(User).filter(User.user_id == booking.user_id).first()
+    booker_name = f"{booker.first_name} {booker.last_name}" if booker else "Unknown"
+    
+    # Get service provider details (person who created the service)
+    if service and service.creator_id:
+        service_provider = db.query(User).filter(User.user_id == service.creator_id).first()
+        service_provider_name = f"{service_provider.first_name} {service_provider.last_name}" if service_provider else "Unknown"
+    else:
+        service_provider_name = "Unknown"
     
     response_data = {
         "booking_id": booking.booking_id,
         "service_id": booking.service_id,
         "user_id": booking.user_id,
-        "creator_id": service.creator_id,  # New field added
+        "creator_id": service.creator_id,  # Keep for backward compatibility
         "scheduled_datetime": booking.scheduled_datetime,
         "duration_minutes": booking.duration_minutes,
         "message": booking.message,
         "time_credits_used": booking.time_credits_used,
         "status": booking.status,
         "booking_date": booking.booking_date,
-        "creator_name": creator_name,
+        "booker_name": booker_name,
+        "service_provider_name": service_provider_name,
         "service_title": service_title
     }
     
@@ -249,22 +270,30 @@ def update_booking(
         # Get service title
         service_title = service.title if service else "Unknown Service"
         
-        # Get user name
-        user = db.query(User).filter(User.user_id == booking.user_id).first()
-        creator_name = f"{user.first_name} {user.last_name}" if user else "Unknown"
+        # Get booker details (person who made the booking)
+        booker = db.query(User).filter(User.user_id == booking.user_id).first()
+        booker_name = f"{booker.first_name} {booker.last_name}" if booker else "Unknown"
+        
+        # Get service provider details (person who created the service)
+        if service and service.creator_id:
+            service_provider = db.query(User).filter(User.user_id == service.creator_id).first()
+            service_provider_name = f"{service_provider.first_name} {service_provider.last_name}" if service_provider else "Unknown"
+        else:
+            service_provider_name = "Unknown"
         
         response_data = {
             "booking_id": booking.booking_id,
             "service_id": booking.service_id,
             "user_id": booking.user_id,
-            "creator_id": service.creator_id,  # New field added
+            "creator_id": service.creator_id,  # Keep for backward compatibility
             "scheduled_datetime": booking.scheduled_datetime,
             "duration_minutes": booking.duration_minutes,
             "message": booking.message,
             "time_credits_used": booking.time_credits_used,
             "status": booking.status,
             "booking_date": booking.booking_date,
-            "creator_name": creator_name,
+            "booker_name": booker_name,
+            "service_provider_name": service_provider_name,
             "service_title": service_title
         }
         

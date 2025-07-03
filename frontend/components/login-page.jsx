@@ -104,6 +104,7 @@ export default function LoginPage() {
         const userData = {
           email: formData.email,
           firstName: tokenData.firstName || "User", // Get firstName from token
+          user_id: tokenData.user_id, // Get user_id from token
           accessToken: result.access_token,
           tokenType: result.token_type,
         }
@@ -111,9 +112,13 @@ export default function LoginPage() {
         // Use the login function from AuthContext
         login(userData)
         
-        // Redirect to home page after a short delay
+        // Check if there's a redirect URL in the query parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const redirectUrl = urlParams.get('redirect');
+        
+        // Redirect to the specified URL or home page after a short delay
         setTimeout(() => {
-          router.push("/")
+          router.push(redirectUrl || "/")
         }, 1000)
       } else {
         // Handle login errors from backend

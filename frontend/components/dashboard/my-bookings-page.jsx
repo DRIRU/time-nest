@@ -56,6 +56,7 @@ export default function MyBookingsPage() {
       setIsLoading(true)
       setError(null)
       const data = await getServiceBookings()
+      console.log("Fetched bookings:", data)
       setBookings(data)
       setFilteredBookings(data)
     } catch (error) {
@@ -73,7 +74,8 @@ export default function MyBookingsPage() {
       const term = searchTerm.toLowerCase()
       filtered = filtered.filter(booking => 
         booking.service_title?.toLowerCase().includes(term) ||
-        booking.creator_name?.toLowerCase().includes(term)
+        booking.booker_name?.toLowerCase().includes(term) ||
+        booking.service_provider_name?.toLowerCase().includes(term)
       )
     }
 
@@ -81,10 +83,13 @@ export default function MyBookingsPage() {
       filtered = filtered.filter(booking => booking.status === statusFilter)
     }
 
+    // Filter based on the active tab
     if (activeTab === "received") {
-      filtered = filtered.filter(booking => booking.creator_id === currentUser?.user_id)
+      // Bookings I received = I am the service provider (creator_id matches my user_id)
+      filtered = filtered.filter(booking => parseInt(booking.creator_id) === parseInt(currentUser?.user_id))
     } else if (activeTab === "sent") {
-      filtered = filtered.filter(booking => booking.user_id === currentUser?.user_id)
+      // Bookings I made = I am the booker (user_id matches my user_id)
+      filtered = filtered.filter(booking => parseInt(booking.user_id) === parseInt(currentUser?.user_id))
     }
 
     setFilteredBookings(filtered)
@@ -268,7 +273,7 @@ export default function MyBookingsPage() {
             ) : (
               <div className="grid gap-6">
                 {filteredBookings.map((booking) => {
-                  const isProvider = booking.creator_id === currentUser?.user_id;
+                  const isProvider = parseInt(booking.creator_id) === parseInt(currentUser?.user_id);
                   const isPending = booking.status === "pending";
                   const isConfirmed = booking.status === "confirmed";
                   const isCompleted = booking.status === "completed";
@@ -370,7 +375,7 @@ export default function MyBookingsPage() {
                               <User className="h-5 w-5 text-gray-500 mr-3 mt-0.5" />
                               <div>
                                 <p className="font-medium">
-                                  {isProvider ? booking.creator_name : "Service Provider"}
+                                  {isProvider ? booking.booker_name : booking.service_provider_name}
                                 </p>
                                 <p className="text-gray-600 dark:text-gray-400">
                                   Booking made on {formatDateTime(booking.booking_date)}

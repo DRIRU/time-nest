@@ -25,7 +25,8 @@ class BookingResponse(BookingBase):
     user_id: int
     status: str
     booking_date: datetime
-    creator_name: Optional[str] = None  
+    booker_name: Optional[str] = None  # Renamed from creator_name to booker_name
+    service_provider_name: Optional[str] = None  # Added new field for service provider name
     service_title: Optional[str] = None
 
     class Config:
