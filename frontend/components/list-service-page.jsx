@@ -15,7 +15,7 @@ import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useAuth } from "@/contexts/auth-context" 
 import LocationAutocomplete from "./location-autocomplete"
-import { mapCategoryValue, addService } from "@/lib/database-services"
+import { mapCategoryValue, addService, addRequest } from "@/lib/database-services"
 
 export default function ListServicePage() {
   const router = useRouter()
@@ -252,17 +252,9 @@ export default function ListServicePage() {
     try {
       console.log(`Submitting ${postType} data:`, formData);
   
-      // Call the appropriate API route using addService
-      const endpoint = postType === "service" 
-        ? "http://localhost:8000/api/v1/services" 
-        : "/api/requests";
-      
-      // Prepare the request data based on the post type
-      let requestData = {};
-      
       if (postType === "service") {
         // Format data for service creation
-        requestData = {
+        const requestData = {
           title: formData.title,
           description: formData.description,
           category: mapCategoryValue(formData.category), // Map category value to database name
@@ -281,8 +273,8 @@ export default function ListServicePage() {
         alert("Service created successfully!");
         router.push("/services");
       } else {
-        // Format data for request creation (demo mode as per current logic)
-        requestData = {
+        // Format data for request creation
+        const requestData = {
           title: formData.title,
           description: formData.description,
           category: mapCategoryValue(formData.category),
@@ -290,18 +282,26 @@ export default function ListServicePage() {
           location: formData.location,
           deadline: formData.deadline,
           urgency: formData.urgency || "normal",
-          availability: formData.availability,
-          requirements: formData.requirements || "",
           whatIncluded: formData.whatIncluded || "",
+          requirements: formData.requirements || "",
           tags: formData.tags || [],
           skills: formData.skills || [],
-          images: formData.images.map(img => ({ url: img.url })),
         };
-  
-        // Demo mode for requests
-        const demoMessage = "Service request created in demo mode!";
-        alert(demoMessage);
-        router.push("/requests");
+        
+        try {
+          // Call addRequest from database-services.js
+          const response = await addRequest(requestData);
+          console.log("Request created:", response);
+          
+          // Redirect to requests page or show success message
+          alert("Service request created successfully!");
+          router.push("/requests");
+        } catch (error) {
+          console.error("Error creating request:", error);
+          // Fall back to demo mode if backend request fails
+          alert("Service request created in demo mode!");
+          router.push("/requests");
+        }
       }
     } catch (error) {
       console.error(`Error submitting ${postType}:`, error);

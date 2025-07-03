@@ -117,6 +117,68 @@ export async function addService(serviceData) {
 }
 
 /**
+ * Adds a new service request to the backend
+ * @param {Object} requestData Request data to add
+ * @returns {Promise<Object>} Created request
+ */
+export async function addRequest(requestData) {
+  try {
+    // Get the auth token from localStorage
+    const currentUser = JSON.parse(localStorage.getItem("currentUser") || "{}");
+    const token = currentUser?.accessToken;
+
+    if (!token) {
+      throw new Error("Authentication token not found. Please log in.");
+    }
+
+    // Format the data for the backend
+    const backendRequestData = {
+      title: requestData.title,
+      description: requestData.description,
+      category: requestData.category,
+      budget: parseFloat(requestData.budget),
+      location: requestData.location,
+      deadline: requestData.deadline,
+      urgency: requestData.urgency || "normal",
+      whats_included: requestData.whatIncluded || null,
+      requirements: requestData.requirements || null,
+      tags: requestData.tags || [],
+      skills: requestData.skills || []
+    };
+
+    const response = await fetch("http://localhost:8000/api/v1/requests", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      },
+      body: JSON.stringify(backendRequestData),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      let errorMessage = "Failed to create request";
+      
+      if (errorData.detail) {
+        if (Array.isArray(errorData.detail)) {
+          errorMessage = errorData.detail.map(err => `${err.loc.join('.')}: ${err.msg}`).join(', ');
+        } else {
+          errorMessage = errorData.detail;
+        }
+      }
+      
+      throw new Error(errorMessage);
+    }
+
+    const result = await response.json();
+    return result;
+  } catch (error) {
+    console.error("Error creating request:", error);
+    throw error;
+  }
+}
+
+/**
  * Filters services based on criteria
  * @param {Object} filters Filter criteria
  * @returns {Promise<Array>} Filtered services
