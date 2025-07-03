@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, Numeric, Enum, Date, DateTime, ForeignKey
+from sqlalchemy import Column, Integer, String, Text, Numeric, Enum as SQLAlchemyEnum, Date, DateTime, ForeignKey
 from ..database import Base
 from sqlalchemy.orm import relationship
 from datetime import datetime
@@ -13,7 +13,7 @@ class Request(Base):
     __tablename__ = "requests"
 
     request_id = Column(Integer, primary_key=True, autoincrement=True)
-    creator_id = Column(Integer, ForeignKey("users.user_id", ondelete="CASCADE"),nullable=False)
+    creator_id = Column(Integer, ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False)
 
     title = Column(String(100), nullable=False)
     description = Column(Text, nullable=False)
@@ -22,7 +22,7 @@ class Request(Base):
 
     location = Column(String(100), nullable=False)
     deadline = Column(Date)
-    urgency = Column(Enum(RequestUrgencyEnum), default=RequestUrgencyEnum.normal)
+    urgency = Column(SQLAlchemyEnum(RequestUrgencyEnum), default=RequestUrgencyEnum.normal)
 
     whats_included = Column(Text, nullable=True)
     requirements = Column(Text, nullable=True)
