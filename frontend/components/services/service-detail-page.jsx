@@ -13,20 +13,38 @@ import {
   Shield,
   Star,
   DollarSign,
+  Clock,
+  X,
+  CalendarIcon,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Separator } from "@/components/ui/separator"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { getServiceById } from "@/lib/database-services"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
+import { Calendar as CalendarComponent } from "@/components/ui/calendar"
+import { Textarea } from "@/components/ui/textarea"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { getServiceById, addServiceBooking } from "@/lib/database-services"
+import { useAuth } from "@/contexts/auth-context"
+import { format } from "date-fns"
 
 export default function ServiceDetailPage({ initialService = null }) {
   const [service, setService] = useState(initialService)
   const [isLoading, setIsLoading] = useState(!initialService)
   const [isFavorited, setIsFavorited] = useState(false)
   const router = useRouter()
+  const { isLoggedIn, currentUser } = useAuth()
+
+  // Booking modal state
+  const [showBookingModal, setShowBookingModal] = useState(false)
+  const [selectedDate, setSelectedDate] = useState(new Date())
+  const [bookingMessage, setBookingMessage] = useState("")
+  const [bookingLoading, setBookingLoading] = useState(false)
+  const [bookingError, setBookingError] = useState("")
+  const [bookingSuccess, setBookingSuccess] = useState(false)
 
   useEffect(() => {
     if (initialService) {
@@ -94,6 +112,54 @@ export default function ServiceDetailPage({ initialService = null }) {
     router.push(
       `/chat/${service.creator_id}?context=service&id=${service.id}&title=${encodeURIComponent(service.title)}`,
     )
+  }
+
+  const handleBookNow = () => {
+    if (!isLoggedIn) {
+      alert("Please log in to book this service")
+      router.push(`/login?redirect=/services/${service.id}`)
+      return
+    }
+    setShowBookingModal(true)
+  }
+
+  const handleConfirmBooking = async () => {
+    if (!isLoggedIn) {
+      alert("Please log in to book this service")
+      router.push(`/login?redirect=/services/${service.id}`)
+      return
+    }
+
+    setBookingLoading(true)
+    setBookingError("")
+
+    try {
+      const bookingData = {
+        service_id: parseInt(service.id),
+        scheduled_date: selectedDate,
+        message: bookingMessage,
+        time_credits_used: service.timeCredits
+      }
+
+      const result = await addServiceBooking(bookingData)
+      
+      setBookingSuccess(true)
+      
+      // Reset form
+      setBookingMessage("")
+      
+      // Close modal after a delay
+      setTimeout(() => {
+        setShowBookingModal(false)
+        setBookingSuccess(false)
+      }, 3000)
+      
+    } catch (error) {
+      console.error("Error booking service:", error)
+      setBookingError(error.message || "Failed to book service. Please try again.")
+    } finally {
+      setBookingLoading(false)
+    }
   }
 
   return (
@@ -209,10 +275,22 @@ export default function ServiceDetailPage({ initialService = null }) {
                           </ul>
                         </div>
                         <div>
-                          <h4 className="font-medium mb-2 text-gray-900 dark:text-white">Response Time:</h4>
-                          <p className="text-sm text-gray-600 dark:text-gray-300">
-                            {service.responseTime || "2-4 hours"}
-                          </p>
+                          <h4 className="font-medium mb-2 text-gray-900 dark:text-white">Availability:</h4>
+                          <ul className="space-y-1 text-sm text-gray-600 dark:text-gray-300">
+                            {service.availability && service.availability.length > 0 ? (
+                              service.availability.map((time, index) => (
+                                <li key={index} className="flex items-center">
+                                  <Clock className="h-4 w-4 text-blue-500 mr-2" />
+                                  {time}
+                                </li>
+                              ))
+                            ) : (
+                              <li className="flex items-center">
+                                <Clock className="h-4 w-4 text-blue-500 mr-2" />
+                                Flexible
+                              </li>
+                            )}
+                          </ul>
                         </div>
                       </div>
                     </div>
@@ -306,7 +384,7 @@ export default function ServiceDetailPage({ initialService = null }) {
                   <p className="text-sm text-blue-700">Starting price</p>
                 </div>
 
-                <Button className="w-full" size="lg">
+                <Button className="w-full" size="lg" onClick={handleBookNow}>
                   <Calendar className="h-4 w-4 mr-2" />
                   Book Now
                 </Button>
@@ -316,9 +394,11 @@ export default function ServiceDetailPage({ initialService = null }) {
                   Contact Provider
                 </Button>
 
-                <p className="text-xs text-gray-500 text-center">
-                  Join TimeNest to book services and contact providers
-                </p>
+                {!isLoggedIn && (
+                  <p className="text-xs text-gray-500 text-center">
+                    Join TimeNest to book services and contact providers
+                  </p>
+                )}
               </CardContent>
             </Card>
 
@@ -370,6 +450,85 @@ export default function ServiceDetailPage({ initialService = null }) {
           </div>
         </div>
       </div>
+
+      {/* Booking Modal */}
+      <Dialog open={showBookingModal} onOpenChange={setShowBookingModal}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Book Service</DialogTitle>
+            <DialogDescription>
+              Select a date and add an optional message to book this service.
+            </DialogDescription>
+          </DialogHeader>
+          
+          {bookingSuccess ? (
+            <div className="py-6">
+              <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg border border-green-200 dark:border-green-800">
+                <div className="flex items-center">
+                  <CheckCircle className="h-5 w-5 text-green-500 mr-2" />
+                  <h3 className="text-green-800 dark:text-green-300 font-medium">Booking Successful!</h3>
+                </div>
+                <p className="text-green-700 dark:text-green-400 mt-2 text-sm">
+                  Your booking request has been sent to the service provider. You'll be notified when they respond.
+                </p>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className="py-4">
+                <div className="mb-4">
+                  <h3 className="text-sm font-medium mb-2">Select Date</h3>
+                  <div className="border rounded-md p-2">
+                    <CalendarComponent
+                      mode="single"
+                      selected={selectedDate}
+                      onSelect={(date) => date && setSelectedDate(date)}
+                      disabled={(date) => date < new Date()}
+                      className="mx-auto"
+                    />
+                  </div>
+                  <p className="text-sm text-gray-500 mt-2">
+                    Selected date: {selectedDate ? format(selectedDate, "PPP") : "None"}
+                  </p>
+                </div>
+
+                <div className="mb-4">
+                  <h3 className="text-sm font-medium mb-2">Message (Optional)</h3>
+                  <Textarea
+                    placeholder="Add any specific details or questions for the service provider..."
+                    value={bookingMessage}
+                    onChange={(e) => setBookingMessage(e.target.value)}
+                    className="resize-none"
+                    rows={4}
+                  />
+                </div>
+
+                <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-md">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm font-medium">Service Cost:</span>
+                    <span className="font-bold">{service.timeCredits} credits/hour</span>
+                  </div>
+                </div>
+
+                {bookingError && (
+                  <Alert variant="destructive" className="mt-4">
+                    <AlertDescription>{bookingError}</AlertDescription>
+                  </Alert>
+                )}
+              </div>
+
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setShowBookingModal(false)}>
+                  Cancel
+                </Button>
+                <Button onClick={handleConfirmBooking} disabled={bookingLoading}>
+                  {bookingLoading ? "Processing..." : "Confirm Booking"}
+                </Button>
+              </DialogFooter>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
