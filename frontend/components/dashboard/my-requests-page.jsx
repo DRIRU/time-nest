@@ -52,7 +52,6 @@ export default function MyRequestsPage() {
   const [processingProposalId, setProcessingProposalId] = useState(null)
 
   useEffect(() => {
-    // Wait for auth to be checked
     if (loading) return;
     
     if (!isLoggedIn) {
@@ -68,34 +67,23 @@ export default function MyRequestsPage() {
       setIsLoading(true)
       setError(null)
       
-      // Fetch all requests
       const allRequests = await getAllServiceRequests()
-      
-      // Filter requests created by the current user
       const myPostedRequests = allRequests.filter(request => 
         request.creator_id === parseInt(currentUser?.user_id)
       )
-      
       setRequests(myPostedRequests)
       setFilteredRequests(myPostedRequests)
       
-      // Fetch proposals submitted by the current user
       try {
-        // This will fetch all proposals where the user is either the request creator or the proposer
         const allProposals = await getProposalsForRequest()
-        
-        // Filter to only include proposals submitted by the current user
         const submittedProposals = allProposals.filter(proposal => 
           parseInt(proposal.proposer_id) === parseInt(currentUser?.user_id)
         )
-        
         setMyProposals(submittedProposals)
         setFilteredProposals(submittedProposals)
       } catch (proposalError) {
         console.error("Error fetching proposals:", proposalError)
-        // Don't set the main error state, as we still have the requests data
       }
-      
     } catch (error) {
       console.error("Error fetching requests:", error)
       setError("Failed to load requests. Please try again later.")
@@ -105,7 +93,6 @@ export default function MyRequestsPage() {
   }
 
   useEffect(() => {
-    // Filter requests based on search term
     if (activeTab === "posted") {
       if (searchTerm) {
         const term = searchTerm.toLowerCase()
@@ -119,7 +106,6 @@ export default function MyRequestsPage() {
         setFilteredRequests(requests)
       }
     } else {
-      // Filter proposals based on search term
       if (searchTerm) {
         const term = searchTerm.toLowerCase()
         const filtered = myProposals.filter(proposal => 
@@ -170,7 +156,6 @@ export default function MyRequestsPage() {
     
     setExpandedRequestId(requestId)
     
-    // Fetch proposals for this request if not already loaded
     if (!requestProposals[requestId]) {
       try {
         setLoadingProposals(prev => ({ ...prev, [requestId]: true }))
@@ -188,11 +173,7 @@ export default function MyRequestsPage() {
     try {
       setProcessingProposalId(proposalId)
       await updateProposal(proposalId, { status: "accepted" })
-      
-      // Refresh the data
       await fetchData()
-      
-      // Close the expanded view
       setExpandedRequestId(null)
     } catch (error) {
       console.error("Error accepting proposal:", error)
@@ -206,8 +187,6 @@ export default function MyRequestsPage() {
     try {
       setProcessingProposalId(proposalId)
       await updateProposal(proposalId, { status: "rejected" })
-      
-      // Refresh the data
       await fetchData()
     } catch (error) {
       console.error("Error rejecting proposal:", error)
@@ -221,8 +200,6 @@ export default function MyRequestsPage() {
     try {
       setProcessingProposalId(proposalId)
       await updateProposal(proposalId, { status: "withdrawn" })
-      
-      // Refresh the data
       await fetchData()
     } catch (error) {
       console.error("Error withdrawing proposal:", error)
@@ -233,12 +210,12 @@ export default function MyRequestsPage() {
   }
   
   const getInitials = (name) => {
-    if (!name) return "U";
+    if (!name) return "U"
     return name
       .split(" ")
       .map((n) => n[0])
       .join("")
-      .toUpperCase();
+      .toUpperCase()
   }
 
   if (loading) {
@@ -250,7 +227,7 @@ export default function MyRequestsPage() {
   }
 
   if (!isLoggedIn) {
-    return null // Redirect handled in useEffect
+    return null
   }
 
   return (
@@ -260,7 +237,6 @@ export default function MyRequestsPage() {
         
         <div className="flex-1 p-8 md:ml-64">
           <div className="max-w-6xl mx-auto">
-            {/* Header */}
             <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-8 gap-4">
               <div>
                 <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">My Requests</h1>
@@ -276,312 +252,287 @@ export default function MyRequestsPage() {
               </Link>
             </div>
 
-            {/* Tabs */}
             <Tabs defaultValue="posted" value={activeTab} onValueChange={setActiveTab} className="mb-6">
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="posted">My Posted Requests</TabsTrigger>
                 <TabsTrigger value="proposals">Proposals I Submitted</TabsTrigger>
               </TabsList>
-            </Tabs>
 
-            {/* Search */}
-            <div className="mb-6">
-              <div className="relative">
-                <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                <Input
-                  placeholder={activeTab === "posted" ? "Search your requests..." : "Search your proposals..."}
-                  className="pl-10"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-              </div>
-            </div>
-
-            {/* Error Message */}
-            {error && (
-              <div className="mb-6 bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 p-4">
-                <div className="flex">
-                  <AlertCircle className="h-6 w-6 text-red-500 mr-3" />
-                  <p className="text-red-700 dark:text-red-400">{error}</p>
-                </div>
-              </div>
-            )}
-
-            {/* Content based on active tab */}
-            <TabsContent value="posted" className="mt-0">
-              {isLoading ? (
-                <div className="flex justify-center items-center h-64">
-                  <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
-                </div>
-              ) : filteredRequests.length === 0 ? (
-                <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-lg shadow">
-                  <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
-                    {searchTerm ? "No requests match your search" : "You haven't posted any service requests yet"}
-                  </h3>
-                  <p className="text-gray-600 dark:text-gray-400 mb-6">
-                    {searchTerm 
-                      ? "Try a different search term or clear your search" 
-                      : "Post a request to find someone with the skills you need"}
-                  </p>
-                  <Link href="/list-service">
-                    <Button>
-                      <Plus className="h-4 w-4 mr-2" />
-                      Post Your First Request
-                    </Button>
-                  </Link>
-                </div>
-              ) : (
-                <div className="space-y-6">
-                  {filteredRequests.map((request) => (
-                    <Card key={request.id} className="overflow-hidden">
-                      <CardHeader className="pb-4">
-                        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                          <div>
-                            <CardTitle className="text-xl">{request.title}</CardTitle>
-                            <div className="flex flex-wrap gap-2 mt-2">
-                              <Badge variant="outline">{request.category}</Badge>
-                              <Badge className={getUrgencyColor(request.urgency)}>{request.urgency}</Badge>
-                              <Badge className="bg-blue-100 text-blue-800">{request.budget} credits</Badge>
+              {/* Move TabsContent inside Tabs */}
+              <TabsContent value="posted" className="mt-0">
+                {isLoading ? (
+                  <div className="flex justify-center items-center h-64">
+                    <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+                  </div>
+                ) : filteredRequests.length === 0 ? (
+                  <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-lg shadow">
+                    <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+                      {searchTerm ? "No requests match your search" : "You haven't posted any service requests yet"}
+                    </h3>
+                    <p className="text-gray-600 dark:text-gray-400 mb-6">
+                      {searchTerm 
+                        ? "Try a different search term or clear your search" 
+                        : "Post a request to find someone with the skills you need"}
+                    </p>
+                    <Link href="/list-service">
+                      <Button>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Post Your First Request
+                      </Button>
+                    </Link>
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    {filteredRequests.map((request) => (
+                      <Card key={request.id} className="overflow-hidden">
+                        <CardHeader className="pb-4">
+                          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                            <div>
+                              <CardTitle className="text-xl">{request.title}</CardTitle>
+                              <div className="flex flex-wrap gap-2 mt-2">
+                                <Badge variant="outline">{request.category}</Badge>
+                                <Badge className={getUrgencyColor(request.urgency)}>{request.urgency}</Badge>
+                                <Badge className="bg-blue-100 text-blue-800">{request.budget} credits</Badge>
+                              </div>
                             </div>
-                          </div>
-                          <div className="flex flex-wrap gap-2">
-                            <Button 
-                              variant="outline" 
-                              size="sm" 
-                              onClick={() => toggleRequestExpansion(request.id)}
-                              className="flex items-center gap-2"
-                            >
-                              <MessageSquare className="h-4 w-4" />
-                              View Proposals
-                              {requestProposals[request.id] && (
-                                <Badge className="ml-1 bg-blue-100 text-blue-800">
-                                  {requestProposals[request.id].length}
-                                </Badge>
-                              )}
-                            </Button>
-                            <Link href={`/requests/${request.id}`}>
-                              <Button variant="outline" size="sm">View Request</Button>
-                            </Link>
-                          </div>
-                        </div>
-                      </CardHeader>
-                      
-                      {/* Expanded view with proposals */}
-                      {expandedRequestId === request.id && (
-                        <CardContent className="border-t pt-4">
-                          <h3 className="text-lg font-semibold mb-4">Proposals</h3>
-                          
-                          {loadingProposals[request.id] ? (
-                            <div className="flex justify-center py-6">
-                              <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
-                            </div>
-                          ) : !requestProposals[request.id] || requestProposals[request.id].length === 0 ? (
-                            <div className="text-center py-6 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                              <MessageSquare className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">No proposals yet</h3>
-                              <p className="text-gray-600 dark:text-gray-400">
-                                When service providers submit proposals, they'll appear here.
-                              </p>
-                            </div>
-                          ) : (
-                            <div className="space-y-4">
-                              {requestProposals[request.id].map((proposal) => (
-                                <div key={proposal.proposal_id} className="border rounded-lg p-4">
-                                  <div className="flex items-start justify-between mb-3">
-                                    <div className="flex items-center">
-                                      <Avatar className="h-10 w-10 mr-3">
-                                        <AvatarImage 
-                                          src={`/placeholder.svg?height=40&width=40&text=${getInitials(proposal.proposer_name)}`} 
-                                          alt={proposal.proposer_name} 
-                                        />
-                                        <AvatarFallback>{getInitials(proposal.proposer_name)}</AvatarFallback>
-                                      </Avatar>
-                                      <div>
-                                        <h4 className="font-medium">{proposal.proposer_name}</h4>
-                                        <div className="flex items-center gap-2">
-                                          <p className="text-sm text-gray-500">
-                                            Submitted {new Date(proposal.submitted_at).toLocaleDateString()}
-                                          </p>
-                                          {getStatusBadge(proposal.status)}
-                                        </div>
-                                      </div>
-                                    </div>
-                                    <Badge className="bg-blue-100 text-blue-800">
-                                      {proposal.proposed_credits} credits
-                                    </Badge>
-                                  </div>
-                                  
-                                  <p className="text-gray-700 dark:text-gray-300 mb-4">{proposal.proposal_text}</p>
-                                  
-                                  {proposal.status === "pending" && (
-                                    <div className="flex justify-end gap-2">
-                                      <Button 
-                                        variant="outline" 
-                                        size="sm"
-                                        onClick={() => router.push(`/chat/${proposal.proposer_id}`)}
-                                      >
-                                        <MessageSquare className="h-4 w-4 mr-2" />
-                                        Message
-                                      </Button>
-                                      <Button 
-                                        size="sm"
-                                        onClick={() => handleAcceptProposal(proposal.proposal_id)}
-                                        disabled={processingProposalId === proposal.proposal_id}
-                                        className="bg-green-600 hover:bg-green-700"
-                                      >
-                                        <CheckCircle className="h-4 w-4 mr-2" />
-                                        Accept
-                                      </Button>
-                                      <Button 
-                                        variant="outline" 
-                                        size="sm"
-                                        onClick={() => handleRejectProposal(proposal.proposal_id)}
-                                        disabled={processingProposalId === proposal.proposal_id}
-                                        className="text-red-600 border-red-200 hover:bg-red-50"
-                                      >
-                                        <XCircle className="h-4 w-4 mr-2" />
-                                        Reject
-                                      </Button>
-                                    </div>
-                                  )}
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </CardContent>
-                      )}
-                      
-                      <CardFooter className="flex justify-between pt-4 border-t">
-                        <div className="flex items-center text-sm text-gray-500">
-                          <Calendar className="h-4 w-4 mr-2" />
-                          <span>Due: {new Date(request.deadline).toLocaleDateString()}</span>
-                        </div>
-                        <div className="flex gap-2">
-                          <Button variant="outline" size="sm" className="h-9 w-9 p-0">
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button variant="outline" size="sm" className="h-9 w-9 p-0 text-red-500 hover:text-red-600">
-                            <Trash className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </CardFooter>
-                    </Card>
-                  ))}
-                </div>
-              )}
-            </TabsContent>
-
-            <TabsContent value="proposals" className="mt-0">
-              {isLoading ? (
-                <div className="flex justify-center items-center h-64">
-                  <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
-                </div>
-              ) : filteredProposals.length === 0 ? (
-                <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-lg shadow">
-                  <MessageSquare className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
-                    {searchTerm ? "No proposals match your search" : "You haven't submitted any proposals yet"}
-                  </h3>
-                  <p className="text-gray-600 dark:text-gray-400 mb-6">
-                    {searchTerm 
-                      ? "Try a different search term or clear your search" 
-                      : "Browse service requests and submit proposals to offer your services"}
-                  </p>
-                  <Link href="/requests">
-                    <Button>
-                      <Search className="h-4 w-4 mr-2" />
-                      Browse Service Requests
-                    </Button>
-                  </Link>
-                </div>
-              ) : (
-                <div className="space-y-6">
-                  {filteredProposals.map((proposal) => (
-                    <Card key={proposal.proposal_id} className="overflow-hidden">
-                      <CardHeader className="pb-4">
-                        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                          <div>
-                            <CardTitle className="text-xl">Proposal for Request #{proposal.request_id}</CardTitle>
-                            <div className="flex flex-wrap gap-2 mt-2">
-                              {getStatusBadge(proposal.status)}
-                              <Badge className="bg-blue-100 text-blue-800">{proposal.proposed_credits} credits</Badge>
-                            </div>
-                          </div>
-                          <div className="flex flex-wrap gap-2">
-                            <Link href={`/requests/${proposal.request_id}`}>
-                              <Button variant="outline" size="sm">View Request</Button>
-                            </Link>
-                          </div>
-                        </div>
-                      </CardHeader>
-                      
-                      <CardContent className="pb-4">
-                        <div className="space-y-4">
-                          <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
-                            <h4 className="font-medium mb-2">Your Proposal</h4>
-                            <p className="text-gray-700 dark:text-gray-300">{proposal.proposal_text}</p>
-                          </div>
-                          
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center">
-                              <Clock className="h-4 w-4 text-gray-500 mr-2" />
-                              <span className="text-sm text-gray-600 dark:text-gray-400">
-                                Submitted on {new Date(proposal.submitted_at).toLocaleDateString()}
-                              </span>
-                            </div>
-                            
-                            {proposal.status === "pending" && (
+                            <div className="flex flex-wrap gap-2">
                               <Button 
                                 variant="outline" 
-                                size="sm"
-                                onClick={() => handleWithdrawProposal(proposal.proposal_id)}
-                                disabled={processingProposalId === proposal.proposal_id}
-                                className="text-red-600 border-red-200 hover:bg-red-50"
+                                size="sm" 
+                                onClick={() => toggleRequestExpansion(request.id)}
+                                className="flex items-center gap-2"
                               >
-                                <XCircle className="h-4 w-4 mr-2" />
-                                Withdraw Proposal
+                                <MessageSquare className="h-4 w-4" />
+                                View Proposals
+                                {requestProposals[request.id] && (
+                                  <Badge className="ml-1 bg-blue-100 text-blue-800">
+                                    {requestProposals[request.id].length}
+                                  </Badge>
+                                )}
                               </Button>
+                              <Link href={`/requests/${request.id}`}>
+                                <Button variant="outline" size="sm">View Request</Button>
+                              </Link>
+                            </div>
+                          </div>
+                        </CardHeader>
+                        
+                        {expandedRequestId === request.id && (
+                          <CardContent className="border-t pt-4">
+                            <h3 className="text-lg font-semibold mb-4">Proposals</h3>
+                            
+                            {loadingProposals[request.id] ? (
+                              <div className="flex justify-center py-6">
+                                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+                              </div>
+                            ) : !requestProposals[request.id] || requestProposals[request.id].length === 0 ? (
+                              <div className="text-center py-6 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                                <MessageSquare className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                                <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">No proposals yet</h3>
+                                <p className="text-gray-600 dark:text-gray-400">
+                                  When service providers submit proposals, they'll appear here.
+                                </p>
+                              </div>
+                            ) : (
+                              <div className="space-y-4">
+                                {requestProposals[request.id].map((proposal) => (
+                                  <div key={proposal.proposal_id} className="border rounded-lg p-4">
+                                    <div className="flex items-start justify-between mb-3">
+                                      <div className="flex items-center">
+                                        <Avatar className="h-10 w-10 mr-3">
+                                          <AvatarImage 
+                                            src={`/placeholder.svg?height=40&width=40&text=${getInitials(proposal.proposer_name)}`} 
+                                            alt={proposal.proposer_name} 
+                                          />
+                                          <AvatarFallback>{getInitials(proposal.proposer_name)}</AvatarFallback>
+                                        </Avatar>
+                                        <div>
+                                          <h4 className="font-medium">{proposal.proposer_name}</h4>
+                                          <div className="flex items-center gap-2">
+                                            <p className="text-sm text-gray-500">
+                                              Submitted {new Date(proposal.submitted_at).toLocaleDateString()}
+                                            </p>
+                                            {getStatusBadge(proposal.status)}
+                                          </div>
+                                        </div>
+                                      </div>
+                                      <Badge className="bg-blue-100 text-blue-800">
+                                        {proposal.proposed_credits} credits
+                                      </Badge>
+                                    </div>
+                                    
+                                    <p className="text-gray-700 dark:text-gray-300 mb-4">{proposal.proposal_text}</p>
+                                    
+                                    {proposal.status === "pending" && (
+                                      <div className="flex justify-end gap-2">
+                                        <Button 
+                                          variant="outline" 
+                                          size="sm"
+                                          onClick={() => router.push(`/chat/${proposal.proposer_id}`)}
+                                        >
+                                          <MessageSquare className="h-4 w-4 mr-2" />
+                                          Message
+                                        </Button>
+                                        <Button 
+                                          size="sm"
+                                          onClick={() => handleAcceptProposal(proposal.proposal_id)}
+                                          disabled={processingProposalId === proposal.proposal_id}
+                                          className="bg-green-600 hover:bg-green-700"
+                                        >
+                                          <CheckCircle className="h-4 w-4 mr-2" />
+                                          Accept
+                                        </Button>
+                                        <Button 
+                                          variant="outline" 
+                                          size="sm"
+                                          onClick={() => handleRejectProposal(proposal.proposal_id)}
+                                          disabled={processingProposalId === proposal.proposal_id}
+                                          className="text-red-600 border-red-200 hover:bg-red-50"
+                                        >
+                                          <XCircle className="h-4 w-4 mr-2" />
+                                          Reject
+                                        </Button>
+                                      </div>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </CardContent>
+                        )}
+                        
+                        <CardFooter className="flex justify-between pt-4 border-t">
+                          <div className="flex items-center text-sm text-gray-500">
+                            <Calendar className="h-4 w-4 mr-2" />
+                            <span>Due: {new Date(request.deadline).toLocaleDateString()}</span>
+                          </div>
+                          <div className="flex gap-2">
+                            <Button variant="outline" size="sm" className="h-9 w-9 p-0">
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button variant="outline" size="sm" className="h-9 w-9 p-0 text-red-500 hover:text-red-600">
+                              <Trash className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </CardFooter>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </TabsContent>
+
+              <TabsContent value="proposals" className="mt-0">
+                {isLoading ? (
+                  <div className="flex justify-center items-center h-64">
+                    <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+                  </div>
+                ) : filteredProposals.length === 0 ? (
+                  <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-lg shadow">
+                    <MessageSquare className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+                      {searchTerm ? "No proposals match your search" : "You haven't submitted any proposals yet"}
+                    </h3>
+                    <p className="text-gray-600 dark:text-gray-400 mb-6">
+                      {searchTerm 
+                        ? "Try a different search term or clear your search" 
+                        : "Browse service requests and submit proposals to offer your services"}
+                    </p>
+                    <Link href="/requests">
+                      <Button>
+                        <Search className="h-4 w-4 mr-2" />
+                        Browse Service Requests
+                      </Button>
+                    </Link>
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    {filteredProposals.map((proposal) => (
+                      <Card key={proposal.proposal_id} className="overflow-hidden">
+                        <CardHeader className="pb-4">
+                          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                            <div>
+                              <CardTitle className="text-xl">Proposal for Request #{proposal.request_id}</CardTitle>
+                              <div className="flex flex-wrap gap-2 mt-2">
+                                {getStatusBadge(proposal.status)}
+                                <Badge className="bg-blue-100 text-blue-800">{proposal.proposed_credits} credits</Badge>
+                              </div>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                              <Link href={`/requests/${proposal.request_id}`}>
+                                <Button variant="outline" size="sm">View Request</Button>
+                              </Link>
+                            </div>
+                          </div>
+                        </CardHeader>
+                        
+                        <CardContent className="pb-4">
+                          <div className="space-y-4">
+                            <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
+                              <h4 className="font-medium mb-2">Your Proposal</h4>
+                              <p className="text-gray-700 dark:text-gray-300">{proposal.proposal_text}</p>
+                            </div>
+                            
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center">
+                                <Clock className="h-4 w-4 text-gray-500 mr-2" />
+                                <span className="text-sm text-gray-600 dark:text-gray-400">
+                                  Submitted on {new Date(proposal.submitted_at).toLocaleDateString()}
+                                </span>
+                              </div>
+                              
+                              {proposal.status === "pending" && (
+                                <Button 
+                                  variant="outline" 
+                                  size="sm"
+                                  onClick={() => handleWithdrawProposal(proposal.proposal_id)}
+                                  disabled={processingProposalId === proposal.proposal_id}
+                                  className="text-red-600 border-red-200 hover:bg-red-50"
+                                >
+                                  <XCircle className="h-4 w-4 mr-2" />
+                                  Withdraw Proposal
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        </CardContent>
+                        
+                        <CardFooter className="pt-4 border-t">
+                          <div className="w-full">
+                            {proposal.status === "accepted" && (
+                              <Alert className="bg-green-50 border-green-200 text-green-800">
+                                <CheckCircle className="h-4 w-4" />
+                                <AlertDescription>
+                                  Your proposal has been accepted! The requester will contact you to discuss next steps.
+                                </AlertDescription>
+                              </Alert>
+                            )}
+                            
+                            {proposal.status === "rejected" && (
+                              <Alert className="bg-red-50 border-red-200 text-red-800">
+                                <XCircle className="h-4 w-4" />
+                                <AlertDescription>
+                                  Your proposal has been rejected. Don't worry, there are many other opportunities available.
+                                </AlertDescription>
+                              </Alert>
+                            )}
+                            
+                            {proposal.status === "withdrawn" && (
+                              <Alert className="bg-gray-50 border-gray-200 text-gray-800">
+                                <AlertCircle className="h-4 w-4" />
+                                <AlertDescription>
+                                  You have withdrawn this proposal.
+                                </AlertDescription>
+                              </Alert>
                             )}
                           </div>
-                        </div>
-                      </CardContent>
-                      
-                      <CardFooter className="pt-4 border-t">
-                        <div className="w-full">
-                          {proposal.status === "accepted" && (
-                            <Alert className="bg-green-50 border-green-200 text-green-800">
-                              <CheckCircle className="h-4 w-4" />
-                              <AlertDescription>
-                                Your proposal has been accepted! The requester will contact you to discuss next steps.
-                              </AlertDescription>
-                            </Alert>
-                          )}
-                          
-                          {proposal.status === "rejected" && (
-                            <Alert className="bg-red-50 border-red-200 text-red-800">
-                              <XCircle className="h-4 w-4" />
-                              <AlertDescription>
-                                Your proposal has been rejected. Don't worry, there are many other opportunities available.
-                              </AlertDescription>
-                            </Alert>
-                          )}
-                          
-                          {proposal.status === "withdrawn" && (
-                            <Alert className="bg-gray-50 border-gray-200 text-gray-800">
-                              <AlertCircle className="h-4 w-4" />
-                              <AlertDescription>
-                                You have withdrawn this proposal.
-                              </AlertDescription>
-                            </Alert>
-                          )}
-                        </div>
-                      </CardFooter>
-                    </Card>
-                  ))}
-                </div>
-              )}
-            </TabsContent>
+                        </CardFooter>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </TabsContent>
+            </Tabs>
           </div>
         </div>
       </div>
