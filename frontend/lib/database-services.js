@@ -257,35 +257,6 @@ export async function addServiceBooking(bookingData) {
  * Fetches all service bookings for the current user
  * @returns {Promise<Array>} Array of bookings
  */
-export async function getServiceBookings() {
-  try {
-    // Get the auth token from localStorage
-    const currentUser = JSON.parse(localStorage.getItem("currentUser") || "{}");
-    const token = currentUser?.accessToken;
-
-    if (!token) {
-      throw new Error("Authentication token not found. Please log in.");
-    }
-
-    const response = await fetch("http://localhost:8000/api/v1/service-bookings", {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${token}`
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(`Error fetching bookings: ${response.status}`);
-    }
-
-    const data = await response.json();
-    return data;
-  } catch (error) {
-    console.error("Error fetching service bookings:", error);
-    throw error;
-  }
-}
 
 /**
  * Updates a service booking status
@@ -592,6 +563,40 @@ export async function deleteService(id) {
     }
   } catch (error) {
     console.error(`Error deleting service with ID ${id}:`, error);
+    throw error;
+  }
+}
+
+export async function getServiceBookings() {
+  try {
+    const currentUser = JSON.parse(localStorage.getItem("currentUser") || "{}");
+    const token = currentUser?.accessToken;
+
+    if (!token) {
+      throw new Error("Authentication token not found. Please log in.");
+    }
+
+    const response = await fetch("http://localhost:8000/api/v1/service-bookings/", {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.detail || "Failed to fetch bookings");
+    }
+
+    const data = await response.json();
+    return data.map(booking => ({
+      ...booking,
+      booking_id: booking.booking_id.toString(), // Ensure ID is string if needed
+      creator_id: booking.creator_id?.toString() || null, // Ensure consistency
+    }));
+  } catch (error) {
+    console.error("Error in getServiceBookings:", error);
     throw error;
   }
 }
