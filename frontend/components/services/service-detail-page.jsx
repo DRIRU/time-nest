@@ -1,7 +1,7 @@
 "use client"
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
+import { useState, useEffect } from "react"
+import { useRouter, useParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -21,10 +21,35 @@ import {
   Shield,
   DollarSign,
 } from "lucide-react"
+import { getServiceById } from "@/lib/database-services" // Adjust the import path
 
-export default function ServiceDetailPage({ service }) {
+export default function ServiceDetailPage() {
+  const [service, setService] = useState(null)
+  const [isLoading, setIsLoading] = useState(true)
   const [isFavorited, setIsFavorited] = useState(false)
   const router = useRouter()
+  const params = useParams()
+
+  useEffect(() => {
+    const fetchService = async () => {
+      setIsLoading(true)
+      const id = params.id // Get the id from the URL
+      const fetchedService = await getServiceById(id)
+      setService(fetchedService)
+      setIsLoading(false)
+    }
+    fetchService()
+  }, [params.id])
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-gray-600 dark:text-gray-300">Loading...</p>
+        </div>
+      </div>
+    )
+  }
 
   if (!service) {
     return (
@@ -37,6 +62,7 @@ export default function ServiceDetailPage({ service }) {
     )
   }
 
+  // Rest of the component remains the same (handleShare, handleContactProvider, return JSX)
   const handleShare = () => {
     if (navigator.share) {
       navigator.share({
@@ -57,6 +83,7 @@ export default function ServiceDetailPage({ service }) {
   }
 
   return (
+    // Existing JSX structure with service prop usage
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Back Button */}
@@ -120,7 +147,7 @@ export default function ServiceDetailPage({ service }) {
                       <div className="flex items-center text-gray-600 dark:text-gray-300">
                         <Star className="h-5 w-5 mr-2 flex-shrink-0 fill-yellow-400 text-yellow-400" />
                         <span>
-                          {service.rating}/5 ({service.reviewCount} reviews)
+                          {service.rating}/5 ({service.reviewCount || 0} reviews)
                         </span>
                       </div>
                     </div>
