@@ -7,6 +7,7 @@ const AuthContext = createContext()
 export function AuthProvider({ children }) {
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [currentUser, setCurrentUser] = useState(null)
+  const [loading, setLoading] = useState(true)
 
   // Check localStorage on mount
   useEffect(() => {
@@ -18,8 +19,10 @@ export function AuthProvider({ children }) {
         setIsLoggedIn(true)
         setCurrentUser(JSON.parse(storedUser))
       }
+      setLoading(false)
     } catch (error) {
       console.error("Error loading auth state:", error)
+      setLoading(false)
     }
   }, [])
 
@@ -45,7 +48,7 @@ export function AuthProvider({ children }) {
     }
   }
 
-  return <AuthContext.Provider value={{ isLoggedIn, currentUser, login, logout }}>{children}</AuthContext.Provider>
+  return <AuthContext.Provider value={{ isLoggedIn, currentUser, login, logout, loading }}>{children}</AuthContext.Provider>
 }
 
 export function useAuth() {

@@ -24,7 +24,7 @@ import Link from "next/link"
 
 export default function MyRequestsPage() {
   const router = useRouter()
-  const { isLoggedIn, currentUser } = useAuth()
+  const { isLoggedIn, currentUser, loading } = useAuth()
   const [requests, setRequests] = useState([])
   const [filteredRequests, setFilteredRequests] = useState([])
   const [isLoading, setIsLoading] = useState(true)
@@ -32,6 +32,9 @@ export default function MyRequestsPage() {
   const [searchTerm, setSearchTerm] = useState("")
 
   useEffect(() => {
+    // Wait for auth to be checked
+    if (loading) return;
+    
     if (!isLoggedIn) {
       router.push("/login?redirect=/dashboard/my-requests")
       return
@@ -59,7 +62,7 @@ export default function MyRequestsPage() {
     }
 
     fetchRequests()
-  }, [isLoggedIn, router, currentUser])
+  }, [isLoggedIn, router, currentUser, loading])
 
   useEffect(() => {
     // Filter requests based on search term
@@ -89,6 +92,14 @@ export default function MyRequestsPage() {
       default:
         return "bg-gray-100 text-gray-700"
     }
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      </div>
+    )
   }
 
   if (!isLoggedIn) {

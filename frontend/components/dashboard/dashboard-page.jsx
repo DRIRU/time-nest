@@ -22,7 +22,7 @@ import Link from "next/link"
 
 export default function DashboardPage() {
   const router = useRouter()
-  const { isLoggedIn, currentUser } = useAuth()
+  const { isLoggedIn, currentUser, loading } = useAuth()
   const [stats, setStats] = useState({
     pendingBookings: 0,
     confirmedBookings: 0,
@@ -34,6 +34,9 @@ export default function DashboardPage() {
   const [error, setError] = useState(null)
 
   useEffect(() => {
+    // Wait for auth to be checked
+    if (loading) return;
+    
     if (!isLoggedIn) {
       router.push("/login?redirect=/dashboard")
       return
@@ -68,7 +71,15 @@ export default function DashboardPage() {
     }
 
     fetchDashboardData()
-  }, [isLoggedIn, router, currentUser])
+  }, [isLoggedIn, router, currentUser, loading])
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      </div>
+    )
+  }
 
   if (!isLoggedIn) {
     return null // Redirect handled in useEffect

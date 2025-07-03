@@ -23,7 +23,7 @@ import Link from "next/link"
 
 export default function MyServicesPage() {
   const router = useRouter()
-  const { isLoggedIn, currentUser } = useAuth()
+  const { isLoggedIn, currentUser, loading } = useAuth()
   const [services, setServices] = useState([])
   const [filteredServices, setFilteredServices] = useState([])
   const [isLoading, setIsLoading] = useState(true)
@@ -31,6 +31,9 @@ export default function MyServicesPage() {
   const [searchTerm, setSearchTerm] = useState("")
 
   useEffect(() => {
+    // Wait for auth to be checked
+    if (loading) return;
+    
     if (!isLoggedIn) {
       router.push("/login?redirect=/dashboard/my-services")
       return
@@ -58,7 +61,7 @@ export default function MyServicesPage() {
     }
 
     fetchServices()
-  }, [isLoggedIn, router, currentUser])
+  }, [isLoggedIn, router, currentUser, loading])
 
   useEffect(() => {
     // Filter services based on search term
@@ -74,6 +77,14 @@ export default function MyServicesPage() {
       setFilteredServices(services)
     }
   }, [searchTerm, services])
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      </div>
+    )
+  }
 
   if (!isLoggedIn) {
     return null // Redirect handled in useEffect

@@ -1,5 +1,7 @@
 import Layout from "@/components/layout/layout"
 import DashboardPage from "@/components/dashboard/dashboard-page"
+import { redirect } from "next/navigation"
+import { cookies } from "next/headers"
 
 export const metadata = {
   title: "Dashboard | TimeNest",

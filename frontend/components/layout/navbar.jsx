@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Clock, User, LogOut, ChevronDown, MessageCircle } from "lucide-react"
+import { Clock, User, LogOut, ChevronDown, MessageCircle, LayoutDashboard } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -30,7 +30,7 @@ export default function Navbar() {
   const handleLogout = () => {
     logout()
     // Optionally redirect to home page after logout
-    if (pathname === "/profile" || pathname === "/messages") {
+    if (pathname === "/profile" || pathname === "/messages" || pathname.startsWith("/dashboard")) {
       window.location.href = "/"
     }
   }
@@ -68,28 +68,36 @@ export default function Navbar() {
           <div className="flex items-center space-x-4">
             <ThemeToggle />
             {isLoggedIn ? (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
+              <>
+                <Link href="/dashboard">
                   <Button variant="outline" className="flex items-center space-x-2">
-                    <User className="h-4 w-4" />
-                    <span>{currentUser?.firstName || "User"}</span>
-                    <ChevronDown className="h-4 w-4" />
+                    <LayoutDashboard className="h-4 w-4" />
+                    <span>Dashboard</span>
                   </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48">
-                  <DropdownMenuItem asChild>
-                    <Link href="/profile" className="flex items-center space-x-2">
+                </Link>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" className="flex items-center space-x-2">
                       <User className="h-4 w-4" />
-                      <span>Profile</span>
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handleLogout} className="flex items-center space-x-2 text-red-600">
-                    <LogOut className="h-4 w-4" />
-                    <span>Logout</span>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+                      <span>{currentUser?.firstName || "User"}</span>
+                      <ChevronDown className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-48">
+                    <DropdownMenuItem asChild>
+                      <Link href="/profile" className="flex items-center space-x-2">
+                        <User className="h-4 w-4" />
+                        <span>Profile</span>
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={handleLogout} className="flex items-center space-x-2 text-red-600">
+                      <LogOut className="h-4 w-4" />
+                      <span>Logout</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </>
             ) : (
               <>
                 <Link href="/login">
