@@ -7,6 +7,7 @@ class BookingBase(BaseModel):
     service_id: int
     scheduled_datetime: datetime 
     message: Optional[str] = None
+    creator_id: Optional[int] = None
     duration_minutes: int = Field(60, ge=1, le=480)  # ✅ Required with default
     time_credits_used: Decimal = Field(0.0, ge=0.0)   # ✅ Required with default
 
