@@ -383,7 +383,7 @@ function transformBackendServiceToFrontend(backendService) {
     totalReviews: 0, // Placeholder - not yet implemented in backend
     requirements: backendService.requirements || "",
     whatIncluded: backendService.whats_included || backendService.whatIncluded || "",
-    tags: [], // Tags removed as per previous conversation
+    tags: backendService.tags ? (typeof backendService.tags === 'string' ? backendService.tags.split(',') : backendService.tags) : [],
     createdAt: backendService.created_at || new Date().toISOString(),
     reviews: [], // Placeholder - not yet implemented in backend
     providerStats: { // Placeholder - not yet implemented in backend

@@ -1,52 +1,67 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useRouter, useParams } from "next/navigation"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Separator } from "@/components/ui/separator"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { useRouter } from "next/navigation"
 import {
-  Star,
   MapPin,
-  Clock,
-  Heart,
-  Share2,
   Calendar,
   ArrowLeft,
+  Share2,
+  Heart,
   MessageCircle,
   CheckCircle,
   Shield,
+  Star,
   DollarSign,
 } from "lucide-react"
-import { getServiceById } from "@/lib/database-services" // Adjust the import path
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Separator } from "@/components/ui/separator"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { getServiceById } from "@/lib/database-services"
 
-export default function ServiceDetailPage() {
-  const [service, setService] = useState(null)
-  const [isLoading, setIsLoading] = useState(true)
+export default function ServiceDetailPage({ initialService = null }) {
+  const [service, setService] = useState(initialService)
+  const [isLoading, setIsLoading] = useState(!initialService)
   const [isFavorited, setIsFavorited] = useState(false)
   const router = useRouter()
-  const params = useParams()
 
   useEffect(() => {
-    const fetchService = async () => {
-      setIsLoading(true)
-      const id = params.id // Get the id from the URL
-      const fetchedService = await getServiceById(id)
-      setService(fetchedService)
+    if (initialService) {
+      setService(initialService)
       setIsLoading(false)
+      return
     }
+
+    // If no initialService is provided, we're in client-side navigation
+    // and need to fetch the service data
+    const fetchService = async () => {
+      try {
+        setIsLoading(true)
+        // Get the service ID from the URL
+        const id = window.location.pathname.split('/').pop()
+        if (!id) {
+          throw new Error("No service ID found in URL")
+        }
+        
+        const fetchedService = await getServiceById(id)
+        setService(fetchedService)
+      } catch (error) {
+        console.error("Error fetching service:", error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
     fetchService()
-  }, [params.id])
+  }, [initialService])
 
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-gray-600 dark:text-gray-300">Loading...</p>
-        </div>
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
       </div>
     )
   }
@@ -62,7 +77,6 @@ export default function ServiceDetailPage() {
     )
   }
 
-  // Rest of the component remains the same (handleShare, handleContactProvider, return JSX)
   const handleShare = () => {
     if (navigator.share) {
       navigator.share({
@@ -78,12 +92,11 @@ export default function ServiceDetailPage() {
 
   const handleContactProvider = () => {
     router.push(
-      `/chat/${service.providerId}?context=service&id=${service.id}&title=${encodeURIComponent(service.title)}`,
+      `/chat/${service.creator_id}?context=service&id=${service.id}&title=${encodeURIComponent(service.title)}`,
     )
   }
 
   return (
-    // Existing JSX structure with service prop usage
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Back Button */}
@@ -109,7 +122,7 @@ export default function ServiceDetailPage() {
                     <img
                       src={
                         service.image ||
-                        `/placeholder.svg?height=256&width=320&query=${encodeURIComponent(service.title) || "/placeholder.svg"}`
+                        `/placeholder.svg?height=256&width=320&text=${encodeURIComponent(service.title)}`
                       }
                       alt={service.title}
                       className="w-full h-full object-cover rounded-lg"
@@ -141,13 +154,9 @@ export default function ServiceDetailPage() {
                         <span>{service.location}</span>
                       </div>
                       <div className="flex items-center text-gray-600 dark:text-gray-300">
-                        <Clock className="h-5 w-5 mr-2 flex-shrink-0" />
-                        <span>Response time: {service.responseTime || "2-4 hours"}</span>
-                      </div>
-                      <div className="flex items-center text-gray-600 dark:text-gray-300">
                         <Star className="h-5 w-5 mr-2 flex-shrink-0 fill-yellow-400 text-yellow-400" />
                         <span>
-                          {service.rating}/5 ({service.reviewCount || 0} reviews)
+                          {service.rating}/5 ({service.totalReviews || 0} reviews)
                         </span>
                       </div>
                     </div>
@@ -213,7 +222,7 @@ export default function ServiceDetailPage() {
                     <div className="space-y-6">
                       <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Skills & Expertise</h3>
 
-                      {service.skills && service.skills.length > 0 && (
+                      {service.skills && service.skills.length > 0 ? (
                         <div className="space-y-4">
                           <div className="flex flex-wrap gap-2">
                             {service.skills.map((skill, index) => (
@@ -223,6 +232,8 @@ export default function ServiceDetailPage() {
                             ))}
                           </div>
                         </div>
+                      ) : (
+                        <p className="text-gray-600 dark:text-gray-300">No specific skills listed for this service.</p>
                       )}
 
                       <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
@@ -242,10 +253,10 @@ export default function ServiceDetailPage() {
                       <div className="flex items-center">
                         <Avatar className="h-16 w-16 mr-4">
                           <AvatarImage
-                            src={`/placeholder.svg?height=64&width=64&query=${encodeURIComponent(service.provider)}`}
+                            src={`/placeholder.svg?height=64&width=64&text=${encodeURIComponent(service.provider?.charAt(0) || "P")}`}
                             alt={service.provider}
                           />
-                          <AvatarFallback className="text-lg">{service.provider.charAt(0)}</AvatarFallback>
+                          <AvatarFallback className="text-lg">{service.provider?.charAt(0) || "P"}</AvatarFallback>
                         </Avatar>
                         <div>
                           <h3 className="text-xl font-semibold text-gray-900 dark:text-white">{service.provider}</h3>
@@ -263,7 +274,7 @@ export default function ServiceDetailPage() {
                           <p className="text-sm text-gray-600 dark:text-gray-300">Average Rating</p>
                         </div>
                         <div className="text-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                          <p className="text-2xl font-bold text-blue-600">{service.reviewCount}</p>
+                          <p className="text-2xl font-bold text-blue-600">{service.totalReviews || 0}</p>
                           <p className="text-sm text-gray-600 dark:text-gray-300">Reviews</p>
                         </div>
                         <div className="text-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
@@ -327,7 +338,7 @@ export default function ServiceDetailPage() {
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-gray-600 dark:text-gray-300">Reviews:</span>
-                  <span className="font-medium">{service.reviewCount}</span>
+                  <span className="font-medium">{service.totalReviews || 0}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-gray-600 dark:text-gray-300">Location:</span>
