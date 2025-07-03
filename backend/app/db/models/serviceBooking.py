@@ -3,6 +3,7 @@ from ..database import Base
 from sqlalchemy.ext.declarative import declarative_base
 from enum import Enum
 from datetime import datetime
+from sqlalchemy.orm import relationship
 
 
 class BookingStatusEnum(str, Enum):
