@@ -467,7 +467,7 @@ export default function ServiceDetailPage({ initialService = null }) {
 
       {/* Booking Modal */}
       <Dialog open={showBookingModal} onOpenChange={setShowBookingModal}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="sm:max-w-[650px]">
           <DialogHeader>
             <DialogTitle>Book Service</DialogTitle>
             <DialogDescription>
@@ -490,51 +490,72 @@ export default function ServiceDetailPage({ initialService = null }) {
           ) : (
             <>
               <div className="py-4">
-                <div className="mb-4">
-                  <h3 className="text-sm font-medium mb-2">Select Date</h3>
-                  <div className="border rounded-md p-2 flex justify-center">
-                    <CalendarComponent
-                      mode="single"
-                      selected={selectedDate}
-                      onSelect={(date) => date && setSelectedDate(date)}
-                      disabled={(date) => date < new Date()}
-                      className="mx-auto"
-                    />
+                <div className="flex flex-col md:flex-row gap-6">
+                  {/* Calendar Column */}
+                  <div className="md:w-1/2">
+                    <h3 className="text-sm font-medium mb-2">Select Date</h3>
+                    <div className="border rounded-md p-2 flex justify-center">
+                      <CalendarComponent
+                        mode="single"
+                        selected={selectedDate}
+                        onSelect={(date) => date && setSelectedDate(date)}
+                        disabled={(date) => date < new Date()}
+                        className="mx-auto"
+                      />
+                    </div>
                   </div>
-                  <p className="text-sm text-gray-500 mt-2">
-                    Selected date: {selectedDate ? format(selectedDate, "PPP") : "None"}
-                  </p>
+                  
+                  {/* Time and Duration Column */}
+                  <div className="md:w-1/2 space-y-4">
+                    <div>
+                      <Label htmlFor="time" className="text-sm font-medium mb-2 block">Select Time</Label>
+                      <Input
+                        id="time"
+                        type="time"
+                        value={selectedTime}
+                        onChange={(e) => setSelectedTime(e.target.value)}
+                        className="w-full"
+                      />
+                    </div>
+
+                    <div>
+                      <Label htmlFor="duration" className="text-sm font-medium mb-2 block">Duration (minutes)</Label>
+                      <Input
+                        id="duration"
+                        type="number"
+                        min="15"
+                        max="480"
+                        step="15"
+                        value={durationMinutes}
+                        onChange={(e) => setDurationMinutes(parseInt(e.target.value))}
+                        className="w-full"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        Minimum: 15 minutes, Maximum: 8 hours (480 minutes)
+                      </p>
+                    </div>
+                    
+                    <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-md">
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-sm font-medium">Service Rate:</span>
+                        <span className="font-bold">{service.timeCredits} credits/hour</span>
+                      </div>
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-sm font-medium">Duration:</span>
+                        <span className="font-medium">{durationMinutes} minutes</span>
+                      </div>
+                      <Separator className="my-2" />
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm font-medium">Total Cost:</span>
+                        <span className="font-bold text-blue-600">
+                          {((service.timeCredits / 60) * durationMinutes).toFixed(2)} credits
+                        </span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
-                <div className="mb-4">
-                  <Label htmlFor="time" className="text-sm font-medium mb-2 block">Select Time</Label>
-                  <Input
-                    id="time"
-                    type="time"
-                    value={selectedTime}
-                    onChange={(e) => setSelectedTime(e.target.value)}
-                    className="w-full"
-                  />
-                </div>
-
-                <div className="mb-4">
-                  <Label htmlFor="duration" className="text-sm font-medium mb-2 block">Duration (minutes)</Label>
-                  <Input
-                    id="duration"
-                    type="number"
-                    min="15"
-                    max="480"
-                    step="15"
-                    value={durationMinutes}
-                    onChange={(e) => setDurationMinutes(parseInt(e.target.value))}
-                    className="w-full"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Minimum: 15 minutes, Maximum: 8 hours (480 minutes)
-                  </p>
-                </div>
-
-                <div className="mb-4">
+                <div className="mt-6">
                   <Label htmlFor="message" className="text-sm font-medium mb-2 block">Message (Optional)</Label>
                   <Textarea
                     id="message"
@@ -546,22 +567,10 @@ export default function ServiceDetailPage({ initialService = null }) {
                   />
                 </div>
 
-                <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-md">
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-sm font-medium">Service Rate:</span>
-                    <span className="font-bold">{service.timeCredits} credits/hour</span>
-                  </div>
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-sm font-medium">Duration:</span>
-                    <span className="font-medium">{durationMinutes} minutes</span>
-                  </div>
-                  <Separator className="my-2" />
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm font-medium">Total Cost:</span>
-                    <span className="font-bold text-blue-600">
-                      {((service.timeCredits / 60) * durationMinutes).toFixed(2)} credits
-                    </span>
-                  </div>
+                <div className="mt-4">
+                  <p className="text-sm text-gray-500 mb-2">
+                    Selected date and time: {selectedDate ? format(selectedDate, "PPP") : "None"} at {selectedTime}
+                  </p>
                 </div>
 
                 {bookingError && (
