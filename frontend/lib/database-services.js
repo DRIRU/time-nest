@@ -50,7 +50,8 @@ export async function getServiceById(id) {
     }
 
     const data = await response.json();
-    return transformBackendServiceToFrontend(data.service);
+    // The backend directly returns the service object, not wrapped in a 'service' property
+    return transformBackendServiceToFrontend(data);
   } catch (error) {
     console.error(`Error fetching service with ID ${id}:`, error);
     return null;
