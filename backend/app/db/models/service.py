@@ -29,7 +29,7 @@ class Service(Base):
     tags = Column(Text)
 
     created_at = Column(DateTime, default=datetime.utcnow)
-    
+    #
     # Relationship with the User model
     # creator = relationship("User", back_populates="services")
     creator = relationship("User", backref="services") 
