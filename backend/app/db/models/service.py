@@ -31,7 +31,6 @@ class Service(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     #
     # Relationship with the User model
-    # creator = relationship("User", back_populates="services")
-    creator = relationship("User", backref="services") 
+    creator = relationship("User", back_populates="services") 
     def __repr__(self):
         return f"<Service(service_id={self.service_id}, title='{self.title}', category='{self.category}')>"
