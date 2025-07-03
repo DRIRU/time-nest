@@ -55,7 +55,7 @@ def create_booking(
         user = db.query(User).filter(User.user_id == current_user.user_id).first()
         creator_name = f"{user.first_name} {user.last_name}" if user else "Unknown"
         
-        # Get service title for the response
+        # Get service title and creator_id for the response
         service_title = service.title if service else "Unknown Service"
         
         # Create response data
@@ -70,7 +70,8 @@ def create_booking(
             "status": new_booking.status,
             "booking_date": new_booking.booking_date,
             "creator_name": creator_name,
-            "service_title": service_title
+            "service_title": service_title,
+            "creator_id": service.creator_id  # New field added
         }
 
         return response_data
@@ -83,7 +84,6 @@ def create_booking(
             detail="Database integrity error"
         )
     except HTTPException:
-        # Re-raise HTTP exceptions
         raise
     except Exception as e:
         db.rollback()
@@ -120,6 +120,7 @@ def get_bookings(
             # Get service details
             service = db.query(Service).filter(Service.service_id == booking.service_id).first()
             service_title = service.title if service else "Unknown Service"
+            creator_id = service.creator_id if service else None
             
             # Get user details
             user = db.query(User).filter(User.user_id == booking.user_id).first()
@@ -129,6 +130,7 @@ def get_bookings(
                 "booking_id": booking.booking_id,
                 "service_id": booking.service_id,
                 "user_id": booking.user_id,
+                "creator_id": creator_id,  # New field added
                 "scheduled_datetime": booking.scheduled_datetime,
                 "duration_minutes": booking.duration_minutes,
                 "message": booking.message,
@@ -184,6 +186,7 @@ def get_booking(
         "booking_id": booking.booking_id,
         "service_id": booking.service_id,
         "user_id": booking.user_id,
+        "creator_id": service.creator_id,  # New field added
         "scheduled_datetime": booking.scheduled_datetime,
         "duration_minutes": booking.duration_minutes,
         "message": booking.message,
@@ -254,6 +257,7 @@ def update_booking(
             "booking_id": booking.booking_id,
             "service_id": booking.service_id,
             "user_id": booking.user_id,
+            "creator_id": service.creator_id,  # New field added
             "scheduled_datetime": booking.scheduled_datetime,
             "duration_minutes": booking.duration_minutes,
             "message": booking.message,
