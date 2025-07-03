@@ -41,7 +41,6 @@ export default function MyBookingsPage() {
   const [processingBookingId, setProcessingBookingId] = useState(null)
 
   useEffect(() => {
-    // Wait for auth to be checked
     if (loading) return;
     
     if (!isLoggedIn) {
@@ -68,10 +67,8 @@ export default function MyBookingsPage() {
   }
 
   useEffect(() => {
-    // Filter bookings based on search term, status filter, and active tab
     let filtered = [...bookings]
 
-    // Apply search filter
     if (searchTerm) {
       const term = searchTerm.toLowerCase()
       filtered = filtered.filter(booking => 
@@ -80,22 +77,13 @@ export default function MyBookingsPage() {
       )
     }
 
-    // Apply status filter
     if (statusFilter !== "all") {
       filtered = filtered.filter(booking => booking.status === statusFilter)
     }
 
-    // Apply tab filter
     if (activeTab === "received") {
-      // Bookings where the current user is the service provider
-      filtered = filtered.filter(booking => {
-        // We need to check if the booking is for a service created by the current user
-        // This is a bit tricky since we don't have direct access to the service creator_id
-        // We'll assume that if the user_id is not the current user's ID, then they're the provider
-        return booking.user_id !== currentUser?.user_id
-      })
+      filtered = filtered.filter(booking => booking.creator_id === currentUser?.user_id)
     } else if (activeTab === "sent") {
-      // Bookings where the current user is the customer
       filtered = filtered.filter(booking => booking.user_id === currentUser?.user_id)
     }
 
@@ -106,7 +94,6 @@ export default function MyBookingsPage() {
     try {
       setProcessingBookingId(bookingId)
       await updateServiceBookingStatus(bookingId, "confirmed")
-      // Refresh bookings after update
       await fetchBookings()
       alert("Booking accepted successfully!")
     } catch (error) {
@@ -121,7 +108,6 @@ export default function MyBookingsPage() {
     try {
       setProcessingBookingId(bookingId)
       await updateServiceBookingStatus(bookingId, "rejected")
-      // Refresh bookings after update
       await fetchBookings()
       alert("Booking rejected successfully!")
     } catch (error) {
@@ -136,7 +122,6 @@ export default function MyBookingsPage() {
     try {
       setProcessingBookingId(bookingId)
       await updateServiceBookingStatus(bookingId, "cancelled")
-      // Refresh bookings after update
       await fetchBookings()
       alert("Booking cancelled successfully!")
     } catch (error) {
@@ -151,7 +136,6 @@ export default function MyBookingsPage() {
     try {
       setProcessingBookingId(bookingId)
       await updateServiceBookingStatus(bookingId, "completed")
-      // Refresh bookings after update
       await fetchBookings()
       alert("Booking marked as completed!")
     } catch (error) {
@@ -198,7 +182,7 @@ export default function MyBookingsPage() {
   }
 
   if (!isLoggedIn) {
-    return null // Redirect handled in useEffect
+    return null
   }
 
   return (
@@ -208,7 +192,6 @@ export default function MyBookingsPage() {
         
         <div className="flex-1 p-8">
           <div className="max-w-6xl mx-auto">
-            {/* Header */}
             <div className="mb-8">
               <Button
                 variant="ghost"
@@ -224,7 +207,6 @@ export default function MyBookingsPage() {
               </p>
             </div>
 
-            {/* Filters */}
             <div className="mb-6 flex flex-col md:flex-row gap-4">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
@@ -251,7 +233,6 @@ export default function MyBookingsPage() {
               <Button onClick={fetchBookings}>Refresh</Button>
             </div>
 
-            {/* Tabs */}
             <Tabs defaultValue="all" value={activeTab} onValueChange={setActiveTab} className="mb-6">
               <TabsList className="grid w-full grid-cols-3">
                 <TabsTrigger value="all">All Bookings</TabsTrigger>
@@ -260,7 +241,6 @@ export default function MyBookingsPage() {
               </TabsList>
             </Tabs>
 
-            {/* Error Message */}
             {error && (
               <Alert variant="destructive" className="mb-6">
                 <AlertCircle className="h-4 w-4" />
@@ -268,7 +248,6 @@ export default function MyBookingsPage() {
               </Alert>
             )}
 
-            {/* Loading State */}
             {isLoading ? (
               <div className="flex justify-center items-center h-64">
                 <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
@@ -289,7 +268,7 @@ export default function MyBookingsPage() {
             ) : (
               <div className="grid gap-6">
                 {filteredBookings.map((booking) => {
-                  const isProvider = booking.user_id !== currentUser?.user_id;
+                  const isProvider = booking.creator_id === currentUser?.user_id;
                   const isPending = booking.status === "pending";
                   const isConfirmed = booking.status === "confirmed";
                   const isCompleted = booking.status === "completed";
