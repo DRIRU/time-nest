@@ -558,3 +558,40 @@ function transformBackendServiceToFrontend(backendService) {
     creator_id: backendService.creator_id, // Keep the creator ID for authorization checks
   };
 }
+
+export async function deleteService(id) {
+  try {
+    const currentUser = JSON.parse(localStorage.getItem("currentUser") || "{}");
+    const token = currentUser?.accessToken;
+
+    if (!token) {
+      throw new Error("Authentication token not found. Please log in.");
+    }
+
+    const response = await fetch(`http://localhost:8000/api/v1/services/${id}`, {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      let errorMessage = "Failed to delete service";
+      
+      if (errorData.detail) {
+        if (Array.isArray(errorData.detail)) {
+          errorMessage = errorData.detail.map(err => `${err.loc.join('.')}: ${err.msg}`).join(', ');
+        } else {
+          errorMessage = errorData.detail;
+        }
+      }
+      
+      throw new Error(errorMessage);
+    }
+  } catch (error) {
+    console.error(`Error deleting service with ID ${id}:`, error);
+    throw error;
+  }
+}
