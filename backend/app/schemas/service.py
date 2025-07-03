@@ -41,7 +41,7 @@ class ServiceResponse(ServiceBase):
     service_id: int
     creator_id: int
     created_at: datetime
-    
+    creator_name: Optional[str] = None 
     # Convert boolean fields back to list for response
     availability: List[str]
     
