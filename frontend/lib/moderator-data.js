@@ -80,7 +80,7 @@ export async function getModeratorApplications(tokenOverride = null, status) {
       return [];
     }
 
-    let url = "http://localhost:8000/api/v1/mod-requests";
+    let url = "http://localhost:8000/api/v1/mod-requests/my-applications";
     if (status) {
       url += `?status=${status}`;
     }
@@ -134,7 +134,7 @@ export async function getAllModeratorApplications(tokenOverride = null, status) 
       return [];
     }
 
-    let url = "http://localhost:8000/api/v1/mod-requests";
+    let url = "http://localhost:8000/api/v1/mod-requests/all";
     if (status) {
       url += `?status=${status}`;
     }

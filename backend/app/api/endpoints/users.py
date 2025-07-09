@@ -39,6 +39,7 @@ router = APIRouter()
 def get_current_user_dependency(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
     from ...core.security import verify_token
     credentials_exception = HTTPException(
+    # Get the email from the token
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
@@ -48,18 +49,49 @@ def get_current_user_dependency(token: str = Depends(oauth2_scheme), db: Session
     if email is None:
         raise credentials_exception
     
-    # Try user table first
+    # Get the user from the database
     user = db.query(User).filter(User.email == email).first()
-    if user:
-        return user
+    if user is None:
+        raise credentials_exception
     
-    # Try admin table
+    return user
+
+def get_current_admin_dependency(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+    """Dependency to get current admin user from token"""
+    from ...core.security import verify_token
+    
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    
+    admin_exception = HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="Admin access required",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    
+    email = verify_token(token)
+    if email is None:
+        raise credentials_exception
+    
+    # Try admin table first
     admin = db.query(Admin).filter(Admin.email == email).first()
     if admin:
-        return admin  # You may want to return a special Admin object or raise for restricted routes
-
-    raise credentials_exception
+        return admin
     
+    # If not in admin table, check if user is an admin by email
+    user = db.query(User).filter(
+        User.email == email,
+        User.status == 'Active',
+        User.email.in_(["admin@timenest.com", "admin@example.com"])  # Simplified admin check
+    ).first()
+    
+    if not user:
+        raise admin_exception
+    
+    return user
 
 
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)

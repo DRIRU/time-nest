@@ -1,13 +1,14 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
-from typing import List
+from typing import List, Optional
 import logging
 from datetime import datetime
 
 from ...db.database import get_db
 from ...db.models.modRequest import ModRequest, ModRequestStatus
 from ...db.models.user import User
+from ...db.models.admin import Admin
 from ...schemas.modRequest import ModRequestCreate, ModRequestResponse, ModRequestUpdate
 from .users import get_current_user_dependency
 
@@ -16,6 +17,19 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+# Helper function to check if a user is an admin
+def is_admin_user(user, db: Session):
+    """Check if the user is an admin"""
+    if hasattr(user, 'admin_id'):  # If it's already an Admin object
+        return True
+        
+    # Check if user email is in the admin list
+    return db.query(User).filter(
+        User.user_id == user.user_id,
+        User.status == 'Active',
+        User.email.in_(["admin@timenest.com", "admin@example.com"])
+    ).first() is not None
 
 @router.post("/", response_model=ModRequestResponse, status_code=status.HTTP_201_CREATED)
 def create_mod_request(
@@ -92,8 +106,54 @@ def create_mod_request(
             detail=f"An error occurred during mod request creation: {str(e)}"
         )
 
-@router.get("/", response_model=List[ModRequestResponse])
-def get_mod_requests(
+@router.get("/my-applications", response_model=List[ModRequestResponse])
+def get_user_mod_applications(
+    skip: int = 0, 
+    limit: int = 100, 
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user_dependency)
+):
+    """
+    Get the current user's moderator application requests
+    """
+    try:
+        # Build the query - only get the current user's requests
+        query = db.query(ModRequest).filter(ModRequest.user_id == current_user.user_id)
+        
+        # Apply pagination
+        requests = query.offset(skip).limit(limit).all()
+        
+        # Process each request to format the response correctly
+        response_requests = []
+        for request in requests:
+            # Get user name
+            user = db.query(User).filter(User.user_id == request.user_id).first()
+            user_name = f"{user.first_name} {user.last_name}" if user else "Unknown"
+            
+            response_requests.append({
+                "request_id": request.request_id,
+                "user_id": request.user_id,
+                "reason": request.reason,
+                "experience": request.experience,
+                "status": request.status,
+                "submitted_at": request.submitted_at,
+                "reviewed_at": request.reviewed_at,
+                "user_name": user_name
+            })
+        
+        return response_requests
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching user mod applications: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"An error occurred while fetching your moderator applications: {str(e)}"
+        )
+
+@router.get("/all", response_model=List[ModRequestResponse])
+def get_all_mod_applications_admin(
     status: str = None,
     skip: int = 0, 
     limit: int = 100, 
@@ -101,28 +161,18 @@ def get_mod_requests(
     current_user = Depends(get_current_user_dependency)
 ):
     """
-    Get moderator application requests
-    - For admins: Get all requests with optional status filter
-    - For regular users: Get only their own requests
+    Get all moderator application requests (admin only)
     """
     try:
-        # Check if user is an admin (simplified check - in a real app, use proper role-based auth)
-        is_admin = False
-        admin = db.query(User).filter(
-            User.user_id == current_user.user_id,
-            User.status == 'Active',
-            User.email.in_(["admin@timenest.com", "admin@example.com"])  # Simplified admin check
-        ).first()
-        
-        if admin:
-            is_admin = True
+        # Check if user is an admin
+        if not is_admin_user(current_user, db):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Only administrators can access all moderator applications"
+            )
         
         # Build the query
         query = db.query(ModRequest)
-        
-        if not is_admin:
-            # Regular users can only see their own requests
-            query = query.filter(ModRequest.user_id == current_user.user_id)
         
         # Apply status filter if provided
         if status:
@@ -161,10 +211,10 @@ def get_mod_requests(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error fetching mod requests: {str(e)}")
+        logger.error(f"Error fetching all mod applications: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"An error occurred while fetching mod requests: {str(e)}"
+            detail=f"An error occurred while fetching all moderator applications: {str(e)}"
         )
 
 @router.get("/{request_id}", response_model=ModRequestResponse)
@@ -174,18 +224,12 @@ def get_mod_request(
     current_user = Depends(get_current_user_dependency)
 ):
     """
-    Get a specific moderator application request by ID
+    Get a specific moderator application by ID
+    - Regular users can only view their own applications
+    - Admins can view any application
     """
-    # Check if user is an admin (simplified check)
-    is_admin = False
-    admin = db.query(User).filter(
-        User.user_id == current_user.user_id,
-        User.status == 'Active',
-        User.email.in_(["admin@timenest.com", "admin@example.com"])
-    ).first()
-    
-    if admin:
-        is_admin = True
+    # Check if user is an admin
+    is_admin = is_admin_user(current_user, db)
     
     # Get the request
     request = db.query(ModRequest).filter(ModRequest.request_id == request_id).first()
@@ -230,20 +274,14 @@ def update_mod_request(
     """
     Update a moderator application request (admin only)
     """
-    # Check if user is an admin (simplified check)
-    admin = db.query(User).filter(
-        User.user_id == current_user.user_id,
-        User.status == 'Active',
-        User.email.in_(["admin@timenest.com", "admin@example.com"])
-    ).first()
-    
-    if not admin:
+    # Check if user is an admin
+    if not is_admin_user(current_user, db):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only administrators can update moderator applications"
         )
     
-    # Get the request
+    # Get the application
     request = db.query(ModRequest).filter(ModRequest.request_id == request_id).first()
     
     if not request:
