@@ -7,30 +7,28 @@ export default function ServiceRequestCard({ request }) {
   const getUrgencyColor = (urgency) => {
     switch (urgency) {
       case "High":
-        return "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300"
+        return "bg-red-100 text-red-800"
       case "Medium":
-        return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300"
-      case "Normal":
-        return "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300"
+        return "bg-yellow-100 text-yellow-800"
       case "Low":
-        return "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300"
+        return "bg-green-100 text-green-800"
       default:
-        return "bg-secondary text-secondary-foreground"
+        return "bg-gray-100 text-gray-800"
     }
   }
 
   const getStatusColor = (status) => {
     switch (status) {
       case "Open":
-        return "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300"
+        return "bg-green-100 text-green-800"
       case "In Progress":
-        return "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300"
+        return "bg-blue-100 text-blue-800"
       case "Completed":
-        return "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300"
+        return "bg-purple-100 text-purple-800"
       case "Closed":
-        return "bg-secondary text-secondary-foreground"
+        return "bg-gray-100 text-gray-800"
       default:
-        return "bg-secondary text-secondary-foreground"
+        return "bg-gray-100 text-gray-800"
     }
   }
 
@@ -51,7 +49,7 @@ export default function ServiceRequestCard({ request }) {
   }
 
   return (
-    <div className="bg-card rounded-lg shadow-sm border hover:shadow-md transition-shadow">
+    <div className="bg-card rounded-lg shadow-sm border-border hover:shadow-md transition-shadow">
       {/* Request Image */}
       {request.images && request.images.length > 0 && (
         <div className="relative h-48 w-full">
@@ -76,7 +74,7 @@ export default function ServiceRequestCard({ request }) {
           <h3 className="text-lg font-semibold text-foreground hover:text-primary line-clamp-2">
             <Link href={`/requests/${request.id}`}>{request.title}</Link>
           </h3>
-          <div className="flex flex-col gap-1 ml-2 flex-shrink-0">
+          <div className="flex flex-col gap-1 ml-2">
             <Badge className={`text-xs ${getUrgencyColor(request.urgency)}`}>{request.urgency}</Badge>
             <Badge className={`text-xs ${getStatusColor(request.status)}`}>{request.status}</Badge>
           </div>
@@ -90,7 +88,7 @@ export default function ServiceRequestCard({ request }) {
           <Badge variant="outline" className="text-xs">
             {request.category}
           </Badge>
-          <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300 text-xs">{request.budget} credits</Badge>
+          <Badge className="bg-blue-100 text-blue-800 text-xs">{request.budget} credits</Badge>
         </div>
 
         {/* Tags */}
@@ -128,8 +126,8 @@ export default function ServiceRequestCard({ request }) {
 
         {/* Requirements Preview */}
         {request.requirements && (
-          <div className="mb-4 p-3 bg-muted/50 rounded-lg">
-            <h4 className="text-xs font-medium text-foreground mb-1">Requirements:</h4>
+          <div className="mb-4 p-3 bg-muted rounded-lg">
+            <h4 className="text-xs font-medium text-card-foreground mb-1">Requirements:</h4>
             <p className="text-xs text-muted-foreground line-clamp-2">{request.requirements}</p>
           </div>
         )}
@@ -138,7 +136,7 @@ export default function ServiceRequestCard({ request }) {
         {request.whatIncluded && (
           <div className="mb-4 p-3 bg-primary/10 rounded-lg">
             <h4 className="text-xs font-medium text-primary mb-1">What's Provided:</h4>
-            <p className="text-xs text-primary/80 line-clamp-2">{request.whatIncluded}</p>
+            <p className="text-xs text-primary line-clamp-2">{request.whatIncluded}</p>
           </div>
         )}
 
@@ -161,7 +159,7 @@ export default function ServiceRequestCard({ request }) {
                   {[...Array(5)].map((_, i) => (
                     <svg
                       key={i}
-                      className={`h-3 w-3 ${i < Math.floor(request.user.rating) ? "text-yellow-400" : "text-muted-foreground/30"}`}
+                      className={`h-3 w-3 ${i < Math.floor(request.user.rating) ? "text-yellow-400" : "text-gray-300"}`}
                       fill="currentColor"
                       viewBox="0 0 20 20"
                     >
@@ -173,7 +171,7 @@ export default function ServiceRequestCard({ request }) {
               </div>
             </div>
           </div>
-          <Link href={`/requests/${request.id}`} className="text-sm font-medium text-primary hover:text-primary/90">
+          <Link href={`/requests/${request.id}`} className="text-sm font-medium text-primary hover:text-primary">
             View Details
           </Link>
         </div>

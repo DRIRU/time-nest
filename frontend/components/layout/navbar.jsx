@@ -24,7 +24,6 @@ export default function Navbar() {
     { path: "/services", label: "Browse Services" },
     { path: "/requests", label: "Service Requests" },
     { path: "/list-service", label: "List Service" },
-    // { path: "/dashboard", label: "Dashboard" },
     ...(isLoggedIn ? [{ path: "/messages", label: "Messages" }] : []),
   ]
 
@@ -61,7 +60,6 @@ export default function Navbar() {
               >
                 {item.path === "/messages" && <MessageCircle className="h-4 w-4" />}
                 <span>{item.label}</span>
-                
               </Link>
             ))}
           </div>

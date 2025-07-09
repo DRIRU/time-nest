@@ -600,36 +600,3 @@ export async function deleteService(id) {
   }
 }
 
-// export async function getServiceBookings() {
-//   try {
-//     const currentUser = JSON.parse(localStorage.getItem("currentUser") || "{}");
-//     const token = currentUser?.accessToken;
-
-//     if (!token) {
-//       throw new Error("Authentication token not found. Please log in.");
-//     }
-
-//     const response = await fetch("http://localhost:8000/api/v1/service-bookings/", {
-//       method: "GET",
-//       headers: {
-//         "Content-Type": "application/json",
-//         "Authorization": `Bearer ${token}`
-//       },
-//     });
-
-//     if (!response.ok) {
-//       const errorData = await response.json();
-//       throw new Error(errorData.detail || "Failed to fetch bookings");
-//     }
-
-//     const data = await response.json();
-//     return data.map(booking => ({
-//       ...booking,
-//       booking_id: booking.booking_id.toString(), // Ensure ID is string if needed
-//       creator_id: booking.creator_id?.toString() || null, // Ensure consistency
-//     }));
-//   } catch (error) {
-//     console.error("Error in getServiceBookings:", error);
-//     throw error;
-//   }
-// }
