@@ -319,7 +319,8 @@ export default function ProfilePage() {
               <CardContent>
                 <div className="flex flex-wrap gap-2">
                   {user.profile.languages.map((language, index) => (
-                      <CheckCircle className="h-3 w-3 mr-1" /> 
+                    <Badge key={index} variant="secondary">
+                      <CheckCircle className="h-3 w-3 mr-1" />
                       {language}
                     </Badge>
                   ))}
