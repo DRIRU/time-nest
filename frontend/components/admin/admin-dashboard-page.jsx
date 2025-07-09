@@ -13,7 +13,7 @@ import {
   TrendingUp,
   AlertTriangle,
   CheckCircle,
-  Shield,
+  Shield, 
   Settings,
   BarChart3,
   UserCheck,
@@ -25,11 +25,13 @@ import {
   UserPlus,
   FileText,
   LogOut,
-  Home
+  Home,
+  Award
 } from "lucide-react"
 import { getServiceOverviewStats } from "@/lib/services-data"
 import { getServiceRequestOverviewStats } from "@/lib/service-requests-data"
 import { getUserStats } from "@/lib/users-data"
+import { getAllModeratorApplications, updateModeratorApplicationStatus } from "@/lib/moderator-data"
 import Link from "next/link"
 
 export default function AdminDashboardPage() {
@@ -40,8 +42,15 @@ export default function AdminDashboardPage() {
     users: {},
     services: {},
     requests: {},
-    platform: {}
+    platform: {},
+    modRequests: {
+      pending: 0,
+      approved: 0,
+      rejected: 0
+    }
   })
+  const [modApplications, setModApplications] = useState([])
+  const [processingRequestId, setProcessingRequestId] = useState(null)
 
   useEffect(() => {
     // Check admin authentication
@@ -63,6 +72,28 @@ export default function AdminDashboardPage() {
         const userStats = getUserStats()
         const serviceStats = getServiceOverviewStats()
         const requestStats = getServiceRequestOverviewStats()
+        
+        // Fetch moderator applications
+        try {
+          const applications = await getAllModeratorApplications();
+          setModApplications(applications);
+          
+          // Calculate stats
+          const pendingCount = applications.filter(app => app.status === "pending").length;
+          const approvedCount = applications.filter(app => app.status === "approved").length;
+          const rejectedCount = applications.filter(app => app.status === "rejected").length;
+          
+          setStats(prev => ({
+            ...prev,
+            modRequests: {
+              pending: pendingCount,
+              approved: approvedCount,
+              rejected: rejectedCount
+            }
+          }));
+        } catch (error) {
+          console.error("Error fetching moderator applications:", error);
+        }
 
         setStats({
           users: userStats,
@@ -74,7 +105,13 @@ export default function AdminDashboardPage() {
             averageRating: 4.6,
             activeUsers: 89,
             monthlyGrowth: 12.5,
-            systemUptime: "99.9%"
+            systemUptime: "99.9%",
+          },
+          modRequests: {
+            pending: applications?.filter(app => app.status === "pending").length || 0,
+            approved: applications?.filter(app => app.status === "approved").length || 0,
+            rejected: applications?.filter(app => app.status === "rejected").length || 0,
+            total: applications?.length || 0
           }
         })
       } catch (error) {
@@ -85,7 +122,69 @@ export default function AdminDashboardPage() {
     }
 
     loadStats()
-  }, [router])
+  }, [router]);
+  
+  const handleApproveModRequest = async (requestId) => {
+    try {
+      setProcessingRequestId(requestId);
+      await updateModeratorApplicationStatus(requestId, "approved");
+      
+      // Update the local state
+      setModApplications(prev => 
+        prev.map(app => 
+          app.request_id === requestId 
+            ? {...app, status: "approved", reviewed_at: new Date().toISOString()} 
+            : app
+        )
+      );
+      
+      // Update stats
+      setStats(prev => ({
+        ...prev,
+        modRequests: {
+          ...prev.modRequests,
+          pending: prev.modRequests.pending - 1,
+          approved: prev.modRequests.approved + 1
+        }
+      }));
+    } catch (error) {
+      console.error("Error approving moderator application:", error);
+      alert("Failed to approve application: " + error.message);
+    } finally {
+      setProcessingRequestId(null);
+    }
+  };
+  
+  const handleRejectModRequest = async (requestId) => {
+    try {
+      setProcessingRequestId(requestId);
+      await updateModeratorApplicationStatus(requestId, "rejected");
+      
+      // Update the local state
+      setModApplications(prev => 
+        prev.map(app => 
+          app.request_id === requestId 
+            ? {...app, status: "rejected", reviewed_at: new Date().toISOString()} 
+            : app
+        )
+      );
+      
+      // Update stats
+      setStats(prev => ({
+        ...prev,
+        modRequests: {
+          ...prev.modRequests,
+          pending: prev.modRequests.pending - 1,
+          rejected: prev.modRequests.rejected + 1
+        }
+      }));
+    } catch (error) {
+      console.error("Error rejecting moderator application:", error);
+      alert("Failed to reject application: " + error.message);
+    } finally {
+      setProcessingRequestId(null);
+    }
+  };
 
   const handleLogout = () => {
     localStorage.removeItem("adminAuth")
@@ -210,7 +309,7 @@ export default function AdminDashboardPage() {
           <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="users">Users</TabsTrigger>
-            <TabsTrigger value="services">Services</TabsTrigger>
+            <TabsTrigger value="services">Services</TabsTrigger> 
             <TabsTrigger value="system">System</TabsTrigger>
           </TabsList>
 
@@ -312,6 +411,91 @@ export default function AdminDashboardPage() {
                 </div>
               </CardContent>
             </Card>
+            
+            {/* Moderator Applications */}
+            <Card className="dark:bg-gray-800 dark:border-gray-700">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Award className="h-5 w-5" />
+                  Moderator Applications
+                </CardTitle>
+                <CardDescription>
+                  Review and manage moderator applications from community members
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex justify-between mb-4">
+                  <div className="flex gap-4">
+                    <div className="text-center p-2 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg min-w-20">
+                      <p className="text-xl font-bold text-yellow-600">{stats.modRequests.pending}</p>
+                      <p className="text-xs text-yellow-700">Pending</p>
+                    </div>
+                    <div className="text-center p-2 bg-green-50 dark:bg-green-900/20 rounded-lg min-w-20">
+                      <p className="text-xl font-bold text-green-600">{stats.modRequests.approved}</p>
+                      <p className="text-xs text-green-700">Approved</p>
+                    </div>
+                    <div className="text-center p-2 bg-red-50 dark:bg-red-900/20 rounded-lg min-w-20">
+                      <p className="text-xl font-bold text-red-600">{stats.modRequests.rejected}</p>
+                      <p className="text-xs text-red-700">Rejected</p>
+                    </div>
+                  </div>
+                  <Button variant="outline" size="sm">
+                    View All
+                  </Button>
+                </div>
+                
+                {modApplications.length === 0 ? (
+                  <div className="text-center py-6 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                    <Award className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">No applications yet</h3>
+                    <p className="text-gray-600 dark:text-gray-400">
+                      When users apply to become moderators, their applications will appear here.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {modApplications
+                      .filter(app => app.status === "pending")
+                      .slice(0, 3)
+                      .map(application => (
+                        <div key={application.request_id} className="border rounded-lg p-4">
+                          <div className="flex justify-between items-start mb-2">
+                            <div>
+                              <h4 className="font-medium">{application.user_name}</h4>
+                              <p className="text-sm text-gray-500">
+                                Applied on {new Date(application.submitted_at).toLocaleDateString()}
+                              </p>
+                            </div>
+                            <Badge className="bg-yellow-100 text-yellow-800">Pending</Badge>
+                          </div>
+                          <p className="text-sm text-gray-700 dark:text-gray-300 mb-3 line-clamp-2">
+                            {application.reason}
+                          </p>
+                          <div className="flex justify-end gap-2">
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => handleRejectModRequest(application.request_id)}
+                              disabled={processingRequestId === application.request_id}
+                              className="text-red-600 border-red-200 hover:bg-red-50"
+                            >
+                              Reject
+                            </Button>
+                            <Button 
+                              size="sm"
+                              onClick={() => handleApproveModRequest(application.request_id)}
+                              disabled={processingRequestId === application.request_id}
+                              className="bg-green-600 hover:bg-green-700"
+                            >
+                              Approve
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
 
           {/* Users Tab */}
@@ -350,7 +534,7 @@ export default function AdminDashboardPage() {
                   <CardTitle>User Actions</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  <Button className="w-full justify-start">
+                  <Button className="w-full justify-start"> 
                     <UserPlus className="h-4 w-4 mr-2" />
                     Add New User
                   </Button>
@@ -374,7 +558,7 @@ export default function AdminDashboardPage() {
                   <CardTitle>Recent Registrations</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  <div className="space-y-2">
+                  <div className="space-y-2"> 
                     <div className="flex items-center justify-between">
                       <span className="text-sm">Sarah Miller</span>
                       <Badge variant="secondary" className="text-xs">Provider</Badge>
@@ -391,6 +575,78 @@ export default function AdminDashboardPage() {
                 </CardContent>
               </Card>
             </div>
+            
+            {/* Moderator Applications Card */}
+            <Card className="dark:bg-gray-800 dark:border-gray-700">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Award className="h-5 w-5" />
+                  Moderator Applications
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {modApplications.length === 0 ? (
+                  <div className="text-center py-6 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                    <p className="text-gray-600 dark:text-gray-400">No applications yet</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4 max-h-96 overflow-y-auto">
+                    {modApplications.map(application => (
+                      <div key={application.request_id} className="border rounded-lg p-4">
+                        <div className="flex justify-between items-start mb-2">
+                          <div>
+                            <h4 className="font-medium">{application.user_name}</h4>
+                            <p className="text-sm text-gray-500">
+                              Applied on {new Date(application.submitted_at).toLocaleDateString()}
+                            </p>
+                          </div>
+                          <Badge className={
+                            application.status === "pending" ? "bg-yellow-100 text-yellow-800" :
+                            application.status === "approved" ? "bg-green-100 text-green-800" :
+                            "bg-red-100 text-red-800"
+                          }>
+                            {application.status === "pending" ? "Pending" :
+                             application.status === "approved" ? "Approved" :
+                             "Rejected"}
+                          </Badge>
+                        </div>
+                        <div className="mb-3">
+                          <p className="text-xs font-medium text-gray-500 mb-1">Reason:</p>
+                          <p className="text-sm text-gray-700 dark:text-gray-300">{application.reason}</p>
+                        </div>
+                        {application.experience && (
+                          <div className="mb-3">
+                            <p className="text-xs font-medium text-gray-500 mb-1">Experience:</p>
+                            <p className="text-sm text-gray-700 dark:text-gray-300">{application.experience}</p>
+                          </div>
+                        )}
+                        {application.status === "pending" && (
+                          <div className="flex justify-end gap-2 mt-3">
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => handleRejectModRequest(application.request_id)}
+                              disabled={processingRequestId === application.request_id}
+                              className="text-red-600 border-red-200 hover:bg-red-50"
+                            >
+                              Reject
+                            </Button>
+                            <Button 
+                              size="sm"
+                              onClick={() => handleApproveModRequest(application.request_id)}
+                              disabled={processingRequestId === application.request_id}
+                              className="bg-green-600 hover:bg-green-700"
+                            >
+                              Approve
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
 
           {/* Services Tab */}
@@ -401,7 +657,7 @@ export default function AdminDashboardPage() {
                   <CardTitle>Service Overview</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="flex justify-between">
+                  <div className="flex justify-between"> 
                     <span className="text-sm text-gray-600 dark:text-gray-400">Total Services</span>
                     <span className="font-medium">{stats.services.totalServices}</span>
                   </div>
@@ -425,7 +681,7 @@ export default function AdminDashboardPage() {
                   <CardTitle>Service Requests</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="flex justify-between">
+                  <div className="flex justify-between"> 
                     <span className="text-sm text-gray-600 dark:text-gray-400">Total Requests</span>
                     <span className="font-medium">{stats.requests.totalRequests}</span>
                   </div>
@@ -454,7 +710,7 @@ export default function AdminDashboardPage() {
                   <CardTitle>System Status</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between"> 
                     <span className="text-sm text-gray-600 dark:text-gray-400">API Status</span>
                     <Badge variant="secondary" className="bg-green-100 text-green-800">
                       <CheckCircle className="h-3 w-3 mr-1" />
@@ -490,7 +746,7 @@ export default function AdminDashboardPage() {
                   <CardTitle>System Actions</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  <Button variant="outline" className="w-full justify-start">
+                  <Button variant="outline" className="w-full justify-start"> 
                     <Settings className="h-4 w-4 mr-2" />
                     System Configuration
                   </Button>
@@ -509,6 +765,34 @@ export default function AdminDashboardPage() {
                 </CardContent>
               </Card>
             </div>
+            
+            {/* Moderator Applications Overview */}
+            <Card className="dark:bg-gray-800 dark:border-gray-700">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Award className="h-5 w-5" />
+                  Moderator Applications
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-600 dark:text-gray-400">Total Applications</span>
+                  <span className="font-medium">{stats.modRequests.total || 0}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-600 dark:text-gray-400">Pending Review</span>
+                  <span className="font-medium text-yellow-600">{stats.modRequests.pending}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-600 dark:text-gray-400">Approved</span>
+                  <span className="font-medium text-green-600">{stats.modRequests.approved}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-600 dark:text-gray-400">Rejected</span>
+                  <span className="font-medium text-red-600">{stats.modRequests.rejected}</span>
+                </div>
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
       </div>
