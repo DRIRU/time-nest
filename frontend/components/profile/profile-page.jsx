@@ -4,14 +4,27 @@ import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar" 
 import { Separator } from "@/components/ui/separator"
-import { MapPin, Mail, Star, Calendar, Clock, CheckCircle, User, Edit3, Globe, Shield } from "lucide-react"
+import { MapPin, Mail, Star, Calendar, Clock, CheckCircle, User, Edit3, Globe, Shield, Award } from "lucide-react"
 import { getUserById } from "@/lib/users-data"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Textarea } from "@/components/ui/textarea"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { useAuth } from "@/contexts/auth-context"
+import { submitModeratorApplication, getModeratorApplications } from "@/lib/moderator-data"
 
 export default function ProfilePage() {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [showModDialog, setShowModDialog] = useState(false)
+  const [modReason, setModReason] = useState("")
+  const [modExperience, setModExperience] = useState("")
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [error, setError] = useState("")
+  const [success, setSuccess] = useState("")
+  const [modApplications, setModApplications] = useState([])
+  const { isLoggedIn, currentUser } = useAuth()
 
   useEffect(() => {
     // In a real app, you'd get the current user ID from auth context
@@ -20,6 +33,56 @@ export default function ProfilePage() {
     setUser(currentUser)
     setLoading(false)
   }, [])
+
+  useEffect(() => {
+    // Fetch moderator applications if user is logged in
+    if (isLoggedIn && currentUser) {
+      fetchModApplications();
+    }
+  }, [isLoggedIn, currentUser]);
+
+  const fetchModApplications = async () => {
+    try {
+      const applications = await getModeratorApplications();
+      setModApplications(applications);
+    } catch (error) {
+      console.error("Error fetching moderator applications:", error);
+    }
+  };
+
+  const handleSubmitModApplication = async () => {
+    if (!modReason.trim()) {
+      setError("Please provide a reason for wanting to become a moderator");
+      return;
+    }
+
+    setIsSubmitting(true);
+    setError("");
+
+    try {
+      await submitModeratorApplication({
+        reason: modReason,
+        experience: modExperience
+      });
+      
+      setSuccess("Your application has been submitted successfully!");
+      setModReason("");
+      setModExperience("");
+      
+      // Refresh the list of applications
+      fetchModApplications();
+      
+      // Close the dialog after a delay
+      setTimeout(() => {
+        setShowModDialog(false);
+        setSuccess("");
+      }, 2000);
+    } catch (error) {
+      setError(error.message || "Failed to submit application. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -130,6 +193,35 @@ export default function ProfilePage() {
                   <Edit3 className="h-4 w-4 mr-2" />
                   Edit Profile
                 </Button>
+                
+                {/* Moderator Application Button */}
+                <Button
+                  className="w-full mt-3"
+                  variant="outline"
+                  onClick={() => setShowModDialog(true)}
+                >
+                  <Award className="h-4 w-4 mr-2" />
+                  Apply to be a Moderator
+                </Button>
+                
+                {/* Show application status if exists */}
+                {modApplications.length > 0 && (
+                  <div className="mt-4 p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20">
+                    <h3 className="text-sm font-medium text-blue-800 dark:text-blue-300 mb-1">Moderator Application</h3>
+                    <Badge className={
+                      modApplications[0].status === "pending" ? "bg-yellow-100 text-yellow-800" :
+                      modApplications[0].status === "approved" ? "bg-green-100 text-green-800" :
+                      "bg-red-100 text-red-800"
+                    }>
+                      {modApplications[0].status === "pending" ? "Pending Review" :
+                       modApplications[0].status === "approved" ? "Approved" :
+                       "Rejected"}
+                    </Badge>
+                    <p className="text-xs text-blue-700 dark:text-blue-400 mt-1">
+                      Submitted on {new Date(modApplications[0].submitted_at).toLocaleDateString()}
+                    </p>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -227,7 +319,7 @@ export default function ProfilePage() {
               <CardContent>
                 <div className="flex flex-wrap gap-2">
                   {user.profile.languages.map((language, index) => (
-                    <Badge key={index} variant="outline">
+                      <CheckCircle className="h-3 w-3 mr-1" /> 
                       {language}
                     </Badge>
                   ))}
@@ -237,6 +329,74 @@ export default function ProfilePage() {
           </div>
         </div>
       </div>
+      
+      {/* Moderator Application Dialog */}
+      <Dialog open={showModDialog} onOpenChange={setShowModDialog}>
+        <DialogContent className="sm:max-w-[550px]">
+          <DialogHeader>
+            <DialogTitle>Apply to be a TimeNest Moderator</DialogTitle>
+            <DialogDescription>
+              Moderators help maintain community standards and review content. Tell us why you'd like to become a moderator.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="py-4 space-y-4">
+            {error && (
+              <Alert variant="destructive">
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+            
+            {success && (
+              <Alert className="border-green-200 bg-green-50 text-green-800">
+                <AlertDescription>{success}</AlertDescription>
+              </Alert>
+            )}
+            
+            <div className="space-y-2">
+              <label htmlFor="reason" className="text-sm font-medium">Why do you want to be a moderator? *</label>
+              <Textarea
+                id="reason"
+                value={modReason}
+                onChange={(e) => setModReason(e.target.value)}
+                placeholder="Explain why you want to be a moderator and how you can contribute to the TimeNest community..."
+                rows={4}
+                required
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <label htmlFor="experience" className="text-sm font-medium">Relevant Experience (Optional)</label>
+              <Textarea
+                id="experience"
+                value={modExperience}
+                onChange={(e) => setModExperience(e.target.value)}
+                placeholder="Share any relevant experience you have with community moderation or management..."
+                rows={3}
+              />
+            </div>
+            
+            <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-md">
+              <h4 className="text-sm font-medium text-blue-800 dark:text-blue-300 mb-2">Moderator Responsibilities:</h4>
+              <ul className="text-xs text-blue-700 dark:text-blue-400 space-y-1">
+                <li>• Review reported content and users</li>
+                <li>• Help maintain community guidelines</li>
+                <li>• Assist with dispute resolution</li>
+                <li>• Provide feedback on platform improvements</li>
+              </ul>
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowModDialog(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleSubmitModApplication} disabled={isSubmitting}>
+              {isSubmitting ? "Submitting..." : "Submit Application"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
