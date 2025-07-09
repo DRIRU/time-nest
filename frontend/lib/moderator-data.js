@@ -60,7 +60,7 @@ export async function getModeratorApplications(tokenOverride = null, status) {
     
     if (!token) {
       // Fall back to localStorage if no token override provided
-      const currentUser = JSON.parse(localStorage.getItem("currentUser") || "{}");
+      const currentUser = JSON.parse(localStorage.getItem("adminUser") || "{}");
       token = currentUser?.accessToken;
     }
 
@@ -107,7 +107,7 @@ export async function getAllModeratorApplications(tokenOverride = null, status) 
     
     if (!token) {
       // Fall back to localStorage if no token override provided
-      const currentUser = JSON.parse(localStorage.getItem("currentUser") || "{}");
+      const currentUser = JSON.parse(localStorage.getItem("adminUser") || "{}");
       token = currentUser?.accessToken;
     }
 
@@ -155,7 +155,7 @@ export async function updateModeratorApplicationStatus(requestId, newStatus, tok
     
     if (!token) {
       // Fall back to localStorage if no token override provided
-      const currentUser = JSON.parse(localStorage.getItem("currentUser") || "{}");
+      const currentUser = JSON.parse(localStorage.getItem("admintUser") || "{}");
       token = currentUser?.accessToken;
     }
 
