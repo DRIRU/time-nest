@@ -10,7 +10,7 @@ from ...db.models.modRequest import ModRequest, ModRequestStatus
 from ...db.models.user import User
 from ...db.models.admin import Admin
 from ...schemas.modRequest import ModRequestCreate, ModRequestResponse, ModRequestUpdate
-from .users import get_current_user_dependency
+from .users import get_current_user_dependency, get_current_admin_dependency
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -158,19 +158,12 @@ def get_all_mod_applications_admin(
     skip: int = 0, 
     limit: int = 100, 
     db: Session = Depends(get_db),
-    current_user = Depends(get_current_user_dependency)
+    current_user = Depends(get_current_admin_dependency)
 ):
     """
     Get all moderator application requests (admin only)
     """
     try:
-        # Check if user is an admin
-        if not is_admin_user(current_user, db):
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Only administrators can access all moderator applications"
-            )
-        
         # Build the query
         query = db.query(ModRequest)
         
