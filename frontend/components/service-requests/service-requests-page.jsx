@@ -52,7 +52,6 @@ export default function ServiceRequestsPage({ initialRequests = [] }) {
 
     const timer = setTimeout(async () => {
       try {
-        // Prepare filters for backend
         const filters = {
           search: searchQuery,
           category: selectedCategory !== "all" ? selectedCategory : undefined,
@@ -60,15 +59,12 @@ export default function ServiceRequestsPage({ initialRequests = [] }) {
           location: location !== "any" ? location : undefined,
         }
 
-        // Fetch filtered requests from backend
         let filtered = await filterServiceRequests(filters)
 
-        // Apply budget range filter (frontend-only for now)
         filtered = filtered.filter((request) => 
           request.budget >= budgetRange[0] && request.budget <= budgetRange[1]
         )
 
-        // Apply availability filter (frontend-only for now)
         if (availability.length > 0) {
           filtered = filtered.filter((request) =>
             availability.some((day) =>
@@ -79,12 +75,10 @@ export default function ServiceRequestsPage({ initialRequests = [] }) {
           )
         }
 
-        // Apply sorting
         const sorted = sortServiceRequests(filtered, sortBy)
         setFilteredRequests(sorted)
       } catch (error) {
         console.error("Error filtering requests:", error)
-        // Keep the current filtered requests on error
       } finally {
         setIsLoading(false)
       }
@@ -93,7 +87,6 @@ export default function ServiceRequestsPage({ initialRequests = [] }) {
     return () => clearTimeout(timer)
   }, [searchQuery, selectedCategory, budgetRange, location, urgency, availability, sortBy, initialRequests])
 
-  // Update URL with search params
   const updateSearchParams = (query, category) => {
     const params = new URLSearchParams()
     if (query) params.set("q", query)
@@ -103,19 +96,16 @@ export default function ServiceRequestsPage({ initialRequests = [] }) {
     router.push(newUrl, { scroll: false })
   }
 
-  // Handle search submission
   const handleSearch = (e) => {
     e.preventDefault()
     updateSearchParams(searchQuery, selectedCategory)
   }
 
-  // Handle category change
   const handleCategoryChange = (value) => {
     setSelectedCategory(value)
     updateSearchParams(searchQuery, value)
   }
 
-  // Handle availability checkbox change
   const handleAvailabilityChange = (day) => {
     setAvailability((prev) => {
       if (prev.includes(day)) {
@@ -126,7 +116,6 @@ export default function ServiceRequestsPage({ initialRequests = [] }) {
     })
   }
 
-  // Reset all filters
   const resetFilters = () => {
     setBudgetRange([0, 10])
     setLocation("any")
@@ -136,29 +125,14 @@ export default function ServiceRequestsPage({ initialRequests = [] }) {
     updateSearchParams(searchQuery, "")
   }
 
-  const getUrgencyColor = (urgencyLevel) => {
-    switch (urgencyLevel) {
-      case "Urgent":
-        return "bg-red-100 text-red-700"
-      case "High":
-        return "bg-orange-100 text-orange-700"
-      case "Normal":
-        return "bg-blue-100 text-blue-700"
-      case "Low":
-        return "bg-green-100 text-green-700"
-      default:
-        return "bg-gray-100 text-gray-700"
-    }
-  }
-
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-background">
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Page Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Service Requests</h1>
-          <p className="text-gray-600">Find service requests from community members who need your help</p>
+          <h1 className="text-3xl font-bold text-foreground mb-2">Service Requests</h1>
+          <p className="text-muted-foreground">Find service requests from community members who need your help</p>
           <div className="flex flex-col sm:flex-row gap-4 mt-4">
             <Link href="/services">
               <Button variant="outline" className="flex items-center gap-2">
@@ -176,10 +150,10 @@ export default function ServiceRequestsPage({ initialRequests = [] }) {
         </div>
 
         {/* Search and Filter Bar */}
-        <div className="bg-white rounded-lg shadow-md p-4 mb-8">
+        <div className="bg-card border rounded-lg shadow-sm p-4 mb-8">
           <form onSubmit={handleSearch} className="flex flex-col md:flex-row gap-4">
             <div className="flex-1 relative">
-              <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
               <Input
                 type="text"
                 placeholder="Search for service requests..."
@@ -222,7 +196,7 @@ export default function ServiceRequestsPage({ initialRequests = [] }) {
                     <h3 className="text-sm font-medium">Budget Range</h3>
                     <div className="px-2">
                       <Slider value={budgetRange} min={0} max={15} step={0.5} onValueChange={setBudgetRange} />
-                      <div className="flex justify-between mt-2 text-sm text-gray-500">
+                      <div className="flex justify-between mt-2 text-sm text-muted-foreground">
                         <span>{budgetRange[0]} credits</span>
                         <span>{budgetRange[1]} credits</span>
                       </div>
@@ -241,7 +215,7 @@ export default function ServiceRequestsPage({ initialRequests = [] }) {
                         type="button"
                         variant="ghost"
                         size="sm"
-                        className="text-xs text-blue-600 p-0 h-auto"
+                        className="text-xs text-primary p-0 h-auto"
                         onClick={() => setLocation("any")}
                       >
                         Clear location
@@ -298,11 +272,11 @@ export default function ServiceRequestsPage({ initialRequests = [] }) {
         </div>
 
         {/* Results Section */}
-        <div className="bg-white rounded-lg shadow-md p-6">
+        <div className="bg-card border rounded-lg shadow-sm p-6">
           {/* Results Header */}
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
             <div>
-              <h2 className="text-lg font-semibold text-gray-900">
+              <h2 className="text-lg font-semibold text-foreground">
                 {isLoading ? "Searching..." : `${filteredRequests.length} requests found`}
               </h2>
               <div className="flex flex-wrap gap-2 mt-2">
@@ -376,28 +350,28 @@ export default function ServiceRequestsPage({ initialRequests = [] }) {
           {isLoading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {[...Array(6)].map((_, i) => (
-                <div key={i} className="bg-gray-100 animate-pulse rounded-lg h-64"></div>
+                <div key={i} className="bg-muted animate-pulse rounded-lg h-64"></div>
               ))}
             </div>
           ) : filteredRequests.length === 0 ? (
             <div className="text-center py-12">
-              <div className="text-gray-400 mb-4">
+              <div className="text-muted-foreground mb-4">
                 <Search className="h-12 w-12 mx-auto" />
               </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">No requests found</h3>
-              <p className="text-gray-600 mb-6">Try adjusting your search or filters to find what you're looking for</p>
+              <h3 className="text-xl font-semibold text-foreground mb-2">No requests found</h3>
+              <p className="text-muted-foreground mb-6">Try adjusting your search or filters to find what you're looking for</p>
               <Button onClick={resetFilters}>Clear all filters</Button>
             </div>
           ) : viewMode === "grid" ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredRequests.map((request) => (
-                <ServiceRequestCard key={request.id} request={request} getUrgencyColor={getUrgencyColor} />
+                <ServiceRequestCard key={request.id} request={request} />
               ))}
             </div>
           ) : (
             <div className="space-y-4">
               {filteredRequests.map((request) => (
-                <ServiceRequestListItem key={request.id} request={request} getUrgencyColor={getUrgencyColor} />
+                <ServiceRequestListItem key={request.id} request={request} />
               ))}
             </div>
           )}

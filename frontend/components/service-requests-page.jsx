@@ -24,6 +24,7 @@ import { Separator } from "@/components/ui/separator"
 import ServiceRequestCard from "./service-request-card"
 import ServiceRequestListItem from "./service-request-list-item"
 import LocationAutocomplete from "./location-autocomplete"
+import { ThemeToggle } from "./theme-toggle"
 
 export default function ServiceRequestsPage({ searchParams }) {
   const router = useRouter()
@@ -51,17 +52,20 @@ export default function ServiceRequestsPage({ searchParams }) {
       budget: 4.0,
       location: "Kochi, Kerala",
       category: "Home & Garden",
-      requester: "Priya Sharma",
-      requesterImage: "/placeholder.svg?height=40&width=40&text=PS",
+      requester: {
+        name: "Priya Sharma",
+        image: "/placeholder.svg?height=40&width=40&text=PS",
+        rating: 4.8,
+      },
       deadline: "2024-12-30",
-      urgency: "normal",
-      image: "/placeholder.svg?height=200&width=300&text=Garden+Cleanup",
-      availability: ["Weekend Mornings", "Weekend Afternoons"],
+      urgency: "Normal",
+      images: [{ url: "/placeholder.svg?height=200&width=300&text=Garden+Cleanup" }],
+      availability: ["weekend-mornings", "weekend-afternoons"],
       requirements: "Must have own tools and experience with garden maintenance",
       whatIncluded: "All materials and refreshments provided",
       tags: ["outdoor", "physical-work", "weekend"],
       createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-      status: "open",
+      status: "Open",
       proposals: 3,
     },
     {
@@ -72,17 +76,20 @@ export default function ServiceRequestsPage({ searchParams }) {
       budget: 8.0,
       location: "Thiruvananthapuram, Kerala",
       category: "Tech Support",
-      requester: "Ravi Kumar",
-      requesterImage: "/placeholder.svg?height=40&width=40&text=RK",
+      requester: {
+        name: "Ravi Kumar",
+        image: "/placeholder.svg?height=40&width=40&text=RK",
+        rating: 4.9,
+      },
       deadline: "2025-01-15",
-      urgency: "low",
-      image: "/placeholder.svg?height=200&width=300&text=Web+Design",
-      availability: ["Weekday Evenings", "Weekend Afternoons"],
+      urgency: "Low",
+      images: [{ url: "/placeholder.svg?height=200&width=300&text=Web+Design" }],
+      availability: ["weekday-evenings", "weekend-afternoons"],
       requirements: "Portfolio of previous web design work required",
       whatIncluded: "Content, images, and hosting details provided",
       tags: ["creative", "online", "business"],
       createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-      status: "open",
+      status: "Open",
       proposals: 7,
     },
     {
@@ -93,17 +100,20 @@ export default function ServiceRequestsPage({ searchParams }) {
       budget: 6.0,
       location: "Thrissur, Kerala",
       category: "Tutoring",
-      requester: "Meera Nair",
-      requesterImage: "/placeholder.svg?height=40&width=40&text=MN",
+      requester: {
+        name: "Meera Nair",
+        image: "/placeholder.svg?height=40&width=40&text=MN",
+        rating: 5.0,
+      },
       deadline: "2025-02-28",
-      urgency: "high",
-      image: "/placeholder.svg?height=200&width=300&text=Math+Tutoring",
-      availability: ["Weekday Evenings"],
+      urgency: "High",
+      images: [{ url: "/placeholder.svg?height=200&width=300&text=Math+Tutoring" }],
+      availability: ["weekday-evenings"],
       requirements: "Experience teaching high school mathematics",
       whatIncluded: "Study materials and quiet study space provided",
       tags: ["education", "academic", "exam-prep"],
       createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-      status: "open",
+      status: "Open",
       proposals: 12,
     },
     {
@@ -114,17 +124,20 @@ export default function ServiceRequestsPage({ searchParams }) {
       budget: 12.0,
       location: "Kozhikode, Kerala",
       category: "Photography",
-      requester: "Anjali & Suresh",
-      requesterImage: "/placeholder.svg?height=40&width=40&text=AS",
+      requester: {
+        name: "Anjali & Suresh",
+        image: "/placeholder.svg?height=40&width=40&text=AS",
+        rating: 4.7,
+      },
       deadline: "2024-12-28",
-      urgency: "urgent",
-      image: "/placeholder.svg?height=200&width=300&text=Wedding+Photography",
-      availability: ["Weekend Afternoons"],
+      urgency: "High",
+      images: [{ url: "/placeholder.svg?height=200&width=300&text=Wedding+Photography" }],
+      availability: ["weekend-afternoons"],
       requirements: "Professional camera equipment and portfolio required",
       whatIncluded: "Venue access, meal, and specific shot list provided",
       tags: ["professional", "event", "creative"],
       createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-      status: "open",
+      status: "Open",
       proposals: 5,
     },
     {
@@ -135,17 +148,20 @@ export default function ServiceRequestsPage({ searchParams }) {
       budget: 5.0,
       location: "Palakkad, Kerala",
       category: "Tech Support",
-      requester: "Arjun Menon",
-      requesterImage: "/placeholder.svg?height=40&width=40&text=AM",
+      requester: {
+        name: "Arjun Menon",
+        image: "/placeholder.svg?height=40&width=40&text=AM",
+        rating: 4.6,
+      },
       deadline: "2024-12-25",
-      urgency: "high",
-      image: "/placeholder.svg?height=200&width=300&text=Computer+Repair",
-      availability: ["Flexible"],
+      urgency: "High",
+      images: [{ url: "/placeholder.svg?height=200&width=300&text=Computer+Repair" }],
+      availability: ["flexible"],
       requirements: "Experience with laptop repair and data recovery",
       whatIncluded: "Laptop and any necessary cables provided",
       tags: ["technical", "urgent", "data-recovery"],
       createdAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(),
-      status: "open",
+      status: "Open",
       proposals: 8,
     },
   ]
@@ -212,7 +228,7 @@ export default function ServiceRequestsPage({ searchParams }) {
 
       // Apply urgency filter
       if (urgency !== "any") {
-        filtered = filtered.filter((request) => request.urgency === urgency)
+        filtered = filtered.filter((request) => request.urgency.toLowerCase() === urgency.toLowerCase())
       }
 
       // Apply availability filter
@@ -274,49 +290,34 @@ export default function ServiceRequestsPage({ searchParams }) {
     updateSearchParams(searchQuery, "")
   }
 
-  const getUrgencyColor = (urgencyLevel) => {
-    switch (urgencyLevel) {
-      case "urgent":
-        return "bg-red-100 text-red-700"
-      case "high":
-        return "bg-orange-100 text-orange-700"
-      case "normal":
-        return "bg-blue-100 text-blue-700"
-      case "low":
-        return "bg-green-100 text-green-700"
-      default:
-        return "bg-gray-100 text-gray-700"
-    }
-  }
-
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
       {/* Navigation */}
-      <nav className="border-b bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/60 sticky top-0 z-50">
+      <nav className="border-b border-gray-200 dark:border-gray-800 bg-white/95 dark:bg-gray-900/80 backdrop-blur supports-[backdrop-filter]:bg-white/60 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-2">
               <Link href="/" className="flex items-center space-x-2">
-                <Clock className="h-8 w-8 text-blue-600" />
-                <span className="text-xl font-bold text-gray-900">TimeNest</span>
+                <Clock className="h-8 w-8 text-blue-600 dark:text-blue-400" />
+                <span className="text-xl font-bold text-gray-900 dark:text-gray-50">TimeNest</span>
               </Link>
             </div>
             <div className="hidden md:flex items-center space-x-8">
-              <Link href="/services" className="text-gray-700 hover:text-blue-600 transition-colors">
+              <Link href="/services" className="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
                 Browse Services
               </Link>
-              <Link href="/requests" className="text-blue-600 font-medium">
+              <Link href="/requests" className="text-blue-600 dark:text-blue-400 font-medium">
                 Service Requests
               </Link>
-              <Link href="/#how-it-works" className="text-gray-700 hover:text-blue-600 transition-colors">
+              <Link href="/#how-it-works" className="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
                 How It Works
               </Link>
-              <Link href="/list-service" className="text-gray-700 hover:text-blue-600 transition-colors">
+              <Link href="/list-service" className="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
                 List Service
               </Link>
               <Link
                 href="/#support"
-                className="text-gray-700 hover:text-blue-600 transition-colors"
+                className="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
                 onClick={(e) => {
                   e.preventDefault()
                   window.location.href = "/#support"
@@ -325,7 +326,8 @@ export default function ServiceRequestsPage({ searchParams }) {
                 Support
               </Link>
             </div>
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2">
+              <ThemeToggle />
               <Link href="/login">
                 <Button variant="outline">Sign In</Button>
               </Link>
@@ -341,8 +343,8 @@ export default function ServiceRequestsPage({ searchParams }) {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Page Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Service Requests</h1>
-          <p className="text-gray-600">Find service requests from community members who need your help</p>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2">Service Requests</h1>
+          <p className="text-gray-600 dark:text-gray-400">Find service requests from community members who need your help</p>
           <div className="flex flex-col sm:flex-row gap-4 mt-4">
             <Link href="/services">
               <Button variant="outline" className="flex items-center gap-2">
@@ -360,7 +362,7 @@ export default function ServiceRequestsPage({ searchParams }) {
         </div>
 
         {/* Search and Filter Bar */}
-        <div className="bg-white rounded-lg shadow-md p-4 mb-8">
+        <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg shadow-sm p-4 mb-8">
           <form onSubmit={handleSearch} className="flex flex-col md:flex-row gap-4">
             <div className="flex-1 relative">
               <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
@@ -404,7 +406,7 @@ export default function ServiceRequestsPage({ searchParams }) {
                     <h3 className="text-sm font-medium">Budget Range</h3>
                     <div className="px-2">
                       <Slider value={budgetRange} min={0} max={15} step={0.5} onValueChange={setBudgetRange} />
-                      <div className="flex justify-between mt-2 text-sm text-gray-500">
+                      <div className="flex justify-between mt-2 text-sm text-muted-foreground">
                         <span>{budgetRange[0]} credits</span>
                         <span>{budgetRange[1]} credits</span>
                       </div>
@@ -423,7 +425,7 @@ export default function ServiceRequestsPage({ searchParams }) {
                         type="button"
                         variant="ghost"
                         size="sm"
-                        className="text-xs text-blue-600 p-0 h-auto"
+                        className="text-xs text-blue-600 dark:text-blue-400 p-0 h-auto"
                         onClick={() => setLocation("any")}
                       >
                         Clear location
@@ -439,10 +441,9 @@ export default function ServiceRequestsPage({ searchParams }) {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="any">Any Urgency</SelectItem>
-                        <SelectItem value="urgent">Urgent</SelectItem>
-                        <SelectItem value="high">High</SelectItem>
-                        <SelectItem value="normal">Normal</SelectItem>
-                        <SelectItem value="low">Low</SelectItem>
+                        <SelectItem value="High">High</SelectItem>
+                        <SelectItem value="Normal">Normal</SelectItem>
+                        <SelectItem value="Low">Low</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -480,11 +481,11 @@ export default function ServiceRequestsPage({ searchParams }) {
         </div>
 
         {/* Results Section */}
-        <div className="bg-white rounded-lg shadow-md p-6">
+        <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg shadow-sm p-6">
           {/* Results Header */}
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
             <div>
-              <h2 className="text-lg font-semibold text-gray-900">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
                 {isLoading ? "Searching..." : `${filteredRequests.length} requests found`}
               </h2>
               <div className="flex flex-wrap gap-2 mt-2">
@@ -533,7 +534,7 @@ export default function ServiceRequestsPage({ searchParams }) {
                   <SelectItem value="urgent">Most Urgent</SelectItem>
                 </SelectContent>
               </Select>
-              <div className="flex border rounded-md">
+              <div className="flex border border-gray-300 dark:border-gray-700 rounded-md">
                 <Button
                   variant={viewMode === "grid" ? "secondary" : "ghost"}
                   size="icon"
@@ -558,28 +559,28 @@ export default function ServiceRequestsPage({ searchParams }) {
           {isLoading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {[...Array(6)].map((_, i) => (
-                <div key={i} className="bg-gray-100 animate-pulse rounded-lg h-64"></div>
+                <div key={i} className="bg-gray-200 dark:bg-gray-800 animate-pulse rounded-lg h-96"></div>
               ))}
             </div>
           ) : filteredRequests.length === 0 ? (
             <div className="text-center py-12">
-              <div className="text-gray-400 mb-4">
+              <div className="text-gray-400 dark:text-gray-600 mb-4">
                 <Search className="h-12 w-12 mx-auto" />
               </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">No requests found</h3>
-              <p className="text-gray-600 mb-6">Try adjusting your search or filters to find what you're looking for</p>
+              <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">No requests found</h3>
+              <p className="text-gray-600 dark:text-gray-400 mb-6">Try adjusting your search or filters to find what you're looking for</p>
               <Button onClick={resetFilters}>Clear all filters</Button>
             </div>
           ) : viewMode === "grid" ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredRequests.map((request) => (
-                <ServiceRequestCard key={request.id} request={request} getUrgencyColor={getUrgencyColor} />
+                <ServiceRequestCard key={request.id} request={request} />
               ))}
             </div>
           ) : (
             <div className="space-y-4">
               {filteredRequests.map((request) => (
-                <ServiceRequestListItem key={request.id} request={request} getUrgencyColor={getUrgencyColor} />
+                <ServiceRequestListItem key={request.id} request={request} />
               ))}
             </div>
           )}
