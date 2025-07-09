@@ -43,7 +43,7 @@ export default function ProfilePage() {
 
   const fetchModApplications = async () => {
     try {
-      const applications = await getModeratorApplications();
+      const applications = await getModeratorApplications(currentUser?.accessToken);
       setModApplications(applications);
     } catch (error) {
       console.error("Error fetching moderator applications:", error);
@@ -60,7 +60,7 @@ export default function ProfilePage() {
     setError("");
 
     try {
-      await submitModeratorApplication({
+      const result = await submitModeratorApplication({
         reason: modReason,
         experience: modExperience
       });

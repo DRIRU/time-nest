@@ -54,7 +54,7 @@ export default function AdminDashboardPage() {
   const [processingRequestId, setProcessingRequestId] = useState(null)
 
   useEffect(() => {
-    // Check admin authentication
+    // Check admin authentication only
     const adminAuth = localStorage.getItem("adminAuth")
     const adminUserData = localStorage.getItem("adminUser")
 
@@ -66,9 +66,14 @@ export default function AdminDashboardPage() {
     if (adminUserData) {
       setAdminUser(JSON.parse(adminUserData))
     }
+  }, [router]);
 
-    // Load dashboard statistics
-    const loadStats = async () => {
+  // Separate useEffect for loading data that depends on adminUser being set
+  useEffect(() => {
+    // Only proceed if adminUser is available
+    if (!adminUser) return;
+    
+    async function loadStats() {
       try {
         const userStats = getUserStats()
         const serviceStats = getServiceOverviewStats()
@@ -77,7 +82,7 @@ export default function AdminDashboardPage() {
         // Fetch moderator applications
         let applications = [];
         try {
-          applications = await getAllModeratorApplications();
+          applications = await getAllModeratorApplications(adminUser.accessToken);
           setModApplications(applications);
           
           // Calculate stats
@@ -135,12 +140,12 @@ export default function AdminDashboardPage() {
     }
 
     loadStats()
-  }, [router]);
+  }, [adminUser]); // This effect depends on adminUser
   
   const handleApproveModRequest = async (requestId) => {
     try {
       setProcessingRequestId(requestId);
-      await updateModeratorApplicationStatus(requestId, "approved");
+      await updateModeratorApplicationStatus(requestId, "approved", adminUser?.accessToken);
       
       // Update the local state
       setModApplications(prev => 
@@ -172,7 +177,7 @@ export default function AdminDashboardPage() {
   const handleRejectModRequest = async (requestId) => {
     try {
       setProcessingRequestId(requestId);
-      await updateModeratorApplicationStatus(requestId, "rejected");
+      await updateModeratorApplicationStatus(requestId, "rejected", adminUser?.accessToken);
       
       // Update the local state
       setModApplications(prev => 

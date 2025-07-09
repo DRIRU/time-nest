@@ -49,14 +49,20 @@ export async function submitModeratorApplication(applicationData) {
 
 /**
  * Fetches moderator applications for the current user
+ * @param {string|null} tokenOverride Optional token to use instead of retrieving from localStorage
  * @param {string} status Optional status filter
  * @returns {Promise<Array>} Array of applications
  */
-export async function getModeratorApplications(status) {
+export async function getModeratorApplications(tokenOverride = null, status) {
   try {
-    // Get the auth token from localStorage
-    const currentUser = JSON.parse(localStorage.getItem("currentUser") || "{}");
-    const token = currentUser?.accessToken;
+    // Use provided token or get from localStorage
+    let token = tokenOverride;
+    
+    if (!token) {
+      // Fall back to localStorage if no token override provided
+      const currentUser = JSON.parse(localStorage.getItem("currentUser") || "{}");
+      token = currentUser?.accessToken;
+    }
 
     if (!token) {
       throw new Error("Authentication token not found. Please log in.");
@@ -90,14 +96,20 @@ export async function getModeratorApplications(status) {
 
 /**
  * Fetches all moderator applications (admin only)
- * @param {string} status Optional status filter
+ * @param {string|null} tokenOverride Optional token to use instead of retrieving from localStorage
+ * @param {string} status Optional status filter 
  * @returns {Promise<Array>} Array of applications
  */
-export async function getAllModeratorApplications(status) {
+export async function getAllModeratorApplications(tokenOverride = null, status) {
   try {
-    // Get the auth token from localStorage
-    const currentUser = JSON.parse(localStorage.getItem("currentUser") || "{}");
-    const token = currentUser?.accessToken;
+    // Use provided token or get from localStorage
+    let token = tokenOverride;
+    
+    if (!token) {
+      // Fall back to localStorage if no token override provided
+      const currentUser = JSON.parse(localStorage.getItem("currentUser") || "{}");
+      token = currentUser?.accessToken;
+    }
 
     if (!token) {
       throw new Error("Authentication token not found. Please log in.");
@@ -132,14 +144,20 @@ export async function getAllModeratorApplications(status) {
 /**
  * Updates a moderator application status (admin only)
  * @param {number} requestId Application ID
+ * @param {string|null} tokenOverride Optional token to use instead of retrieving from localStorage
  * @param {string} newStatus New status (approved, rejected)
  * @returns {Promise<Object>} Updated application
  */
-export async function updateModeratorApplicationStatus(requestId, newStatus) {
+export async function updateModeratorApplicationStatus(requestId, newStatus, tokenOverride = null) {
   try {
-    // Get the auth token from localStorage
-    const currentUser = JSON.parse(localStorage.getItem("currentUser") || "{}");
-    const token = currentUser?.accessToken;
+    // Use provided token or get from localStorage
+    let token = tokenOverride;
+    
+    if (!token) {
+      // Fall back to localStorage if no token override provided
+      const currentUser = JSON.parse(localStorage.getItem("currentUser") || "{}");
+      token = currentUser?.accessToken;
+    }
 
     if (!token) {
       throw new Error("Authentication token not found. Please log in.");
