@@ -310,15 +310,24 @@ export default function AdminDashboardPage() {
         </div>
 
         {/* Quick Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          {quickStats.map((stat, index) => (
-                    <span className="text-sm">No recent registrations</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+  {quickStats.map((stat, index) => (
+    <Card key={index} className="dark:bg-gray-800 dark:border-gray-700">
+      <CardContent className="pt-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm text-gray-600 dark:text-gray-400">{stat.title}</p>
+            <p className="text-2xl font-bold">{stat.value}</p>
+            <p className="text-xs text-green-600">{stat.change}</p>
+          </div>
+          <div className={`p-3 rounded-full ${stat.bgColor}`}>
+            <stat.icon className={`h-6 w-6 ${stat.color}`} />
+          </div>
         </div>
+      </CardContent>
+    </Card>
+  ))}
+</div>
 
         {/* Main Dashboard Tabs */}
         <Tabs defaultValue="overview" className="space-y-6">
