@@ -245,24 +245,20 @@ export function getServiceRequestCategories() {
  * Get service request overview statistics for admin dashboard
  * @returns {Object} Statistics object
  */
-export function getServiceRequestOverviewStats() {
-  // This will be replaced with a backend call in the future
-  return {
-    totalRequests: 8,
-    openRequests: 6,
-    averageBudget: 3.5,
-    completionRate: 78,
-    topCategories: [
-      { name: "Web Development", count: 3 },
-      { name: "Education", count: 2 },
-      { name: "Photography", count: 2 }
-    ],
-    urgencyBreakdown: {
-      high: 2,
-      medium: 4,
-      low: 2
-    }
-  };
+export async function getOverviewStats() {
+  const currentUser = JSON.parse(localStorage.getItem("currentUser") || "{}");
+  const token = currentUser?.accessToken;
+  const response = await fetch("http://localhost:8000/api/v1/admin/stats", {
+  method: "GET",
+  headers: {
+    "Content-Type": "application/json",
+    "Authorization": `Bearer ${token}`
+  },
+});
+  const data = await response.json();
+  // console.log("Overview stats data:", total_users);
+  // return data;
+  return data
 }
 
 /**

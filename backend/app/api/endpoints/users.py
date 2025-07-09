@@ -4,8 +4,11 @@ from sqlalchemy.exc import IntegrityError
 from typing import List
 from datetime import datetime, timedelta
 from pytz import timezone
+# from mysql.connector import connect, Error as MySQLError
 import logging
 
+
+from ...db.database import create_connection
 from ...db.database import get_db
 from ...db.models.user import User
 from ...db.models.admin import Admin
@@ -387,6 +390,8 @@ def get_all_users(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)
     """
     users = db.query(User).offset(skip).limit(limit).all()
     return users
+
+
 
 # Dependency to get current user from token
 

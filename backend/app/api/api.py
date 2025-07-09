@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from .endpoints import users, services, requests, service_bookings, request_proposals, mod_requests
+from .endpoints import users, services, requests, service_bookings, request_proposals, mod_requests, admins
 
 api_router = APIRouter()
 
@@ -20,6 +20,9 @@ api_router.include_router(request_proposals.router, prefix="/request-proposals",
 
 # Include moderator application routes
 api_router.include_router(mod_requests.router, prefix="/mod-requests", tags=["mod-requests"])
+
+# Include admin routes
+api_router.include_router(admins.router, prefix="/admin", tags=["admin"])
 
 @api_router.get("/health")
 async def health_check():

@@ -261,7 +261,7 @@ def get_mod_request(
 def update_mod_request(
     request_id: int,
     request_data: ModRequestUpdate,
-    current_user = Depends(get_current_user_dependency),
+    current_user = Depends(get_current_admin_dependency),
     db: Session = Depends(get_db)
 ):
     """
