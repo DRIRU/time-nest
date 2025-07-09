@@ -46,7 +46,8 @@ export default function AdminDashboardPage() {
     modRequests: {
       pending: 0,
       approved: 0,
-      rejected: 0
+      rejected: 0,
+      total: 0
     }
   })
   const [modApplications, setModApplications] = useState([])
@@ -74,8 +75,9 @@ export default function AdminDashboardPage() {
         const requestStats = getServiceRequestOverviewStats()
         
         // Fetch moderator applications
+        let applications = [];
         try {
-          const applications = await getAllModeratorApplications();
+          applications = await getAllModeratorApplications();
           setModApplications(applications);
           
           // Calculate stats
@@ -83,37 +85,48 @@ export default function AdminDashboardPage() {
           const approvedCount = applications.filter(app => app.status === "approved").length;
           const rejectedCount = applications.filter(app => app.status === "rejected").length;
           
-          setStats(prev => ({
-            ...prev,
+          setStats({
+            users: userStats,
+            services: serviceStats,
+            requests: requestStats,
+            platform: {
+              totalTransactions: 1247,
+              totalCreditsExchanged: 3892,
+              averageRating: 4.6,
+              activeUsers: 89,
+              monthlyGrowth: 12.5,
+              systemUptime: "99.9%",
+            },
             modRequests: {
               pending: pendingCount,
               approved: approvedCount,
-              rejected: rejectedCount
+              rejected: rejectedCount,
+              total: applications.length
             }
-          }));
+          });
         } catch (error) {
           console.error("Error fetching moderator applications:", error);
+          // Set default modRequests stats if fetching fails
+          setStats({
+            users: userStats,
+            services: serviceStats,
+            requests: requestStats,
+            platform: {
+              totalTransactions: 1247,
+              totalCreditsExchanged: 3892,
+              averageRating: 4.6,
+              activeUsers: 89,
+              monthlyGrowth: 12.5,
+              systemUptime: "99.9%",
+            },
+            modRequests: {
+              pending: 0,
+              approved: 0,
+              rejected: 0,
+              total: 0
+            }
+          });
         }
-
-        setStats({
-          users: userStats,
-          services: serviceStats,
-          requests: requestStats,
-          platform: {
-            totalTransactions: 1247,
-            totalCreditsExchanged: 3892,
-            averageRating: 4.6,
-            activeUsers: 89,
-            monthlyGrowth: 12.5,
-            systemUptime: "99.9%",
-          },
-          modRequests: {
-            pending: applications?.filter(app => app.status === "pending").length || 0,
-            approved: applications?.filter(app => app.status === "approved").length || 0,
-            rejected: applications?.filter(app => app.status === "rejected").length || 0,
-            total: applications?.length || 0
-          }
-        })
       } catch (error) {
         console.error("Error loading dashboard stats:", error)
       } finally {
@@ -144,7 +157,8 @@ export default function AdminDashboardPage() {
         modRequests: {
           ...prev.modRequests,
           pending: prev.modRequests.pending - 1,
-          approved: prev.modRequests.approved + 1
+          approved: prev.modRequests.approved + 1,
+          total: prev.modRequests.total
         }
       }));
     } catch (error) {
@@ -175,7 +189,8 @@ export default function AdminDashboardPage() {
         modRequests: {
           ...prev.modRequests,
           pending: prev.modRequests.pending - 1,
-          rejected: prev.modRequests.rejected + 1
+          rejected: prev.modRequests.rejected + 1,
+          total: prev.modRequests.total
         }
       }));
     } catch (error) {
