@@ -80,35 +80,40 @@ export default function AdminDashboardPage() {
         const requestStats = getServiceRequestOverviewStats()
         
         // Fetch moderator applications
-        let applications = [];
+        let applications = []; 
         try {
           applications = await getAllModeratorApplications(adminUser.accessToken);
-          setModApplications(applications);
+          if (Array.isArray(applications)) {
+            setModApplications(applications);
           
-          // Calculate stats
-          const pendingCount = applications.filter(app => app.status === "pending").length;
-          const approvedCount = applications.filter(app => app.status === "approved").length;
-          const rejectedCount = applications.filter(app => app.status === "rejected").length;
+            // Calculate stats
+            const pendingCount = applications.filter(app => app.status === "pending").length;
+            const approvedCount = applications.filter(app => app.status === "approved").length;
+            const rejectedCount = applications.filter(app => app.status === "rejected").length;
           
-          setStats({
-            users: userStats,
-            services: serviceStats,
-            requests: requestStats,
-            platform: {
-              totalTransactions: 1247,
-              totalCreditsExchanged: 3892,
-              averageRating: 4.6,
-              activeUsers: 89,
-              monthlyGrowth: 12.5,
-              systemUptime: "99.9%",
-            },
-            modRequests: {
-              pending: pendingCount,
-              approved: approvedCount,
-              rejected: rejectedCount,
-              total: applications.length
-            }
-          });
+            setStats({
+              users: userStats,
+              services: serviceStats,
+              requests: requestStats,
+              platform: {
+                totalTransactions: 0,
+                totalCreditsExchanged: 0,
+                averageRating: 0,
+                activeUsers: 0,
+                monthlyGrowth: 0,
+                systemUptime: "100%",
+              },
+              modRequests: {
+                pending: pendingCount,
+                approved: approvedCount,
+                rejected: rejectedCount,
+                total: applications.length
+              }
+            });
+          } else {
+            console.error("Applications is not an array:", applications);
+            setModApplications([]);
+          }
         } catch (error) {
           console.error("Error fetching moderator applications:", error);
           // Set default modRequests stats if fetching fails
@@ -117,12 +122,12 @@ export default function AdminDashboardPage() {
             services: serviceStats,
             requests: requestStats,
             platform: {
-              totalTransactions: 1247,
-              totalCreditsExchanged: 3892,
-              averageRating: 4.6,
-              activeUsers: 89,
-              monthlyGrowth: 12.5,
-              systemUptime: "99.9%",
+              totalTransactions: 0,
+              totalCreditsExchanged: 0,
+              averageRating: 0,
+              activeUsers: 0,
+              monthlyGrowth: 0,
+              systemUptime: "100%",
             },
             modRequests: {
               pending: 0,
@@ -226,8 +231,8 @@ export default function AdminDashboardPage() {
   const quickStats = [
     {
       title: "Total Users",
-      value: stats.users.totalUsers || 0,
-      change: "+12%",
+      value: stats.users.totalUsers || 0, 
+      change: "+0%",
       icon: Users,
       color: "text-blue-600",
       bgColor: "bg-blue-100"
@@ -235,7 +240,7 @@ export default function AdminDashboardPage() {
     {
       title: "Active Services",
       value: stats.services.totalServices || 0,
-      change: "+8%",
+      change: "+0%",
       icon: Clock,
       color: "text-green-600",
       bgColor: "bg-green-100"
@@ -243,7 +248,7 @@ export default function AdminDashboardPage() {
     {
       title: "Service Requests",
       value: stats.requests.totalRequests || 0,
-      change: "+15%",
+      change: "+0%",
       icon: FileText,
       color: "text-purple-600",
       bgColor: "bg-purple-100"
@@ -251,7 +256,7 @@ export default function AdminDashboardPage() {
     {
       title: "Credits Exchanged",
       value: stats.platform.totalCreditsExchanged || 0,
-      change: "+23%",
+      change: "+0%",
       icon: DollarSign,
       color: "text-orange-600",
       bgColor: "bg-orange-100"
@@ -307,16 +312,7 @@ export default function AdminDashboardPage() {
         {/* Quick Stats */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           {quickStats.map((stat, index) => (
-            <Card key={index} className="dark:bg-gray-800 dark:border-gray-700">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600 dark:text-gray-400">{stat.title}</p>
-                    <p className="text-2xl font-bold text-gray-900 dark:text-white">{stat.value.toLocaleString()}</p>
-                    <p className="text-sm text-green-600 mt-1">{stat.change} from last month</p>
-                  </div>
-                  <div className={`p-3 rounded-full ${stat.bgColor}`}>
-                    <stat.icon className={`h-6 w-6 ${stat.color}`} />
+                    <span className="text-sm">No recent registrations</span>
                   </div>
                 </div>
               </CardContent>
@@ -380,24 +376,9 @@ export default function AdminDashboardPage() {
                 <CardContent className="space-y-4">
                   <div className="space-y-3">
                     <div className="flex items-center space-x-3">
-                      <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                      <span className="text-sm">New user registration: Sarah M.</span>
-                      <span className="text-xs text-gray-500">2 min ago</span>
-                    </div>
-                    <div className="flex items-center space-x-3">
-                      <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                      <span className="text-sm">Service completed: Web Development</span>
-                      <span className="text-xs text-gray-500">15 min ago</span>
-                    </div>
-                    <div className="flex items-center space-x-3">
-                      <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-                      <span className="text-sm">New service request: Garden Design</span>
-                      <span className="text-xs text-gray-500">1 hour ago</span>
-                    </div>
-                    <div className="flex items-center space-x-3">
-                      <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
-                      <span className="text-sm">Payment processed: 3.5 credits</span>
-                      <span className="text-xs text-gray-500">2 hours ago</span>
+                      <div className="w-2 h-2 bg-gray-300 rounded-full"></div>
+                      <span className="text-sm">No recent activity</span>
+                      <span className="text-xs text-gray-500">-</span>
                     </div>
                   </div>
                 </CardContent>
@@ -732,30 +713,30 @@ export default function AdminDashboardPage() {
                 <CardContent className="space-y-4">
                   <div className="flex items-center justify-between"> 
                     <span className="text-sm text-gray-600 dark:text-gray-400">API Status</span>
-                    <Badge variant="secondary" className="bg-green-100 text-green-800">
-                      <CheckCircle className="h-3 w-3 mr-1" />
-                      Operational
+                    <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">
+                      <AlertTriangle className="h-3 w-3 mr-1" />
+                      Not Connected
                     </Badge>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-gray-600 dark:text-gray-400">Database</span>
-                    <Badge variant="secondary" className="bg-green-100 text-green-800">
-                      <CheckCircle className="h-3 w-3 mr-1" />
-                      Connected
+                    <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">
+                      <AlertTriangle className="h-3 w-3 mr-1" />
+                      Not Connected
                     </Badge>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-gray-600 dark:text-gray-400">Email Service</span>
-                    <Badge variant="secondary" className="bg-green-100 text-green-800">
-                      <CheckCircle className="h-3 w-3 mr-1" />
-                      Active
+                    <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">
+                      <AlertTriangle className="h-3 w-3 mr-1" />
+                      Not Connected
                     </Badge>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-gray-600 dark:text-gray-400">Payment System</span>
-                    <Badge variant="secondary" className="bg-green-100 text-green-800">
-                      <CheckCircle className="h-3 w-3 mr-1" />
-                      Operational
+                    <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">
+                      <AlertTriangle className="h-3 w-3 mr-1" />
+                      Not Connected
                     </Badge>
                   </div>
                 </CardContent>

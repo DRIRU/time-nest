@@ -43,10 +43,18 @@ export default function ProfilePage() {
 
   const fetchModApplications = async () => {
     try {
-      const applications = await getModeratorApplications(currentUser?.accessToken);
-      setModApplications(applications);
+      if (currentUser?.accessToken) {
+        const applications = await getModeratorApplications(currentUser.accessToken);
+        if (Array.isArray(applications)) {
+          setModApplications(applications);
+        } else {
+          console.error("Applications is not an array:", applications);
+          setModApplications([]);
+        }
+      }
     } catch (error) {
       console.error("Error fetching moderator applications:", error);
+      setModApplications([]);
     }
   };
 
@@ -60,10 +68,13 @@ export default function ProfilePage() {
     setError("");
 
     try {
-      const result = await submitModeratorApplication({
+      const result = await submitModeratorApplication(
+      {
         reason: modReason,
         experience: modExperience
-      });
+      },
+      currentUser?.accessToken
+      );
       
       setSuccess("Your application has been submitted successfully!");
       setModReason("");
@@ -207,7 +218,9 @@ export default function ProfilePage() {
                 {/* Show application status if exists */}
                 {modApplications.length > 0 && (
                   <div className="mt-4 p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20">
-                    <h3 className="text-sm font-medium text-blue-800 dark:text-blue-300 mb-1">Moderator Application</h3>
+                    <h3 className="text-sm font-medium text-blue-800 dark:text-blue-300 mb-1">
+                      Moderator Application
+                    </h3>
                     <Badge className={
                       modApplications[0].status === "pending" ? "bg-yellow-100 text-yellow-800" :
                       modApplications[0].status === "approved" ? "bg-green-100 text-green-800" :
@@ -218,7 +231,9 @@ export default function ProfilePage() {
                        "Rejected"}
                     </Badge>
                     <p className="text-xs text-blue-700 dark:text-blue-400 mt-1">
-                      Submitted on {new Date(modApplications[0].submitted_at).toLocaleDateString()}
+                      {modApplications[0].submitted_at ? 
+                        `Submitted on ${new Date(modApplications[0].submitted_at).toLocaleDateString()}` : 
+                        "Recently submitted"}
                     </p>
                   </div>
                 )}

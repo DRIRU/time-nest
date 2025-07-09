@@ -3,44 +3,55 @@
 /**
  * Submits a moderator application to the backend
  * @param {Object} applicationData Application data to submit
+ * @param {string|null} tokenOverride Optional token to use instead of retrieving from localStorage
  * @returns {Promise<Object>} Created application
  */
-export async function submitModeratorApplication(applicationData) {
+export async function submitModeratorApplication(applicationData, tokenOverride = null) {
   try {
-    // Get the auth token from localStorage
-    const currentUser = JSON.parse(localStorage.getItem("currentUser") || "{}");
-    const token = currentUser?.accessToken;
+    // Use provided token or get from localStorage
+    let token = tokenOverride;
+    
+    if (!token) {
+      // Fall back to localStorage if no token override provided
+      const currentUser = JSON.parse(localStorage.getItem("currentUser") || "{}");
+      token = currentUser?.accessToken;
+    }
 
     if (!token) {
       throw new Error("Authentication token not found. Please log in.");
     }
 
-    const response = await fetch("http://localhost:8000/api/v1/mod-requests", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${token}`
-      },
-      body: JSON.stringify(applicationData),
-    });
+    try {
+      const response = await fetch("http://localhost:8000/api/v1/mod-requests", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify(applicationData),
+      });
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      let errorMessage = "Failed to submit moderator application";
-      
-      if (errorData.detail) {
-        if (Array.isArray(errorData.detail)) {
-          errorMessage = errorData.detail.map(err => `${err.loc.join('.')}: ${err.msg}`).join(', ');
-        } else {
-          errorMessage = errorData.detail;
+      if (!response.ok) {
+        const errorData = await response.json();
+        let errorMessage = "Failed to submit moderator application";
+        
+        if (errorData.detail) {
+          if (Array.isArray(errorData.detail)) {
+            errorMessage = errorData.detail.map(err => `${err.loc.join('.')}: ${err.msg}`).join(', ');
+          } else {
+            errorMessage = errorData.detail;
+          }
         }
+        
+        throw new Error(errorMessage);
       }
-      
-      throw new Error(errorMessage);
-    }
 
-    const result = await response.json();
-    return result;
+      const result = await response.json();
+      return result;
+    } catch (fetchError) {
+      console.error("Network error when submitting application:", fetchError);
+      throw new Error("Network error: Unable to connect to the server");
+    }
   } catch (error) {
     console.error("Error submitting moderator application:", error);
     throw error;
@@ -65,7 +76,8 @@ export async function getModeratorApplications(tokenOverride = null, status) {
     }
 
     if (!token) {
-      throw new Error("Authentication token not found. Please log in.");
+      console.warn("Authentication token not found. Returning empty array.");
+      return [];
     }
 
     let url = "http://localhost:8000/api/v1/mod-requests";
@@ -73,21 +85,27 @@ export async function getModeratorApplications(tokenOverride = null, status) {
       url += `?status=${status}`;
     }
 
-    const response = await fetch(url, {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${token}`
-      },
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.detail || "Failed to fetch moderator applications");
+    try {
+      const response = await fetch(url, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+      });
+  
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error("Error response from server:", errorData);
+        return [];
+      }
+  
+      const data = await response.json();
+      return data;
+    } catch (fetchError) {
+      console.error("Network error when fetching moderator applications:", fetchError);
+      return [];
     }
-
-    const data = await response.json();
-    return data;
   } catch (error) {
     console.error("Error fetching moderator applications:", error);
     return [];
@@ -112,7 +130,8 @@ export async function getAllModeratorApplications(tokenOverride = null, status) 
     }
 
     if (!token) {
-      throw new Error("Authentication token not found. Please log in.");
+      console.warn("Authentication token not found. Returning empty array.");
+      return [];
     }
 
     let url = "http://localhost:8000/api/v1/mod-requests";
@@ -120,21 +139,27 @@ export async function getAllModeratorApplications(tokenOverride = null, status) 
       url += `?status=${status}`;
     }
     
-    const response = await fetch(url, {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${token}`
-      },
-    });
+    try {
+      const response = await fetch(url, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+      });
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.detail || "Failed to fetch moderator applications");
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error("Error response from server:", errorData);
+        return [];
+      }
+
+      const data = await response.json();
+      return data;
+    } catch (fetchError) {
+      console.error("Network error when fetching moderator applications:", fetchError);
+      return [];
     }
-
-    const data = await response.json();
-    return data;
   } catch (error) {
     console.error("Error fetching all moderator applications:", error);
     return [];
@@ -160,7 +185,7 @@ export async function updateModeratorApplicationStatus(requestId, newStatus, tok
     }
 
     if (!token) {
-      throw new Error("Authentication token not found. Please log in.");
+      throw new Error("Authentication token not found");
     }
 
     const response = await fetch(`http://localhost:8000/api/v1/mod-requests/${requestId}`, {
