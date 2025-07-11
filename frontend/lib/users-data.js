@@ -425,3 +425,89 @@ export async function updateUserProfile(profileData) {
     return { success: false, error: error.message };
   }
 }
+
+export function getAllUsers() {
+  return users
+}
+
+// Admin functions for user management
+export async function getAllUsersAdmin(token, searchParams = {}) {
+  try {
+    const { search, role, status, skip = 0, limit = 100 } = searchParams;
+    
+    const queryParams = new URLSearchParams({
+      skip: skip.toString(),
+      limit: limit.toString(),
+    });
+    
+    if (search) queryParams.append('search', search);
+    if (role && role !== 'all') queryParams.append('role', role);
+    if (status && status !== 'all') queryParams.append('status', status);
+    
+    const response = await fetch(`http://localhost:8000/api/v1/users/admin/users?${queryParams}`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      },
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch users: ${response.statusText}`);
+    }
+    
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error("Error fetching users:", error);
+    // Return demo data as fallback
+    return users;
+  }
+}
+
+export async function getUserStatsAdmin(token) {
+  try {
+    const response = await fetch(`http://localhost:8000/api/v1/users/admin/users/stats`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      },
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch user stats: ${response.statusText}`);
+    }
+    
+    const data = await response.json();
+    // console.log("User stats:", data);
+    return data;
+  } catch (error) {
+    console.error("Error fetching user stats:", error);
+    // Return demo stats as fallback
+    return getUserStats();
+  }
+}
+
+export async function deleteUserAdmin(token, userId) {
+  try {
+    const response = await fetch(`http://localhost:8000/api/v1/users/admin/users/${userId}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json()
+      throw new Error(errorData.detail || 'Failed to delete user')
+    }
+
+    const data = await response.json()
+    return data
+  } catch (error) {
+    console.error('Error deleting user:', error)
+    throw error
+  }
+}

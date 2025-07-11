@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
-from typing import List
+from typing import List, Optional, Optional
 from datetime import datetime, timedelta
 from pytz import timezone
 from mysql.connector import connect, Error as MySQLError
@@ -443,6 +443,113 @@ def update_user_profile(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An error occurred while updating your profile. Please try again."
+        )
+
+@router.get("/admin/users")
+def get_all_users_admin(
+    search: Optional[str] = None,
+    status: Optional[str] = None,
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_db),
+    current_admin = Depends(get_current_admin_dependency)
+):
+    """
+    Get all users with search and filter capabilities (Admin only)
+    """
+    try:
+        query = db.query(User)
+        
+        # Apply search filter
+        if search:
+            search_filter = f"%{search}%"
+            query = query.filter(
+                User.first_name.ilike(search_filter) |
+                User.last_name.ilike(search_filter) |
+                User.email.ilike(search_filter) |
+                User.phone_number.ilike(search_filter) |
+                User.location.ilike(search_filter)
+            )
+        
+        # Apply status filter
+        if status and status != "all":
+            if status == "verified":
+                query = query.filter(User.phone_number.isnot(None))
+            elif status == "unverified":
+                query = query.filter(User.phone_number.is_(None))
+            elif status == "active":
+                query = query.filter(User.status == "Active")
+            elif status == "inactive":
+                query = query.filter(User.status.in_(["Inactive", "Suspended"]))
+        
+        # Apply pagination
+        users = query.offset(skip).limit(limit).all()
+        
+        return users
+        
+    except Exception as e:
+        logger.error(f"Error fetching users: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An error occurred while fetching users"
+        )
+
+@router.get("/admin/users/stats")
+def get_user_stats_admin(
+    db: Session = Depends(get_db),
+    current_admin = Depends(get_current_admin_dependency)
+):
+    """
+    Get user statistics (Admin only)
+    """
+    try:
+        total_users = db.query(User).count()
+        verified_users = db.query(User).filter(User.phone_number.isnot(None)).count()
+        active_users = db.query(User).filter(User.status == "Active").count()
+        
+        # Calculate verification rate
+        verification_rate = f"{(verified_users / total_users * 100):.1f}%" if total_users > 0 else "0%"
+        
+        return {
+            "total_users": total_users,
+            "verified_users": verified_users,
+            "active_users": active_users,
+            "verification_rate": verification_rate
+        }
+        
+    except Exception as e:
+        logger.error(f"Error fetching user statistics: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An error occurred while fetching user statistics"
+        )
+
+@router.delete("/admin/users/{user_id}", status_code=status.HTTP_200_OK)
+def delete_user_admin(user_id: int, db: Session = Depends(get_db)):
+    """
+    Delete a user (Admin only)
+    """
+    try:
+        # Find the user
+        user = db.query(User).filter(User.user_id == user_id).first()
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found"
+            )
+
+        # Delete the user
+        db.delete(user)
+        db.commit()
+
+        return {"message": "User deleted successfully"}
+
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error deleting user: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An error occurred while deleting the user"
         )
 
 # Dependency to get current user from token
