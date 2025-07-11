@@ -4,7 +4,7 @@ from sqlalchemy.exc import IntegrityError
 from typing import List
 from datetime import datetime, timedelta
 from pytz import timezone
-# from mysql.connector import connect, Error as MySQLError
+from mysql.connector import connect, Error as MySQLError
 import logging
 
 
@@ -19,7 +19,8 @@ from ...schemas.user import (
     AdminLogin,
     Token, 
     ForgotPasswordRequest,
-    ResetPasswordRequest
+    ResetPasswordRequest,
+    UserUpdate
 )
 from ...core.security import (
     hash_password, 
@@ -391,7 +392,58 @@ def get_all_users(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)
     users = db.query(User).offset(skip).limit(limit).all()
     return users
 
+@router.get("/profile")
+def get_user_profile(current_user: User = Depends(get_current_user_dependency), db: Session = Depends(get_db)):
+    user_profile = db.query(User).filter(User.email == current_user.email).first()
+    name = user_profile.first_name + " " + user_profile.last_name
+    profile_data_response = {
+        "name": name,
+        "email": user_profile.email,
+        "phone_number": user_profile.phone_number if user_profile.phone_number else "Not provided",
+        "joined_date": user_profile.date_joined.strftime("%d-%m-%Y") if user_profile.date_joined else "Not provided",
+        "location": user_profile.location if user_profile.location else "Not provided",
+    }
+    print(profile_data_response)
+    return profile_data_response
 
+@router.put("/profile", response_model=UserResponse)
+def update_user_profile(
+    user_update: UserUpdate,
+    current_user: User = Depends(get_current_user_dependency), 
+    db: Session = Depends(get_db)
+):
+    """
+    Update current user's profile
+    """
+    try:
+        # Get the current user from the database
+        db_user = db.query(User).filter(User.email == current_user.email).first()
+        if not db_user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found"
+            )
+        
+        # Update only the fields that are provided
+        update_data = user_update.dict(exclude_unset=True)
+        for field, value in update_data.items():
+            if hasattr(db_user, field):
+                setattr(db_user, field, value)
+        
+        db.commit()
+        db.refresh(db_user)
+        
+        return db_user
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating user profile: {str(e)}")
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An error occurred while updating your profile. Please try again."
+        )
 
 # Dependency to get current user from token
 

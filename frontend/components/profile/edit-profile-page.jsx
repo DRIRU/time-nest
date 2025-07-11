@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { ArrowLeft, Save, Plus, X, Upload } from "lucide-react"
-import { getUserById, updateUser } from "@/lib/users-data"
+import { getUserById, updateUser, fetchUserProfile, updateUserProfile } from "@/lib/users-data"
 import LocationAutocomplete from "@/components/location-autocomplete"
 
 export default function EditProfilePage() {
@@ -24,29 +24,93 @@ export default function EditProfilePage() {
     lastName: "",
     email: "",
     phone: "",
-    bio: "",
+    location: "",
     skills: [],
     languages: [],
-    location: "",
   })
 
   useEffect(() => {
-    // In a real app, you'd get the current user ID from auth context
-    const currentUser = getUserById("user1")
-    if (currentUser) {
-      setUser(currentUser)
-      setFormData({
-        firstName: currentUser.firstName || "",
-        lastName: currentUser.lastName || "",
-        email: currentUser.email || "",
-        phone: currentUser.phone || "",
-        bio: currentUser.profile?.bio || "",
-        skills: currentUser.profile?.skills || [],
-        languages: currentUser.profile?.languages || [],
-        location: currentUser.location ? `${currentUser.location.city}, ${currentUser.location.state}` : "",
-      })
-    }
-    setLoading(false)
+    const loadUserProfile = async () => {
+      try {
+        // Check if we have user data passed from profile page
+        const savedUserData = localStorage.getItem("editProfileUser");
+        if (savedUserData) {
+          const parsedUser = JSON.parse(savedUserData);
+          setUser(parsedUser);
+          
+          // Split name into first and last name
+          const nameParts = (parsedUser.name || "").split(" ");
+          const firstName = nameParts[0] || "";
+          const lastName = nameParts.slice(1).join(" ") || "";
+          
+          // Prefill form with user data from profile page
+          setFormData({
+            firstName: firstName,
+            lastName: lastName,
+            email: parsedUser.email || "",
+            phone: parsedUser.phone_number || "",
+            location: parsedUser.location || "",
+            skills: parsedUser.skills || [],
+            languages: parsedUser.languages || [],
+          });
+          
+          // Clear the saved data after using it
+          localStorage.removeItem("editProfileUser");
+        } else {
+          // Fallback: fetch from backend if no data in localStorage
+          const userProfile = await fetchUserProfile();
+          if (userProfile) {
+            setUser(userProfile);
+            
+            // Split name into first and last name
+            const nameParts = (userProfile.name || "").split(" ");
+            const firstName = nameParts[0] || "";
+            const lastName = nameParts.slice(1).join(" ") || "";
+            
+            setFormData({
+              firstName: firstName,
+              lastName: lastName,
+              email: userProfile.email || "",
+              phone: userProfile.phone_number || "",
+              location: userProfile.location || "",
+              skills: userProfile.skills || [],
+              languages: userProfile.languages || [],
+            });
+          } else {
+            // Final fallback to demo data
+            const demoUser = getUserById("user1");
+            setUser(demoUser);
+            setFormData({
+              firstName: demoUser.firstName || "",
+              lastName: demoUser.lastName || "",
+              email: demoUser.email || "",
+              phone: demoUser.phone || "",
+              location: demoUser.location ? `${demoUser.location.city}, ${demoUser.location.state}` : "",
+              skills: demoUser.profile?.skills || [],
+              languages: demoUser.profile?.languages || [],
+            });
+          }
+        }
+      } catch (error) {
+        console.error("Error loading user profile:", error);
+        // Fallback to demo data on error
+        const demoUser = getUserById("user1");
+        setUser(demoUser);
+        setFormData({
+          firstName: demoUser.firstName || "",
+          lastName: demoUser.lastName || "",
+          email: demoUser.email || "",
+          phone: demoUser.phone || "",
+          location: demoUser.location ? `${demoUser.location.city}, ${demoUser.location.state}` : "",
+          skills: demoUser.profile?.skills || [],
+          languages: demoUser.profile?.languages || [],
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadUserProfile();
   }, [])
 
   const handleInputChange = (field, value) => {
@@ -78,26 +142,16 @@ export default function EditProfilePage() {
     setSaving(true)
 
     try {
-      // Update user data
+      // Prepare update data for backend
       const updateData = {
-        firstName: formData.firstName,
-        lastName: formData.lastName,
-        email: formData.email,
-        phone: formData.phone,
-        location: {
-          city: formData.location.split(",")[0]?.trim() || "",
-          state: formData.location.split(",")[1]?.trim() || "",
-          country: "India",
-        },
-        profile: {
-          ...user.profile,
-          bio: formData.bio,
-          skills: formData.skills,
-          languages: formData.languages,
-        },
+        first_name: formData.firstName,
+        last_name: formData.lastName,
+        phone_number: formData.phone,
+        location: formData.location,
       }
 
-      const result = updateUser(user.id, updateData)
+      // Call backend API to update user profile
+      const result = await updateUserProfile(updateData)
 
       if (result.success) {
         // Show success message (you could use a toast library here)
@@ -158,10 +212,10 @@ export default function EditProfilePage() {
                 <CardContent className="p-6">
                   <div className="text-center">
                     <Avatar className="h-24 w-24 mx-auto mb-4">
-                      <AvatarImage src={user.avatar || "/placeholder.svg"} alt={user.fullName} />
+                      <AvatarImage src={user.avatar || "/placeholder.svg"} alt={user.name || user.fullName} />
                       <AvatarFallback className="text-lg">
-                        {formData.firstName?.[0]}
-                        {formData.lastName?.[0]}
+                        {formData.firstName?.[0] || user.name?.[0] || 'U'}
+                        {formData.lastName?.[0] || user.name?.split(' ')[1]?.[0] || ''}
                       </AvatarFallback>
                     </Avatar>
                     <Button type="button" variant="outline" size="sm">
@@ -218,16 +272,6 @@ export default function EditProfilePage() {
                       id="phone"
                       value={formData.phone}
                       onChange={(e) => handleInputChange("phone", e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="bio">Bio</Label>
-                    <Textarea
-                      id="bio"
-                      value={formData.bio}
-                      onChange={(e) => handleInputChange("bio", e.target.value)}
-                      placeholder="Tell us about yourself..."
-                      rows={4}
                     />
                   </div>
                 </CardContent>

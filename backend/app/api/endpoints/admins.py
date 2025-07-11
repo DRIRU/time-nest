@@ -44,7 +44,7 @@ def get_stats():
 
         # Total completed services
         try:
-            cursor.execute("SELECT count(*) as completed_services FROM services WHERE status = 'Completed'")
+            cursor.execute("SELECT count(*) as completed_services FROM service_bookings WHERE status = 'completed'")
             completed_services = cursor.fetchall()[0]["completed_services"]
             print(f"Completed services: {completed_services}")
         except Exception as e:

@@ -89,3 +89,29 @@ class Token(BaseModel):
 
 class TokenData(BaseModel):
     email: Optional[str] = None
+
+class UserUpdate(BaseModel):
+    first_name: Optional[str] = Field(None, min_length=1, max_length=50, description="User's first name")
+    last_name: Optional[str] = Field(None, min_length=1, max_length=50, description="User's last name")
+    phone_number: Optional[str] = Field(None, max_length=15, description="User's phone number")
+    gender: Optional[str] = Field(None, description="User's gender")
+    age: Optional[int] = Field(None, ge=13, le=120, description="User's age")
+    location: Optional[str] = Field(None, max_length=100, description="User's location")
+
+    @validator('gender')
+    def validate_gender(cls, v):
+        if v is not None and v not in ['Male', 'Female', 'Other']:
+            raise ValueError('Gender must be Male, Female, or Other')
+        return v
+
+    @validator('phone_number')
+    def validate_phone_number(cls, v):
+        if v is not None:
+            # Remove any non-digit characters for validation
+            digits_only = ''.join(filter(str.isdigit, v))
+            if len(digits_only) < 10:
+                raise ValueError('Phone number must contain at least 10 digits')
+        return v
+
+    class Config:
+        from_attributes = True

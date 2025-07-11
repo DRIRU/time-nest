@@ -375,3 +375,53 @@ export function deleteUser(userId) {
     success: true,
   }
 }
+
+// Calls the backend's get_user_profile endpoint and returns the user profile data
+export async function fetchUserProfile(userId) {
+  const currentUser = JSON.parse(localStorage.getItem("currentUser") || "{}");
+  const token = currentUser?.accessToken;
+  try {
+    const response = await fetch(`http://localhost:8000/api/v1/users/profile`,  { 
+      method: "GET",
+      headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${token}`
+      },
+    },)
+    if (!response.ok) {
+      throw new Error(`Failed to fetch user profile: ${response.statusText}`)
+    }
+    const data = await response.json()
+    return data
+  } catch (error) {
+    console.error(error)
+    return null
+  }
+}
+
+// Update user profile by calling the backend's update_user_profile endpoint
+export async function updateUserProfile(profileData) {
+  const currentUser = JSON.parse(localStorage.getItem("currentUser") || "{}");
+  const token = currentUser?.accessToken;
+  
+  try {
+    const response = await fetch(`http://localhost:8000/api/v1/users/profile`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      },
+      body: JSON.stringify(profileData)
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Failed to update user profile: ${response.statusText}`);
+    }
+    
+    const data = await response.json();
+    return { success: true, user: data };
+  } catch (error) {
+    console.error("Error updating user profile:", error);
+    return { success: false, error: error.message };
+  }
+}
