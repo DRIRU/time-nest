@@ -285,7 +285,10 @@ export function formatMessages(messages, currentUserId) {
     senderAvatar: message.sender_avatar,
     messageType: message.message_type,
     status: message.status,
-    isEdited: message.is_edited
+    isEdited: message.is_edited,
+    latitude: message.latitude,
+    longitude: message.longitude,
+    locationAddress: message.location_address
   }));
 }
 

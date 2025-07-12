@@ -8,6 +8,7 @@ class MessageType(str, enum.Enum):
     text = 'text'
     image = 'image'
     file = 'file'
+    location = 'location'
     system = 'system'
 
 class MessageStatus(str, enum.Enum):
@@ -42,6 +43,11 @@ class Message(Base):
     file_name = Column(String(200), nullable=True)
     file_size = Column(Integer, nullable=True)
     
+    # Location data (optional)
+    latitude = Column(String(50), nullable=True)
+    longitude = Column(String(50), nullable=True)
+    location_address = Column(Text, nullable=True)
+    
     # Relationships
     conversation = relationship("Conversation", back_populates="messages")
     sender = relationship("User", backref="sent_messages")
@@ -64,5 +70,8 @@ class Message(Base):
             'is_deleted': self.is_deleted,
             'file_url': self.file_url,
             'file_name': self.file_name,
-            'file_size': self.file_size
+            'file_size': self.file_size,
+            'latitude': self.latitude,
+            'longitude': self.longitude,
+            'location_address': self.location_address
         }

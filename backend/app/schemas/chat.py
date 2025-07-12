@@ -12,6 +12,7 @@ class MessageType(str, Enum):
     text = 'text'
     image = 'image'
     file = 'file'
+    location = 'location'
     system = 'system'
 
 class MessageStatus(str, Enum):
@@ -51,6 +52,11 @@ class ConversationResponse(ConversationBase):
 class MessageBase(BaseModel):
     content: str = Field(..., min_length=1, max_length=2000, description="Message content")
     message_type: MessageType = MessageType.text
+    
+    # Location fields (optional)
+    latitude: Optional[str] = Field(None, description="Latitude coordinate")
+    longitude: Optional[str] = Field(None, description="Longitude coordinate")
+    location_address: Optional[str] = Field(None, description="Human-readable address")
 
 class MessageCreate(MessageBase):
     conversation_id: int = Field(..., description="ID of the conversation")

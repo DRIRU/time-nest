@@ -274,6 +274,9 @@ def get_conversation_messages(
                 file_url=msg.file_url,
                 file_name=msg.file_name,
                 file_size=msg.file_size,
+                latitude=msg.latitude,
+                longitude=msg.longitude,
+                location_address=msg.location_address,
                 sender_name=f"{sender.first_name} {sender.last_name}" if sender else "Unknown",
                 sender_avatar=f"/placeholder.svg?height=40&width=40&text={sender.first_name[0]}{sender.last_name[0]}" if sender else None,
                 is_current_user=msg.sender_id == current_user.user_id
@@ -334,7 +337,10 @@ def send_message(
             conversation_id=message_data.conversation_id,
             sender_id=current_user.user_id,
             content=message_data.content,
-            message_type=message_data.message_type
+            message_type=message_data.message_type,
+            latitude=message_data.latitude,
+            longitude=message_data.longitude,
+            location_address=message_data.location_address
         )
         
         db.add(new_message)
@@ -364,6 +370,9 @@ def send_message(
             file_url=new_message.file_url,
             file_name=new_message.file_name,
             file_size=new_message.file_size,
+            latitude=new_message.latitude,
+            longitude=new_message.longitude,
+            location_address=new_message.location_address,
             sender_name=f"{sender.first_name} {sender.last_name}" if sender else "Unknown",
             sender_avatar=f"/placeholder.svg?height=40&width=40&text={sender.first_name[0]}{sender.last_name[0]}" if sender else None,
             is_current_user=True

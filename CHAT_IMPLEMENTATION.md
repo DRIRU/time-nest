@@ -9,6 +9,7 @@ This document provides a comprehensive implementation plan for the chat feature 
 ### 1. Database Schema
 
 #### 1.1 Conversations Table
+
 ```sql
 CREATE TABLE conversations (
     conversation_id INT PRIMARY KEY AUTO_INCREMENT,
@@ -32,6 +33,7 @@ CREATE TABLE conversations (
 ```
 
 #### 1.2 Messages Table
+
 ```sql
 CREATE TABLE messages (
     message_id INT PRIMARY KEY AUTO_INCREMENT,
@@ -59,18 +61,22 @@ CREATE TABLE messages (
 ### 2. Backend Implementation
 
 #### 2.1 Database Models
-- **Conversation Model**: Located at `backend/app/db/models/conversation.py`
-- **Message Model**: Located at `backend/app/db/models/message.py`
+
+-   **Conversation Model**: Located at `backend/app/db/models/conversation.py`
+-   **Message Model**: Located at `backend/app/db/models/message.py`
 
 #### 2.2 API Schemas
-- **Chat Schemas**: Located at `backend/app/schemas/chat.py`
-- Includes request/response models for conversations and messages
+
+-   **Chat Schemas**: Located at `backend/app/schemas/chat.py`
+-   Includes request/response models for conversations and messages
 
 #### 2.3 API Endpoints
-- **Chat Endpoints**: Located at `backend/app/api/endpoints/chat.py`
-- RESTful API endpoints for chat operations
+
+-   **Chat Endpoints**: Located at `backend/app/api/endpoints/chat.py`
+-   RESTful API endpoints for chat operations
 
 ##### Available Endpoints:
+
 1. `GET /api/v1/chat/conversations` - Get user's conversations
 2. `POST /api/v1/chat/conversations` - Create new conversation
 3. `GET /api/v1/chat/conversations/{id}` - Get conversation details
@@ -80,38 +86,45 @@ CREATE TABLE messages (
 ### 3. Frontend Implementation
 
 #### 3.1 API Integration
-- **Chat Data Layer**: Located at `frontend/lib/chat-data.js`
-- Functions for interacting with chat API endpoints
+
+-   **Chat Data Layer**: Located at `frontend/lib/chat-data.js`
+-   Functions for interacting with chat API endpoints
 
 #### 3.2 Components
-- **Chat Page**: `frontend/components/chat/chat-page.jsx`
-- **Messages Page**: `frontend/components/messages/messages-page.jsx`
-- **Service Detail Integration**: Updated to initiate chats
+
+-   **Chat Page**: `frontend/components/chat/chat-page.jsx`
+-   **Messages Page**: `frontend/components/messages/messages-page.jsx`
+-   **Service Detail Integration**: Updated to initiate chats
 
 #### 3.3 Routing
-- Chat routes: `/chat/{userId}?conversation_id={id}`
-- Messages list: `/messages`
+
+-   Chat routes: `/chat/{userId}?conversation_id={id}`
+-   Messages list: `/messages`
 
 ## Implementation Steps
 
 ### Phase 1: Database Setup
+
 1. Create database models (✅ Completed)
 2. Add models to SQLAlchemy Base
 3. Run database migrations
 
 ### Phase 2: Backend API
+
 1. Create API schemas (✅ Completed)
 2. Implement API endpoints (✅ Completed)
 3. Add authentication and authorization
 4. Test API endpoints
 
 ### Phase 3: Frontend Integration
+
 1. Create chat API functions (✅ Completed)
 2. Update chat components (✅ Completed)
 3. Integrate with service detail pages (✅ Completed)
 4. Update messages page (✅ Completed)
 
 ### Phase 4: Testing and Optimization
+
 1. Test chat functionality end-to-end
 2. Optimize database queries
 3. Add error handling and loading states
@@ -120,25 +133,29 @@ CREATE TABLE messages (
 ## Key Features
 
 ### 1. Context-Aware Conversations
-- Conversations can be linked to services or requests
-- Context information is preserved and displayed
-- Easy navigation between chat and related content
+
+-   Conversations can be linked to services or requests
+-   Context information is preserved and displayed
+-   Easy navigation between chat and related content
 
 ### 2. Real-time Messaging
-- Messages are sent and received in real-time
-- Message status tracking (sent, delivered, read)
-- Typing indicators (future enhancement)
+
+-   Messages are sent and received in real-time
+-   Message status tracking (sent, delivered, read)
+-   Typing indicators (future enhancement)
 
 ### 3. User Experience
-- Intuitive chat interface
-- Message history and pagination
-- Unread message counters
-- Search functionality for conversations
+
+-   Intuitive chat interface
+-   Message history and pagination
+-   Unread message counters
+-   Search functionality for conversations
 
 ### 4. Security and Privacy
-- Authentication required for all chat operations
-- Users can only access their own conversations
-- Message content is properly validated
+
+-   Authentication required for all chat operations
+-   Users can only access their own conversations
+-   Message content is properly validated
 
 ## Database Migration
 
@@ -193,53 +210,58 @@ CREATE TABLE messages (
 ## Usage Examples
 
 ### 1. Starting a Chat from Service Detail
+
 ```javascript
 // In service detail page
 const handleContactProvider = async () => {
-  try {
-    const conversation = await initiateServiceChat(
-      serviceId,
-      serviceTitle,
-      providerId
-    )
-    router.push(`/chat/${providerId}?conversation_id=${conversation.conversation_id}`)
-  } catch (error) {
-    console.error("Error initiating chat:", error)
-  }
-}
+    try {
+        const conversation = await initiateServiceChat(
+            serviceId,
+            serviceTitle,
+            providerId
+        );
+        router.push(
+            `/chat/${providerId}?conversation_id=${conversation.conversation_id}`
+        );
+    } catch (error) {
+        console.error("Error initiating chat:", error);
+    }
+};
 ```
 
 ### 2. Sending a Message
+
 ```javascript
 // In chat page
 const handleSendMessage = async () => {
-  try {
-    const messageData = {
-      conversation_id: conversationId,
-      content: messageContent,
-      message_type: "text"
+    try {
+        const messageData = {
+            conversation_id: conversationId,
+            content: messageContent,
+            message_type: "text",
+        };
+
+        const sentMessage = await sendMessage(messageData);
+        setMessages((prev) => [...prev, sentMessage]);
+    } catch (error) {
+        console.error("Error sending message:", error);
     }
-    
-    const sentMessage = await sendMessage(messageData)
-    setMessages(prev => [...prev, sentMessage])
-  } catch (error) {
-    console.error("Error sending message:", error)
-  }
-}
+};
 ```
 
 ### 3. Loading Conversations
+
 ```javascript
 // In messages page
 const loadConversations = async () => {
-  try {
-    const chatData = await getUserConversations()
-    const formatted = formatConversations(chatData.conversations)
-    setConversations(formatted)
-  } catch (error) {
-    console.error("Error loading conversations:", error)
-  }
-}
+    try {
+        const chatData = await getUserConversations();
+        const formatted = formatConversations(chatData.conversations);
+        setConversations(formatted);
+    } catch (error) {
+        console.error("Error loading conversations:", error);
+    }
+};
 ```
 
 ## Next Steps

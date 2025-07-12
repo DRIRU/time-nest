@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { ArrowLeft, Send, Phone, Video, MoreVertical, Paperclip, Smile } from "lucide-react"
+import { ArrowLeft, Send, Phone, Video, MoreVertical, Paperclip, Smile, MapPin } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -18,6 +18,8 @@ export default function ChatPage({ userId }) {
   const [newMessage, setNewMessage] = useState("")
   const [loading, setLoading] = useState(true)
   const [conversationId, setConversationId] = useState(null)
+  const [isLocationSharing, setIsLocationSharing] = useState(false)
+  const [locationLoading, setLocationLoading] = useState(false)
   const router = useRouter()
   const searchParams = useSearchParams()
   const messagesEndRef = useRef(null)
@@ -141,7 +143,10 @@ export default function ChatPage({ userId }) {
           senderName: sentMessage.sender_name,
           senderAvatar: sentMessage.sender_avatar,
           messageType: sentMessage.message_type,
-          status: sentMessage.status
+          status: sentMessage.status,
+          latitude: sentMessage.latitude,
+          longitude: sentMessage.longitude,
+          locationAddress: sentMessage.location_address
         }
 
         setMessages(prev => [...prev, formattedMessage])
@@ -156,6 +161,147 @@ export default function ChatPage({ userId }) {
   const handleKeyPress = (e) => {
     if (e.key === "Enter") {
       handleSendMessage()
+    }
+  }
+
+  const handleLocationShare = async () => {
+    if (!conversationId || isLocationSharing) return;
+    
+    setIsLocationSharing(true);
+    
+    try {
+      if (!navigator.geolocation) {
+        alert("Geolocation is not supported by this browser.");
+        return;
+      }
+      
+      const position = await new Promise((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 0
+        });
+      });
+      
+      const { latitude, longitude } = position.coords;
+      
+      const messageData = {
+        conversation_id: conversationId,
+        content: "Location shared",
+        message_type: "location",
+        latitude: latitude.toString(),
+        longitude: longitude.toString(),
+        location_address: `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`
+      };
+      
+      // Send location message to backend
+      const sentMessage = await sendMessage(messageData);
+      
+      // Add message to local state
+      const formattedMessage = {
+        id: sentMessage.message_id,
+        content: sentMessage.content,
+        timestamp: sentMessage.created_at,
+        isCurrentUser: sentMessage.is_current_user,
+        senderName: sentMessage.sender_name,
+        senderAvatar: sentMessage.sender_avatar,
+        messageType: sentMessage.message_type,
+        status: sentMessage.status,
+        latitude: sentMessage.latitude,
+        longitude: sentMessage.longitude,
+        location_address: sentMessage.location_address
+      };
+      
+      setMessages(prev => [...prev, formattedMessage]);
+      
+    } catch (error) {
+      console.error("Error sharing location:", error);
+      if (error.code === 1) {
+        alert("Location access denied. Please allow location access to share your location.");
+      } else if (error.code === 2) {
+        alert("Location information is unavailable.");
+      } else if (error.code === 3) {
+        alert("Location request timed out.");
+      } else {
+        alert("Failed to share location. Please try again.");
+      }
+    } finally {
+      setIsLocationSharing(false);
+    }
+  }
+
+  const handleShareLocation = async () => {
+    if (!conversationId) return
+
+    setLocationLoading(true)
+    
+    try {
+      // Check if geolocation is supported
+      if (!navigator.geolocation) {
+        alert("Geolocation is not supported by this browser.")
+        return
+      }
+
+      // Get current position
+      const position = await new Promise((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(
+          resolve,
+          reject,
+          {
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 60000
+          }
+        )
+      })
+
+      const { latitude, longitude } = position.coords
+
+      // Create a simple location address using coordinates
+      let locationAddress = `📍 ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`
+
+      // Send location message
+      const messageData = {
+        conversation_id: conversationId,
+        content: `Location shared: ${locationAddress}`,
+        message_type: "location",
+        latitude: latitude.toString(),
+        longitude: longitude.toString(),
+        location_address: locationAddress
+      }
+
+      const sentMessage = await sendMessage(messageData)
+      
+      // Add message to local state
+      const formattedMessage = {
+        id: sentMessage.message_id,
+        content: sentMessage.content,
+        timestamp: sentMessage.created_at,
+        isCurrentUser: sentMessage.is_current_user,
+        senderName: sentMessage.sender_name,
+        senderAvatar: sentMessage.sender_avatar,
+        messageType: sentMessage.message_type,
+        status: sentMessage.status,
+        latitude: sentMessage.latitude,
+        longitude: sentMessage.longitude,
+        locationAddress: sentMessage.location_address
+      }
+
+      setMessages(prev => [...prev, formattedMessage])
+      
+    } catch (error) {
+      console.error("Error sharing location:", error)
+      if (error.code === error.PERMISSION_DENIED) {
+        alert("Location access denied. Please enable location permissions and try again.")
+      } else if (error.code === error.POSITION_UNAVAILABLE) {
+        alert("Location information is unavailable.")
+      } else if (error.code === error.TIMEOUT) {
+        alert("Location request timed out.")
+      } else {
+        alert("Failed to share location. Please try again.")
+      }
+    } finally {
+      setLocationLoading(false)
     }
   }
 
@@ -264,7 +410,49 @@ export default function ChatPage({ userId }) {
                     message.isCurrentUser ? "bg-blue-600 text-white" : "bg-muted text-foreground"
                   }`}
                 >
-                  <p className="text-sm">{message.content}</p>
+                  {message.messageType === "location" ? (
+                    <div className="space-y-2">
+                      <div className="flex items-center space-x-2">
+                        <MapPin className="h-4 w-4" />
+                        <span className="font-medium">Location Shared</span>
+                      </div>
+                      <p className="text-sm">
+                        {message.latitude && message.longitude
+                          ? `${parseFloat(message.latitude).toFixed(6)}, ${parseFloat(message.longitude).toFixed(6)}`
+                          : message.content}
+                      </p>
+                      {message.latitude && message.longitude && (
+                        <div className="flex space-x-2">
+                          <a
+                            href={`https://www.google.com/maps?q=${message.latitude},${message.longitude}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className={`text-xs px-2 py-1 rounded ${
+                              message.isCurrentUser 
+                                ? "bg-blue-500 hover:bg-blue-400 text-white" 
+                                : "bg-blue-100 hover:bg-blue-200 text-blue-800"
+                            }`}
+                          >
+                            View on Map
+                          </a>
+                          <a
+                            href={`https://www.google.com/maps/dir/?api=1&destination=${message.latitude},${message.longitude}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className={`text-xs px-2 py-1 rounded ${
+                              message.isCurrentUser 
+                                ? "bg-blue-500 hover:bg-blue-400 text-white" 
+                                : "bg-blue-100 hover:bg-blue-200 text-blue-800"
+                            }`}
+                          >
+                            Get Directions
+                          </a>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-sm">{message.content}</p>
+                  )}
                   <p
                     className={`text-xs mt-1 ${message.isCurrentUser ? "text-primary-foreground" : "text-muted-foreground"}`}
                   >
@@ -281,6 +469,20 @@ export default function ChatPage({ userId }) {
             <div className="flex items-center space-x-2">
               <Button variant="ghost" size="icon">
                 <Paperclip className="h-5 w-5" />
+              </Button>
+
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={handleLocationShare}
+                disabled={isLocationSharing}
+                title="Share Location"
+              >
+                {isLocationSharing ? (
+                  <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-blue-500"></div>
+                ) : (
+                  <MapPin className="h-5 w-5" />
+                )}
               </Button>
 
               <div className="flex-1 relative">
