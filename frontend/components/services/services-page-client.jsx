@@ -29,11 +29,12 @@ export default function ServicesPageClient({ initialServices, searchParams }) {
   const urlSearchParams = useSearchParams()
 
   // State for search and filters
-  const [searchQuery, setSearchQuery] = useState(urlSearchParams.get("q") || "")
-  const [selectedCategory, setSelectedCategory] = useState(urlSearchParams.get("category") || "all")
+  const [searchQuery, setSearchQuery] = useState("")
+  const [selectedCategory, setSelectedCategory] = useState("all")
   const [viewMode, setViewMode] = useState("grid")
   const [categories, setCategories] = useState([])
   const [isLoading, setIsLoading] = useState(false)
+  const [initialParamsLoaded, setInitialParamsLoaded] = useState(false)
 
   // Filter states
   const [priceRange, setPriceRange] = useState([0, 5])
@@ -47,8 +48,31 @@ export default function ServicesPageClient({ initialServices, searchParams }) {
     setCategories(getCategories())
   }, [])
 
+  // Load initial search params
+  useEffect(() => {
+    const loadInitialParams = async () => {
+      try {
+        // Get search params safely
+        const q = urlSearchParams.get("q") || ""
+        const category = urlSearchParams.get("category") || "all"
+        
+        setSearchQuery(q)
+        setSelectedCategory(category)
+        setInitialParamsLoaded(true)
+      } catch (error) {
+        console.error("Error loading search params:", error)
+        setInitialParamsLoaded(true)
+      }
+    }
+
+    loadInitialParams()
+  }, [urlSearchParams])
+
   // Apply search and filters
   useEffect(() => {
+    // Only apply filters after initial params are loaded
+    if (!initialParamsLoaded) return
+
     setIsLoading(true)
 
     // Simulate API call delay
@@ -74,7 +98,7 @@ export default function ServicesPageClient({ initialServices, searchParams }) {
     }, 300)
 
     return () => clearTimeout(timer)
-  }, [searchQuery, selectedCategory, priceRange, location, rating, availability])
+  }, [searchQuery, selectedCategory, priceRange, location, rating, availability, initialParamsLoaded])
 
   // Update URL with search params
   const updateSearchParams = (query, category) => {

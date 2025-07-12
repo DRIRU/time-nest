@@ -15,14 +15,31 @@ export default function ChatPage({ userId }) {
   const [messages, setMessages] = useState([])
   const [newMessage, setNewMessage] = useState("")
   const [loading, setLoading] = useState(true)
+  const [context, setContext] = useState(null)
+  const [contextId, setContextId] = useState(null)
+  const [contextTitle, setContextTitle] = useState(null)
   const router = useRouter()
   const searchParams = useSearchParams()
   const messagesEndRef = useRef(null)
 
   // Get context from URL parameters
-  const context = searchParams.get("context")
-  const contextId = searchParams.get("id")
-  const contextTitle = searchParams.get("title")
+  useEffect(() => {
+    const loadUrlParams = async () => {
+      try {
+        const contextParam = searchParams.get("context")
+        const contextIdParam = searchParams.get("id")
+        const contextTitleParam = searchParams.get("title")
+        
+        setContext(contextParam)
+        setContextId(contextIdParam)
+        setContextTitle(contextTitleParam)
+      } catch (error) {
+        console.error("Error loading URL params:", error)
+      }
+    }
+    
+    loadUrlParams()
+  }, [searchParams])
 
   useEffect(() => {
     const fetchUserAndMessages = async () => {

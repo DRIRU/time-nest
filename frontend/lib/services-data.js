@@ -245,6 +245,113 @@ const MOCK_SERVICES = [
 ]
 
 
+// Categories for services
+const SERVICE_CATEGORIES = [
+  { id: "tutoring", name: "Tutoring" },
+  { id: "fitness", name: "Fitness" },
+  { id: "photography", name: "Photography" },
+  { id: "cooking", name: "Cooking" },
+  { id: "home-garden", name: "Home & Garden" },
+  { id: "technology", name: "Technology" },
+  { id: "healthcare", name: "Healthcare" },
+  { id: "transportation", name: "Transportation" },
+  { id: "creative", name: "Creative" },
+  { id: "other", name: "Other" }
+]
+
+// Get all categories
+export function getCategories() {
+  return SERVICE_CATEGORIES
+}
+
+// Filter services based on search criteria
+export function filterServices(filters = {}) {
+  let filteredServices = [...MOCK_SERVICES]
+
+  // Filter by search query
+  if (filters.search) {
+    const searchTerm = filters.search.toLowerCase()
+    filteredServices = filteredServices.filter(service =>
+      service.title.toLowerCase().includes(searchTerm) ||
+      service.description.toLowerCase().includes(searchTerm) ||
+      service.category.toLowerCase().includes(searchTerm) ||
+      service.provider.toLowerCase().includes(searchTerm) ||
+      service.tags.some(tag => tag.toLowerCase().includes(searchTerm))
+    )
+  }
+
+  // Filter by category
+  if (filters.category) {
+    filteredServices = filteredServices.filter(service =>
+      service.category.toLowerCase() === filters.category.toLowerCase()
+    )
+  }
+
+  // Filter by time credits range
+  if (filters.minCredits !== undefined) {
+    filteredServices = filteredServices.filter(service =>
+      service.timeCredits >= filters.minCredits
+    )
+  }
+
+  if (filters.maxCredits !== undefined) {
+    filteredServices = filteredServices.filter(service =>
+      service.timeCredits <= filters.maxCredits
+    )
+  }
+
+  // Filter by location
+  if (filters.location) {
+    filteredServices = filteredServices.filter(service =>
+      service.location.toLowerCase().includes(filters.location.toLowerCase())
+    )
+  }
+
+  // Filter by minimum rating
+  if (filters.minRating !== undefined) {
+    filteredServices = filteredServices.filter(service =>
+      service.rating >= filters.minRating
+    )
+  }
+
+  // Filter by availability
+  if (filters.availability && filters.availability.length > 0) {
+    filteredServices = filteredServices.filter(service =>
+      filters.availability.some(availabilityFilter => 
+        service.availability.some(serviceAvailability => 
+          serviceAvailability.toLowerCase().includes(availabilityFilter.toLowerCase())
+        )
+      )
+    )
+  }
+
+  return filteredServices
+}
+
+// Get a single service by ID
+export function getServiceById(id) {
+  return MOCK_SERVICES.find(service => service.id === id)
+}
+
+// Get services by provider
+export function getServicesByProvider(providerId) {
+  return MOCK_SERVICES.filter(service => service.provider === providerId)
+}
+
+// Get recent services
+export function getRecentServices(limit = 5) {
+  return MOCK_SERVICES
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+    .slice(0, limit)
+}
+
+// Get top-rated services
+export function getTopRatedServices(limit = 5) {
+  return MOCK_SERVICES
+    .sort((a, b) => b.rating - a.rating)
+    .slice(0, limit)
+}
+
 // Get service overview statistics for admin dashboard
 export function getServiceOverviewStats() {
   const services = MOCK_SERVICES

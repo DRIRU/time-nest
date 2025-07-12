@@ -1,3 +1,11 @@
+import { handleApiResponse } from './api-utils'
+
+// Enhanced error handling for API responses
+const handleResponse = async (response, handleTokenExpired = null) => {
+  return await handleApiResponse(response, handleTokenExpired)
+}
+
+// Simple users list data
 export const users = [
   {
     id: "user1",
@@ -377,7 +385,7 @@ export function deleteUser(userId) {
 }
 
 // Calls the backend's get_user_profile endpoint and returns the user profile data
-export async function fetchUserProfile(userId) {
+export async function fetchUserProfile(userId, handleTokenExpired = null) {
   const currentUser = JSON.parse(localStorage.getItem("currentUser") || "{}");
   const token = currentUser?.accessToken;
   try {
@@ -388,9 +396,10 @@ export async function fetchUserProfile(userId) {
       "Authorization": `Bearer ${token}`
       },
     },)
-    if (!response.ok) {
-      throw new Error(`Failed to fetch user profile: ${response.statusText}`)
-    }
+    
+    // Use enhanced error handling
+    await handleResponse(response, handleTokenExpired);
+    
     const data = await response.json()
     return data
   } catch (error) {
@@ -400,7 +409,7 @@ export async function fetchUserProfile(userId) {
 }
 
 // Update user profile by calling the backend's update_user_profile endpoint
-export async function updateUserProfile(profileData) {
+export async function updateUserProfile(profileData, handleTokenExpired = null) {
   const currentUser = JSON.parse(localStorage.getItem("currentUser") || "{}");
   const token = currentUser?.accessToken;
   
@@ -414,9 +423,8 @@ export async function updateUserProfile(profileData) {
       body: JSON.stringify(profileData)
     });
     
-    if (!response.ok) {
-      throw new Error(`Failed to update user profile: ${response.statusText}`);
-    }
+    // Use enhanced error handling
+    await handleResponse(response, handleTokenExpired);
     
     const data = await response.json();
     return { success: true, user: data };
@@ -431,7 +439,7 @@ export function getAllUsers() {
 }
 
 // Admin functions for user management
-export async function getAllUsersAdmin(token, searchParams = {}) {
+export async function getAllUsersAdmin(token, searchParams = {}, handleTokenExpired = null) {
   try {
     const { search, role, status, skip = 0, limit = 100 } = searchParams;
     
@@ -452,9 +460,8 @@ export async function getAllUsersAdmin(token, searchParams = {}) {
       },
     });
     
-    if (!response.ok) {
-      throw new Error(`Failed to fetch users: ${response.statusText}`);
-    }
+    // Use enhanced error handling
+    await handleResponse(response, handleTokenExpired);
     
     const data = await response.json();
     return data;
@@ -465,7 +472,7 @@ export async function getAllUsersAdmin(token, searchParams = {}) {
   }
 }
 
-export async function getUserStatsAdmin(token) {
+export async function getUserStatsAdmin(token, handleTokenExpired = null) {
   try {
     const response = await fetch(`http://localhost:8000/api/v1/users/admin/users/stats`, {
       method: "GET",
@@ -475,9 +482,8 @@ export async function getUserStatsAdmin(token) {
       },
     });
     
-    if (!response.ok) {
-      throw new Error(`Failed to fetch user stats: ${response.statusText}`);
-    }
+    // Use enhanced error handling
+    await handleResponse(response, handleTokenExpired);
     
     const data = await response.json();
     // console.log("User stats:", data);
@@ -489,7 +495,7 @@ export async function getUserStatsAdmin(token) {
   }
 }
 
-export async function deleteUserAdmin(token, userId) {
+export async function deleteUserAdmin(token, userId, handleTokenExpired = null) {
   try {
     const response = await fetch(`http://localhost:8000/api/v1/users/admin/users/${userId}`, {
       method: 'DELETE',
@@ -499,10 +505,8 @@ export async function deleteUserAdmin(token, userId) {
       },
     })
 
-    if (!response.ok) {
-      const errorData = await response.json()
-      throw new Error(errorData.detail || 'Failed to delete user')
-    }
+    // Use enhanced error handling
+    await handleResponse(response, handleTokenExpired);
 
     const data = await response.json()
     return data

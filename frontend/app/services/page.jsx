@@ -9,11 +9,14 @@ export const metadata = {
 
 export default async function Services({ searchParams }) {
   try {
+    // Await searchParams in Next.js 15
+    const params = await searchParams
+    
     // Get services from the backend
     const services = await getAllServices()
     return (
       <Layout>
-        <ServicesPageClient initialServices={services} searchParams={searchParams} />
+        <ServicesPageClient initialServices={services} searchParams={params} />
       </Layout>
     )
   } catch (error) {
