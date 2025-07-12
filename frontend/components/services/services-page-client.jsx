@@ -23,10 +23,12 @@ import { Separator } from "@/components/ui/separator"
 import ServiceCard from "./service-card"
 import ServiceListItem from "./service-list-item"
 import { filterServices, getCategories } from "@/lib/database-services"
+import { useAuth } from "@/contexts/auth-context"
 
 export default function ServicesPageClient({ initialServices, searchParams }) {
   const router = useRouter()
   const urlSearchParams = useSearchParams()
+  const { currentUser } = useAuth()
 
   // State for search and filters
   const [searchQuery, setSearchQuery] = useState("")
@@ -68,6 +70,22 @@ export default function ServicesPageClient({ initialServices, searchParams }) {
     loadInitialParams()
   }, [urlSearchParams])
 
+  // Filter out current user's services
+  useEffect(() => {
+    if (initialServices && currentUser) {
+      // Filter out services created by the current user
+      const servicesExcludingCurrentUser = initialServices.filter(service => {
+        // Check if the service was created by the current user
+        if (service.creator_id && currentUser.user_id) {
+          return service.creator_id !== currentUser.user_id;
+        }
+        return true; // Keep the service if we can't determine ownership
+      });
+      
+      setFilteredServices(servicesExcludingCurrentUser);
+    }
+  }, [initialServices, currentUser]);
+
   // Apply search and filters
   useEffect(() => {
     // Only apply filters after initial params are loaded
@@ -88,7 +106,19 @@ export default function ServicesPageClient({ initialServices, searchParams }) {
         availability: availability,
       }
         
-        const results = await filterServices(filters)
+        let results = await filterServices(filters)
+        
+        // Filter out current user's services if user is logged in
+        if (currentUser) {
+          results = results.filter(service => {
+            // Check if the service was created by the current user
+            if (service.creator_id && currentUser.user_id) {
+              return service.creator_id !== currentUser.user_id;
+            }
+            return true; // Keep the service if we can't determine ownership
+          });
+        }
+        
         setFilteredServices(results)
         setIsLoading(false)
       } catch (error) {
@@ -98,7 +128,7 @@ export default function ServicesPageClient({ initialServices, searchParams }) {
     }, 300)
 
     return () => clearTimeout(timer)
-  }, [searchQuery, selectedCategory, priceRange, location, rating, availability, initialParamsLoaded])
+  }, [searchQuery, selectedCategory, priceRange, location, rating, availability, initialParamsLoaded, currentUser])
 
   // Update URL with search params
   const updateSearchParams = (query, category) => {

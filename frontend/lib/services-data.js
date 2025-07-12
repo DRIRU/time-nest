@@ -245,6 +245,16 @@ const MOCK_SERVICES = [
 ]
 
 
+// Add creator_id field to mock services for testing user filtering
+const MOCK_SERVICES_WITH_CREATOR_ID = MOCK_SERVICES.map((service, index) => ({
+  ...service,
+  creator_id: index % 3 + 1, // Assign creator IDs 1, 2, 3 in rotation
+}));
+
+// Replace the original mock services with the ones that have creator_id
+const MOCK_SERVICES_FINAL = MOCK_SERVICES_WITH_CREATOR_ID;
+
+
 // Categories for services
 const SERVICE_CATEGORIES = [
   { id: "tutoring", name: "Tutoring" },
@@ -266,7 +276,7 @@ export function getCategories() {
 
 // Filter services based on search criteria
 export function filterServices(filters = {}) {
-  let filteredServices = [...MOCK_SERVICES]
+  let filteredServices = [...MOCK_SERVICES_FINAL]
 
   // Filter by search query
   if (filters.search) {
@@ -330,31 +340,31 @@ export function filterServices(filters = {}) {
 
 // Get a single service by ID
 export function getServiceById(id) {
-  return MOCK_SERVICES.find(service => service.id === id)
+  return MOCK_SERVICES_FINAL.find(service => service.id === id)
 }
 
 // Get services by provider
 export function getServicesByProvider(providerId) {
-  return MOCK_SERVICES.filter(service => service.provider === providerId)
+  return MOCK_SERVICES_FINAL.filter(service => service.provider === providerId)
 }
 
 // Get recent services
 export function getRecentServices(limit = 5) {
-  return MOCK_SERVICES
+  return MOCK_SERVICES_FINAL
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
     .slice(0, limit)
 }
 
 // Get top-rated services
 export function getTopRatedServices(limit = 5) {
-  return MOCK_SERVICES
+  return MOCK_SERVICES_FINAL
     .sort((a, b) => b.rating - a.rating)
     .slice(0, limit)
 }
 
 // Get service overview statistics for admin dashboard
 export function getServiceOverviewStats() {
-  const services = MOCK_SERVICES
+  const services = MOCK_SERVICES_FINAL
   const totalReviews = services.reduce((sum, service) => sum + service.totalReviews, 0)
   const totalRating = services.reduce((sum, service) => sum + (service.rating * service.totalReviews), 0)
   const averageRating = totalReviews > 0 ? (totalRating / totalReviews).toFixed(1) : 0

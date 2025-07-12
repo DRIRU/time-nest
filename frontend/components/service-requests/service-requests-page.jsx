@@ -24,10 +24,12 @@ import ServiceRequestCard from "./service-request-card"
 import ServiceRequestListItem from "./service-request-list-item"
 import LocationAutocomplete from "../location-autocomplete"
 import { filterServiceRequests, sortServiceRequests, getServiceRequestCategories } from "@/lib/service-requests-data"
+import { useAuth } from "@/contexts/auth-context"
 import Link from "next/link"
 
 export default function ServiceRequestsPage({ initialRequests = [] }) {
   const router = useRouter()
+  const { currentUser } = useAuth()
 
   // State for search and filters
   const [searchQuery, setSearchQuery] = useState("")
@@ -46,6 +48,22 @@ export default function ServiceRequestsPage({ initialRequests = [] }) {
   // Categories from backend
   const categories = ["all", ...getServiceRequestCategories()]
 
+  // Filter out current user's requests
+  useEffect(() => {
+    if (initialRequests && currentUser) {
+      // Filter out requests created by the current user
+      const requestsExcludingCurrentUser = initialRequests.filter(request => {
+        // Check if the request was created by the current user
+        if (request.creator_id && currentUser.user_id) {
+          return request.creator_id !== currentUser.user_id;
+        }
+        return true; // Keep the request if we can't determine ownership
+      });
+      
+      setFilteredRequests(requestsExcludingCurrentUser);
+    }
+  }, [initialRequests, currentUser]);
+
   // Apply filters
   useEffect(() => {
     setIsLoading(true)
@@ -62,6 +80,17 @@ export default function ServiceRequestsPage({ initialRequests = [] }) {
 
         // Fetch filtered requests from backend
         let filtered = await filterServiceRequests(filters)
+
+        // Filter out current user's requests if user is logged in
+        if (currentUser) {
+          filtered = filtered.filter(request => {
+            // Check if the request was created by the current user
+            if (request.creator_id && currentUser.user_id) {
+              return request.creator_id !== currentUser.user_id;
+            }
+            return true; // Keep the request if we can't determine ownership
+          });
+        }
 
         // Apply budget range filter (frontend-only for now)
         filtered = filtered.filter((request) => 
@@ -91,7 +120,7 @@ export default function ServiceRequestsPage({ initialRequests = [] }) {
     }, 300)
 
     return () => clearTimeout(timer)
-  }, [searchQuery, selectedCategory, budgetRange, location, urgency, availability, sortBy, initialRequests])
+  }, [searchQuery, selectedCategory, budgetRange, location, urgency, availability, sortBy, initialRequests, currentUser])
 
   // Update URL with search params
   const updateSearchParams = (query, category) => {

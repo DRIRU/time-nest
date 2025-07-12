@@ -9,7 +9,13 @@ export function AuthProvider({ children }) {
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [currentUser, setCurrentUser] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [mounted, setMounted] = useState(false)
   const router = useRouter()
+
+  // Track if component has mounted to prevent hydration issues
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   // Function to check if token is expired
   const isTokenExpired = useCallback((token) => {
@@ -71,7 +77,15 @@ export function AuthProvider({ children }) {
 
   // Check localStorage on mount
   useEffect(() => {
+    if (!mounted) return
+
     try {
+      // Only access localStorage on the client side
+      if (typeof window === 'undefined') {
+        setLoading(false)
+        return
+      }
+
       const storedAuth = localStorage.getItem("isLoggedIn") === "true"
       const storedUser = localStorage.getItem("currentUser")
 
@@ -93,7 +107,7 @@ export function AuthProvider({ children }) {
       console.error("Error loading auth state:", error)
       setLoading(false)
     }
-  }, [isTokenExpired])
+  }, [isTokenExpired, mounted])
 
   const login = (userData) => {
     try {

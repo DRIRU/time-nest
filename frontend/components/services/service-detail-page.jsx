@@ -31,6 +31,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { getServiceById, addServiceBooking } from "@/lib/database-services"
+import { initiateServiceChat } from "@/lib/chat-data"
 import { useAuth } from "@/contexts/auth-context"
 import { format, parseISO, set } from "date-fns"
 
@@ -113,10 +114,27 @@ export default function ServiceDetailPage({ initialService = null }) {
     }
   }
 
-  const handleContactProvider = () => {
-    router.push(
-      `/chat/${service.creator_id}?context=service&id=${service.id}&title=${encodeURIComponent(service.title)}`,
-    )
+  const handleContactProvider = async () => {
+    if (!isLoggedIn) {
+      alert("Please log in to contact the service provider")
+      router.push(`/login?redirect=/services/${service.id}`)
+      return
+    }
+
+    try {
+      // Create or get conversation with the service provider
+      const conversation = await initiateServiceChat(
+        parseInt(service.id),
+        service.title,
+        parseInt(service.creator_id)
+      )
+
+      // Navigate to the chat page
+      router.push(`/chat/${service.creator_id}?conversation_id=${conversation.conversation_id}`)
+    } catch (error) {
+      console.error("Error initiating chat:", error)
+      alert("Failed to start conversation. Please try again.")
+    }
   }
 
   const handleBookNow = () => {

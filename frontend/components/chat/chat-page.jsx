@@ -8,31 +8,29 @@ import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { getUserById } from "@/lib/users-data"
-import { getServiceRequestById } from "@/lib/service-requests-data"
+import { getConversation, getConversationMessages, sendMessage, formatMessages } from "@/lib/chat-data"
+import { useAuth } from "@/contexts/auth-context"
 
 export default function ChatPage({ userId }) {
   const [user, setUser] = useState(null)
+  const [conversation, setConversation] = useState(null)
   const [messages, setMessages] = useState([])
   const [newMessage, setNewMessage] = useState("")
   const [loading, setLoading] = useState(true)
-  const [context, setContext] = useState(null)
-  const [contextId, setContextId] = useState(null)
-  const [contextTitle, setContextTitle] = useState(null)
+  const [conversationId, setConversationId] = useState(null)
   const router = useRouter()
   const searchParams = useSearchParams()
   const messagesEndRef = useRef(null)
+  const { isLoggedIn, currentUser, loading: authLoading } = useAuth()
 
-  // Get context from URL parameters
+  // Get conversation ID from URL parameters
   useEffect(() => {
     const loadUrlParams = async () => {
       try {
-        const contextParam = searchParams.get("context")
-        const contextIdParam = searchParams.get("id")
-        const contextTitleParam = searchParams.get("title")
-        
-        setContext(contextParam)
-        setContextId(contextIdParam)
-        setContextTitle(contextTitleParam)
+        const conversationIdParam = searchParams.get("conversation_id")
+        if (conversationIdParam) {
+          setConversationId(parseInt(conversationIdParam))
+        }
       } catch (error) {
         console.error("Error loading URL params:", error)
       }
@@ -42,86 +40,116 @@ export default function ChatPage({ userId }) {
   }, [searchParams])
 
   useEffect(() => {
-    const fetchUserAndMessages = async () => {
+    // Wait for auth to load
+    if (authLoading) {
+      return
+    }
+
+    // Redirect to login if not authenticated
+    if (!isLoggedIn) {
+      router.push("/login")
+      return
+    }
+
+    // Only proceed if we have authentication
+    if (!currentUser) {
+      return
+    }
+
+    const fetchConversationAndMessages = async () => {
       try {
         setLoading(true)
 
-        // First try to get user directly
-        let userData = getUserById(userId)
+        if (conversationId) {
+          // Get conversation details
+          const conversationData = await getConversation(conversationId)
+          setConversation(conversationData)
 
-        // If user not found and we have a request context, try to get user from request
-        if (!userData && context === "request" && contextId) {
-          const request = getServiceRequestById(contextId)
-          if (request && request.user) {
-            userData = request.user
+          // Get other user info
+          const otherUserId = conversationData.other_user_id
+          const userData = getUserById(otherUserId.toString())
+          if (userData) {
+            setUser({
+              id: userData.id,
+              name: userData.fullName,
+              avatar: userData.avatar,
+              image: userData.avatar
+            })
+          } else {
+            // Fallback to conversation data
+            setUser({
+              id: conversationData.other_user_id,
+              name: conversationData.other_user_name,
+              avatar: conversationData.other_user_avatar,
+              image: conversationData.other_user_avatar
+            })
+          }
+
+          // Get messages
+          const messagesData = await getConversationMessages(conversationId)
+          const formattedMessages = formatMessages(messagesData, currentUser.user_id)
+          setMessages(formattedMessages)
+        } else {
+          // Fallback - try to get user directly
+          const userData = getUserById(userId)
+          if (userData) {
+            setUser({
+              id: userData.id,
+              name: userData.fullName,
+              avatar: userData.avatar,
+              image: userData.avatar
+            })
           }
         }
-
-        if (userData) {
-          setUser(userData)
-
-          // Initialize with some sample messages
-          setMessages([
-            {
-              id: 1,
-              senderId: userData.id || userId,
-              senderName: userData.name || "User",
-              message: "Hi! I saw your interest in my service request. Let's discuss the details.",
-              timestamp: new Date(Date.now() - 10 * 60 * 1000), // 10 minutes ago
-              isCurrentUser: false,
-            },
-            {
-              id: 2,
-              senderId: "current-user",
-              senderName: "You",
-              message:
-                "Hello! Yes, I'd love to help with your request. Can you tell me more about what you're looking for?",
-              timestamp: new Date(Date.now() - 5 * 60 * 1000), // 5 minutes ago
-              isCurrentUser: true,
-            },
-          ])
-        }
       } catch (error) {
-        console.error("Error loading chat:", error)
+        console.error("Error loading conversation:", error)
+        // If we get an auth error, redirect to login
+        if (error.message && error.message.includes("Authentication")) {
+          router.push("/login")
+        }
       } finally {
         setLoading(false)
       }
     }
 
-    fetchUserAndMessages()
-  }, [userId, context, contextId])
+    fetchConversationAndMessages()
+  }, [conversationId, userId, isLoggedIn, router, currentUser, authLoading])
 
   useEffect(() => {
     // Scroll to bottom when new messages are added
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages])
 
-  const handleSendMessage = () => {
-    if (newMessage.trim()) {
-      const message = {
-        id: messages.length + 1,
-        senderId: "current-user",
-        senderName: "You",
-        message: newMessage,
-        timestamp: new Date(),
-        isCurrentUser: true,
-      }
-
-      setMessages([...messages, message])
-      setNewMessage("")
-
-      // Simulate a response after 2 seconds
-      setTimeout(() => {
-        const response = {
-          id: messages.length + 2,
-          senderId: user?.id || userId,
-          senderName: user?.name || "User",
-          message: "Thanks for your message! I'll get back to you soon.",
-          timestamp: new Date(),
-          isCurrentUser: false,
+  const handleSendMessage = async () => {
+    if (newMessage.trim() && conversationId) {
+      try {
+        const messageData = {
+          conversation_id: conversationId,
+          content: newMessage.trim(),
+          message_type: "text"
         }
-        setMessages((prev) => [...prev, response])
-      }, 2000)
+
+        // Send message to backend
+        const sentMessage = await sendMessage(messageData)
+        
+        // Add message to local state
+        const formattedMessage = {
+          id: sentMessage.message_id,
+          content: sentMessage.content,
+          timestamp: sentMessage.created_at, // Keep as ISO string to match other messages
+          isCurrentUser: sentMessage.is_current_user,
+          senderName: sentMessage.sender_name,
+          senderAvatar: sentMessage.sender_avatar,
+          messageType: sentMessage.message_type,
+          status: sentMessage.status
+        }
+
+        setMessages(prev => [...prev, formattedMessage])
+        setNewMessage("")
+      } catch (error) {
+        console.error("Error sending message:", error)
+        alert("Failed to send message. Please try again.")
+      }
     }
   }
 
@@ -142,10 +170,20 @@ export default function ChatPage({ userId }) {
   }
 
   const formatTime = (timestamp) => {
-    return new Date(timestamp).toLocaleTimeString([], {
-      hour: "2-digit",
-      minute: "2-digit",
-    })
+    // Use a consistent format that doesn't depend on locale
+    const date = new Date(timestamp)
+    const hours = date.getHours().toString().padStart(2, '0')
+    const minutes = date.getMinutes().toString().padStart(2, '0')
+    return `${hours}:${minutes}`
+  }
+
+  // Show loading while auth is being determined
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      </div>
+    )
   }
 
   if (loading) {
@@ -205,11 +243,13 @@ export default function ChatPage({ userId }) {
             </div>
 
             {/* Context Banner */}
-            {context && contextTitle && (
+            {conversation && conversation.context_title && (
               <div className="mt-3 p-3 bg-blue-50 rounded-lg border-border border-blue-200">
                 <p className="text-sm text-blue-800">
-                  <span className="font-medium">{context === "request" ? "Service Request: " : "Service: "}</span>
-                  {decodeURIComponent(contextTitle)}
+                  <span className="font-medium">
+                    {conversation.conversation_type === "request" ? "Service Request: " : "Service: "}
+                  </span>
+                  {conversation.context_title}
                 </p>
               </div>
             )}
@@ -224,7 +264,7 @@ export default function ChatPage({ userId }) {
                     message.isCurrentUser ? "bg-blue-600 text-white" : "bg-muted text-foreground"
                   }`}
                 >
-                  <p className="text-sm">{message.message}</p>
+                  <p className="text-sm">{message.content}</p>
                   <p
                     className={`text-xs mt-1 ${message.isCurrentUser ? "text-primary-foreground" : "text-muted-foreground"}`}
                   >

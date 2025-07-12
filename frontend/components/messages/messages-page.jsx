@@ -1,19 +1,59 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { MessageCircle, Search, Clock, ArrowLeft } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { getUserConversations, formatConversations } from "@/lib/chat-data"
+import { useAuth } from "@/contexts/auth-context"
 
 export default function MessagesPage() {
   const [searchTerm, setSearchTerm] = useState("")
+  const [conversations, setConversations] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
   const router = useRouter()
+  const { isLoggedIn, currentUser, loading: authLoading } = useAuth()
 
-  // Mock conversations
-  const conversations = [
+  // Load conversations from backend
+  useEffect(() => {
+    // Wait for auth to load
+    if (authLoading) {
+      return
+    }
+
+    // Redirect to login if not authenticated
+    if (!isLoggedIn) {
+      router.push("/login")
+      return
+    }
+
+    const fetchConversations = async () => {
+      try {
+        setLoading(true)
+        const chatData = await getUserConversations()
+        const formattedConversations = formatConversations(chatData.conversations)
+        setConversations(formattedConversations)
+      } catch (err) {
+        console.error("Error loading conversations:", err)
+        setError("Failed to load conversations. Please try again.")
+        // If we get an auth error, redirect to login
+        if (err.message && err.message.includes("Authentication")) {
+          router.push("/login")
+        }
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchConversations()
+  }, [isLoggedIn, router, authLoading])
+
+  // Mock conversations (fallback)
+  const mockConversations = [
     {
       id: "1",
       user: {
@@ -67,7 +107,36 @@ export default function MessagesPage() {
   }
 
   const handleConversationClick = (conversation) => {
-    router.push(`/chat/${conversation.user.id}?context=request&title=${encodeURIComponent(conversation.context)}`)
+    router.push(`/chat/${conversation.user.id}?conversation_id=${conversation.id}`)
+  }
+
+  // Show loading while auth is being determined
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      </div>
+    )
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-xl font-semibold text-foreground mb-2">Error Loading Messages</h2>
+          <p className="text-muted-foreground mb-4">{error}</p>
+          <Button onClick={() => window.location.reload()}>Try Again</Button>
+        </div>
+      </div>
+    )
   }
 
   return (

@@ -102,10 +102,12 @@ def get_requests(
     limit: int = 100, 
     category: str = None,
     urgency: str = None,
+    exclude_creator_id: int = None,
     db: Session = Depends(get_db)
 ):
     """
     Get all service requests with optional filtering
+    Can also exclude requests by a specific creator_id
     """
     from ...db.models.user import User
     
@@ -116,6 +118,10 @@ def get_requests(
     
     if urgency:
         query = query.filter(Request.urgency == urgency)
+    
+    # Exclude requests by specific creator_id if provided
+    if exclude_creator_id:
+        query = query.filter(Request.creator_id != exclude_creator_id)
     
     requests = query.offset(skip).limit(limit).all()
     

@@ -396,6 +396,95 @@ export async function updateProposal(proposalId, updateData) {
 }
 
 /**
+ * Fetches all service requests from the backend excluding requests created by a specific user
+ * @param {Object} options Optional parameters
+ * @param {number} options.excludeCreatorId User ID whose requests should be excluded
+ * @param {string} options.category Filter requests by category
+ * @param {string} options.urgency Filter requests by urgency
+ * @param {number} options.skip Number of items to skip for pagination
+ * @param {number} options.limit Maximum number of items to return
+ * @returns {Promise<Array>} Array of service requests
+ */
+export async function getAllServiceRequestsExcludingUser(options = {}) {
+  try {
+    // Start with the base URL
+    let url = "http://localhost:8000/api/v1/requests";
+    
+    // Add query parameters for backend filtering
+    const queryParams = new URLSearchParams();
+    
+    // Add exclude_creator_id parameter
+    if (options.excludeCreatorId) {
+      queryParams.append("exclude_creator_id", options.excludeCreatorId);
+    }
+    
+    // Add backend-supported filters
+    if (options.category && options.category !== "all") {
+      queryParams.append("category", options.category);
+    }
+    
+    if (options.urgency && options.urgency !== "all") {
+      queryParams.append("urgency", options.urgency);
+    }
+    
+    // Add skip and limit if provided
+    if (options.skip) {
+      queryParams.append("skip", options.skip);
+    }
+    
+    if (options.limit) {
+      queryParams.append("limit", options.limit);
+    }
+    
+    // Append query parameters to URL if any exist
+    if (queryParams.toString()) {
+      url += `?${queryParams.toString()}`;
+    }
+    
+    const response = await fetch(url, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Error fetching service requests: ${response.status}`);
+    }
+
+    const data = await response.json();
+    
+    // Transform all requests to frontend format
+    let requests = data.map(transformBackendRequestToFrontend);
+    
+    // Apply additional frontend filtering for search
+    if (options.search) {
+      const query = options.search.toLowerCase();
+      requests = requests.filter(
+        (request) =>
+          request.title.toLowerCase().includes(query) ||
+          request.description.toLowerCase().includes(query) ||
+          request.category.toLowerCase().includes(query) ||
+          (request.tags && request.tags.some((tag) => tag.toLowerCase().includes(query)))
+      );
+    }
+    
+    if (options.location && options.location !== "any") {
+      requests = requests.filter((request) => {
+        if (!request.location) return false;
+        return request.location.toLowerCase().includes(options.location.toLowerCase());
+      });
+    }
+    
+    return requests;
+  } catch (error) {
+    console.error("Error fetching service requests excluding user:", error);
+    // Return empty array in case of error
+    return [];
+  }
+}
+
+/**
  * Transform backend request format to frontend format
  * @param {Object} backendRequest Request from backend
  * @returns {Object} Request in frontend format

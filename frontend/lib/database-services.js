@@ -600,3 +600,58 @@ export async function deleteService(id) {
   }
 }
 
+/**
+ * Fetches all services from the backend excluding services created by a specific user
+ * @param {Object} options Optional parameters
+ * @param {number} options.excludeCreatorId User ID whose services should be excluded
+ * @param {string} options.category Filter services by category
+ * @param {number} options.skip Number of items to skip for pagination
+ * @param {number} options.limit Maximum number of items to return
+ * @returns {Promise<Array>} Array of services
+ */
+export async function getAllServicesExcludingUser(options = {}) {
+  try {
+    // Build query parameters
+    const queryParams = new URLSearchParams();
+    
+    if (options.excludeCreatorId) {
+      queryParams.append("exclude_creator_id", options.excludeCreatorId);
+    }
+    
+    if (options.category) {
+      queryParams.append("category", options.category);
+    }
+    
+    if (options.skip) {
+      queryParams.append("skip", options.skip);
+    }
+    
+    if (options.limit) {
+      queryParams.append("limit", options.limit);
+    }
+    
+    // Build URL with query parameters
+    const url = `http://localhost:8000/api/v1/services${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+    
+    const response = await fetch(url, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Error fetching services: ${response.status}`);
+    }
+
+    const data = await response.json();
+    
+    // Transform the backend service format to frontend format
+    return data.map(transformBackendServiceToFrontend);
+  } catch (error) {
+    console.error("Error fetching services excluding user:", error);
+    // Return empty array in case of error
+    return [];
+  }
+}
+

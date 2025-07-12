@@ -125,10 +125,12 @@ def get_services(
     limit: int = 100, 
     category: str = None,
     creator_id: int = None,
+    exclude_creator_id: int = None,
     db: Session = Depends(get_db)
 ):
     """
     Get all services with optional filtering by category and creator_id
+    Can also exclude services by a specific creator_id
     """
     from ...db.models.user import User
     
@@ -140,6 +142,10 @@ def get_services(
     # Add filter by creator_id if provided
     if creator_id:
         query = query.filter(Service.creator_id == creator_id)
+    
+    # Exclude services by specific creator_id if provided
+    if exclude_creator_id:
+        query = query.filter(Service.creator_id != exclude_creator_id)
     
     services = query.offset(skip).limit(limit).all()
     

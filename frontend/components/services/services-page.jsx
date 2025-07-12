@@ -25,10 +25,12 @@ import ServiceCard from "./service-card"
 import ServiceListItem from "./service-list-item"
 import { filterServices, getCategories } from "@/lib/services-data"
 import LocationAutocomplete from "../location-autocomplete"
+import { useAuth } from "@/contexts/auth-context"
 
 export default function ServicesPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const { currentUser } = useAuth()
 
   // State for search and filters
   const [searchQuery, setSearchQuery] = useState("")
@@ -89,13 +91,60 @@ export default function ServicesPage() {
         availability: availability,
       }
 
-      const results = filterServices(filters)
+      let results = filterServices(filters)
+      
+      // Filter out current user's services if user is logged in
+      if (currentUser) {
+        results = results.filter(service => {
+          const isCurrentUserService = 
+            service.creator_id === currentUser.user_id ||
+            service.creator_id === currentUser.userId ||
+            service.providerId === currentUser.user_id ||
+            service.providerId === currentUser.userId;
+          
+          return !isCurrentUserService;
+        });
+      }
+      
       setFilteredServices(results)
       setIsLoading(false)
     }, 500)
 
     return () => clearTimeout(timer)
-  }, [searchQuery, selectedCategory, priceRange, location, rating, availability, initialParamsLoaded])
+  }, [searchQuery, selectedCategory, priceRange, location, rating, availability, initialParamsLoaded, currentUser])
+
+  // Filter out current user's services from initial load
+  useEffect(() => {
+    if (currentUser) {
+      // Apply the filter to exclude current user's services
+      const timer = setTimeout(() => {
+        const filters = {
+          search: searchQuery,
+          category: selectedCategory !== "all" ? selectedCategory : undefined,
+          minCredits: priceRange[0],
+          maxCredits: priceRange[1],
+          location: location !== "any" ? location : undefined,
+          minRating: rating !== "any" ? Number.parseInt(rating) : undefined,
+          availability: availability,
+        }
+
+        let results = filterServices(filters)
+        
+        // Filter out current user's services
+        results = results.filter(service => {
+          // Check if the service was created by the current user
+          if (service.creator_id && currentUser.user_id) {
+            return service.creator_id !== currentUser.user_id;
+          }
+          return true; // Keep the service if we can't determine ownership
+        });
+        
+        setFilteredServices(results)
+      }, 100)
+
+      return () => clearTimeout(timer)
+    }
+  }, [currentUser])
 
   // Update URL with search params
   const updateSearchParams = (query, category) => {
