@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { ArrowLeft, Send, Phone, Video, MoreVertical, Paperclip, Smile, MapPin } from "lucide-react"
+import { ArrowLeft, Send, Paperclip, Smile, MapPin } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { getUserById } from "@/lib/users-data"
 import { getConversation, getConversationMessages, sendMessage, formatMessages } from "@/lib/chat-data"
 import { useAuth } from "@/contexts/auth-context"
+import { useWebSocket } from "@/contexts/websocket-context"
 
 export default function ChatPage({ userId }) {
   const [user, setUser] = useState(null)
@@ -20,10 +21,24 @@ export default function ChatPage({ userId }) {
   const [conversationId, setConversationId] = useState(null)
   const [isLocationSharing, setIsLocationSharing] = useState(false)
   const [locationLoading, setLocationLoading] = useState(false)
+  const [isTyping, setIsTyping] = useState(false)
+  const [typingUsers, setTypingUsers] = useState(new Set())
   const router = useRouter()
   const searchParams = useSearchParams()
   const messagesEndRef = useRef(null)
   const { isLoggedIn, currentUser, loading: authLoading } = useAuth()
+  const { 
+    socket, 
+    isConnected, 
+    joinConversation, 
+    leaveConversation, 
+    sendTypingStart, 
+    sendTypingStop, 
+    onNewMessage, 
+    onTypingStart, 
+    onTypingStop,
+    removeAllListeners 
+  } = useWebSocket()
 
   // Get conversation ID from URL parameters
   useEffect(() => {
@@ -122,6 +137,72 @@ export default function ChatPage({ userId }) {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages])
 
+  // WebSocket event handlers
+  useEffect(() => {
+    if (!isConnected || !conversationId) return
+
+    // Join conversation room
+    joinConversation(conversationId)
+
+    // Handle new messages
+    const handleNewMessage = (messageData) => {
+      console.log('📨 Received new message via WebSocket:', messageData)
+      
+      // Convert WebSocket message to frontend format
+      const newMessage = {
+        id: messageData.message_id,
+        content: messageData.content,
+        timestamp: messageData.created_at,
+        isCurrentUser: messageData.sender_id === currentUser?.user_id,
+        senderName: messageData.sender_name,
+        senderAvatar: messageData.sender_avatar,
+        messageType: messageData.message_type,
+        status: messageData.status,
+        latitude: messageData.latitude,
+        longitude: messageData.longitude,
+        locationAddress: messageData.location_address
+      }
+
+      console.log('💬 Formatted message:', newMessage)
+
+      // Only add message if it's not from current user (to avoid duplicates)
+      if (messageData.sender_id !== currentUser?.user_id) {
+        console.log('➕ Adding message to state')
+        setMessages(prev => [...prev, newMessage])
+      } else {
+        console.log('👤 Skipping own message to avoid duplicate')
+      }
+    }
+
+    // Handle typing indicators
+    const handleTypingStart = (data) => {
+      if (data.conversation_id === conversationId && data.user_id !== currentUser?.user_id) {
+        setTypingUsers(prev => new Set([...prev, data.user_id]))
+      }
+    }
+
+    const handleTypingStop = (data) => {
+      if (data.conversation_id === conversationId && data.user_id !== currentUser?.user_id) {
+        setTypingUsers(prev => {
+          const newSet = new Set(prev)
+          newSet.delete(data.user_id)
+          return newSet
+        })
+      }
+    }
+
+    // Set up event listeners
+    onNewMessage(handleNewMessage)
+    onTypingStart(handleTypingStart)
+    onTypingStop(handleTypingStop)
+
+    // Cleanup function
+    return () => {
+      leaveConversation(conversationId)
+      removeAllListeners()
+    }
+  }, [isConnected, conversationId, currentUser?.user_id, joinConversation, leaveConversation, onNewMessage, onTypingStart, onTypingStop, removeAllListeners])
+
   const handleSendMessage = async () => {
     if (newMessage.trim() && conversationId) {
       try {
@@ -163,6 +244,52 @@ export default function ChatPage({ userId }) {
       handleSendMessage()
     }
   }
+
+  // Typing indicator logic
+  const typingTimeoutRef = useRef(null)
+  
+  const handleInputChange = (e) => {
+    const value = e.target.value
+    setNewMessage(value)
+    
+    // Send typing start if not already typing
+    if (!isTyping && value.trim() && conversationId) {
+      setIsTyping(true)
+      sendTypingStart(conversationId)
+    }
+    
+    // Clear existing timeout
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current)
+    }
+    
+    // Set timeout to stop typing indicator
+    typingTimeoutRef.current = setTimeout(() => {
+      if (isTyping && conversationId) {
+        setIsTyping(false)
+        sendTypingStop(conversationId)
+      }
+    }, 1000)
+  }
+
+  const handleStopTyping = () => {
+    if (isTyping && conversationId) {
+      setIsTyping(false)
+      sendTypingStop(conversationId)
+    }
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current)
+    }
+  }
+
+  // Clean up typing timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current)
+      }
+    }
+  }, [])
 
   const handleLocationShare = async () => {
     if (!conversationId || isLocationSharing) return;
@@ -371,21 +498,19 @@ export default function ChatPage({ userId }) {
 
                 <div>
                   <h3 className="font-semibold text-foreground">{user.name}</h3>
-                  <p className="text-sm text-green-600">Online</p>
+                  <div className="flex items-center space-x-2">
+                    <p className="text-sm text-green-600">Online</p>
+                    {isConnected && (
+                      <div className="flex items-center space-x-1">
+                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                        <span className="text-xs text-green-600">Real-time</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
 
-              <div className="flex items-center space-x-2">
-                <Button variant="ghost" size="icon">
-                  <Phone className="h-5 w-5" />
-                </Button>
-                <Button variant="ghost" size="icon">
-                  <Video className="h-5 w-5" />
-                </Button>
-                <Button variant="ghost" size="icon">
-                  <MoreVertical className="h-5 w-5" />
-                </Button>
-              </div>
+
             </div>
 
             {/* Context Banner */}
@@ -461,6 +586,23 @@ export default function ChatPage({ userId }) {
                 </div>
               </div>
             ))}
+            
+            {/* Typing indicator */}
+            {typingUsers.size > 0 && (
+              <div className="flex justify-start">
+                <div className="max-w-xs lg:max-w-md px-4 py-2 rounded-lg bg-muted text-foreground">
+                  <div className="flex items-center space-x-2">
+                    <div className="flex space-x-1">
+                      <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce"></div>
+                      <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
+                      <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
+                    </div>
+                    <span className="text-xs text-muted-foreground">typing...</span>
+                  </div>
+                </div>
+              </div>
+            )}
+            
             <div ref={messagesEndRef} />
           </CardContent>
 
@@ -488,8 +630,9 @@ export default function ChatPage({ userId }) {
               <div className="flex-1 relative">
                 <Input
                   value={newMessage}
-                  onChange={(e) => setNewMessage(e.target.value)}
+                  onChange={handleInputChange}
                   onKeyPress={handleKeyPress}
+                  onBlur={handleStopTyping}
                   placeholder="Type a message..."
                   className="pr-10"
                 />

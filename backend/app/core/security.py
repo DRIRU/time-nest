@@ -58,6 +58,14 @@ def verify_token(token: str) -> Optional[str]:
     except JWTError:
         return None
 
+def decode_access_token(token: str) -> Optional[dict]:
+    """Decode a JWT access token and return the payload if valid"""
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        return payload
+    except JWTError:
+        return None
+
 def verify_password_reset_token(token: str) -> Optional[str]:
     """Verify a password reset token and return the email if valid"""
     try:

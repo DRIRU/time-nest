@@ -2,9 +2,12 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api.api import api_router
 from app.db.database import Base, engine
+from app.core.websocket import chat_manager
+import socketio
 import uvicorn
 import os
 import logging
+import asyncio
 
 # Configure logging
 logging.basicConfig(
@@ -46,11 +49,13 @@ async def root():
         "health": "/api/v1/health"
     }
 
+# Create combined Socket.IO + FastAPI app
+socket_app = socketio.ASGIApp(chat_manager.sio, app)
+
 if __name__ == "__main__":
     uvicorn.run(
-        "main:app",
+        socket_app,
         host="0.0.0.0",
         port=int(os.environ.get("PORT", 8000)), 
-        reload=True,
         log_level="info"
     )

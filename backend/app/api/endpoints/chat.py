@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import and_, or_, desc, func
 from typing import List, Optional
 import logging
+import asyncio
 
 from ...db.database import get_db
 from ...db.models.conversation import Conversation
@@ -15,6 +16,7 @@ from ...schemas.chat import (
     MessageResponse, MessageUpdate, ChatListResponse, ChatListItem
 )
 from .users import get_current_user_dependency
+from ...core.websocket import chat_manager
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -306,7 +308,7 @@ def get_conversation_messages(
         )
 
 @router.post("/messages", response_model=MessageResponse)
-def send_message(
+async def send_message(
     message_data: MessageCreate,
     current_user = Depends(get_current_user_dependency),
     db: Session = Depends(get_db)
@@ -377,6 +379,32 @@ def send_message(
             sender_avatar=f"/placeholder.svg?height=40&width=40&text={sender.first_name[0]}{sender.last_name[0]}" if sender else None,
             is_current_user=True
         )
+        
+        # Broadcast message to WebSocket clients
+        try:
+            message_data_ws = {
+                'message_id': new_message.id,
+                'conversation_id': new_message.conversation_id,
+                'sender_id': new_message.sender_id,
+                'content': new_message.content,
+                'message_type': new_message.message_type.value,
+                'created_at': new_message.created_at.isoformat(),
+                'sender_name': f"{sender.first_name} {sender.last_name}" if sender else "Unknown",
+                'sender_avatar': f"/placeholder.svg?height=40&width=40&text={sender.first_name[0]}{sender.last_name[0]}" if sender else None,
+                'latitude': new_message.latitude,
+                'longitude': new_message.longitude,
+                'location_address': new_message.location_address,
+                'status': new_message.status.value
+            }
+            
+            logger.info(f"Broadcasting message to conversation {new_message.conversation_id}")
+            
+            # Use synchronous wrapper to avoid event loop issues
+            chat_manager.broadcast_message_sync(message_data_ws, new_message.conversation_id)
+            
+        except Exception as e:
+            logger.error(f"Error broadcasting message via WebSocket: {e}")
+            # Don't fail the request if WebSocket broadcast fails
         
         return response_message
         
