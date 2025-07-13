@@ -14,6 +14,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useAuth } from "@/contexts/auth-context"
 import { submitModeratorApplication, getModeratorApplications } from "@/lib/moderator-data"
 import { fetchUserProfile } from "@/lib/users-data"
+import { getProviderRatingStats } from "@/lib/database-services"
 
 export default function ProfilePage() {
   const [user, setUser] = useState(null)
@@ -25,6 +26,8 @@ export default function ProfilePage() {
   const [error, setError] = useState("")
   const [success, setSuccess] = useState("")
   const [modApplications, setModApplications] = useState([])
+  const [userRatingStats, setUserRatingStats] = useState(null)
+  const [loadingRatings, setLoadingRatings] = useState(false)
   const { isLoggedIn, currentUser } = useAuth()
 
   useEffect(() => {
@@ -35,6 +38,11 @@ export default function ProfilePage() {
           const userProfile = await fetchUserProfile(currentUser.accessToken);
           console.log("User Profile:", userProfile);
           setUser(userProfile);
+          
+          // Fetch user's rating statistics
+          if (userProfile?.user_id) {
+            fetchUserRatingStats(userProfile.user_id);
+          }
         } else {
           // Fallback to demo data if not logged in
           const demoUser = getUserById("user1");
@@ -59,6 +67,19 @@ export default function ProfilePage() {
       fetchModApplications();
     }
   }, [isLoggedIn, currentUser]);
+
+  const fetchUserRatingStats = async (userId) => {
+    try {
+      setLoadingRatings(true);
+      const stats = await getProviderRatingStats(userId);
+      setUserRatingStats(stats);
+    } catch (error) {
+      console.error("Error fetching user rating stats:", error);
+      setUserRatingStats(null);
+    } finally {
+      setLoadingRatings(false);
+    }
+  };
 
   const fetchModApplications = async () => {
     try {
@@ -326,6 +347,60 @@ export default function ProfilePage() {
                       </Badge>
                     ))}
                   </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Rating Statistics (for service providers) */}
+            {user.role === "service_provider" && (
+              <Card className="dark:bg-gray-800 dark:border-gray-700">
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <Star className="h-5 w-5 mr-2" />
+                    Service Ratings
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {loadingRatings ? (
+                    <div className="text-center py-4">
+                      <p className="text-gray-600 dark:text-gray-400">Loading rating statistics...</p>
+                    </div>
+                  ) : userRatingStats ? (
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-2">
+                          <div className="flex items-center">
+                            {[1, 2, 3, 4, 5].map((star) => (
+                              <Star
+                                key={star}
+                                className={`h-5 w-5 ${
+                                  star <= Math.round(userRatingStats.average_rating)
+                                    ? 'text-yellow-400 fill-current'
+                                    : 'text-gray-300 dark:text-gray-600'
+                                }`}
+                              />
+                            ))}
+                          </div>
+                          <span className="text-lg font-semibold">
+                            {userRatingStats.average_rating.toFixed(1)}
+                          </span>
+                        </div>
+                        <Badge variant="secondary">
+                          {userRatingStats.total_ratings} review{userRatingStats.total_ratings !== 1 ? 's' : ''}
+                        </Badge>
+                      </div>
+                      {userRatingStats.total_ratings > 0 && (
+                        <div className="text-sm text-gray-600 dark:text-gray-400">
+                          Based on {userRatingStats.total_ratings} customer review{userRatingStats.total_ratings !== 1 ? 's' : ''}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="text-center py-4">
+                      <p className="text-gray-600 dark:text-gray-400">No ratings yet</p>
+                      <p className="text-sm text-gray-500 dark:text-gray-500">Complete services to receive ratings</p>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             )}

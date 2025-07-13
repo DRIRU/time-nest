@@ -16,7 +16,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/contexts/auth-context"
-import { getServiceBookings } from "@/lib/database-services"
+import { getServiceBookings, getProviderRatingStats } from "@/lib/database-services"
 import DashboardSidebar from "./dashboard-sidebar"
 import Link from "next/link"
 
@@ -28,7 +28,9 @@ export default function DashboardPage() {
     confirmedBookings: 0,
     totalServices: 0,
     totalRequests: 0,
-    timeCredits: 0
+    timeCredits: 0,
+    averageRating: 0,
+    totalRatings: 0
   })
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -47,6 +49,8 @@ export default function DashboardPage() {
         setIsLoading(true)
         setError(null)
         
+        console.log("Current user in dashboard:", currentUser)
+        
         // Fetch bookings
         const bookings = await getServiceBookings()
         
@@ -54,13 +58,57 @@ export default function DashboardPage() {
         const pendingBookings = bookings.filter(b => b.status === "pending").length
         const confirmedBookings = bookings.filter(b => b.status === "confirmed").length
         
+        // Fetch user rating stats for any user with user_id
+        let ratingStats = { average_rating: 0, total_ratings: 0 }
+        if (currentUser?.user_id) {
+          try {
+            console.log("Fetching rating stats for user:", {
+              user_id: currentUser.user_id,
+              firstName: currentUser.firstName,
+              lastName: currentUser.lastName,
+              role: currentUser.role
+            })
+            ratingStats = await getProviderRatingStats(currentUser.user_id)
+            console.log("Rating stats received:", ratingStats)
+          } catch (ratingError) {
+            console.error("Error fetching rating stats:", ratingError)
+            // Check if it's a 404 (user not found) - this is normal for new users
+            if (ratingError.message.includes("Not Found") || ratingError.message.includes("Provider not found")) {
+              console.log("User not found in ratings system - using default stats for new user")
+              // Use default stats with current user's name
+              ratingStats = {
+                provider_id: currentUser.user_id,
+                provider_name: currentUser.firstName ? `${currentUser.firstName} ${currentUser.lastName || ''}`.trim() : "User",
+                total_ratings: 0,
+                average_rating: 0.0
+              }
+            } else {
+              console.error("Unexpected error fetching ratings:", ratingError)
+              // Use fallback stats
+              ratingStats = { average_rating: 0, total_ratings: 0 }
+            }
+          }
+        } else {
+          console.log("User ID not available for rating fetch:", {
+            user_id: currentUser?.user_id,
+            hasCurrentUser: !!currentUser
+          })
+        }
+        
         // Set stats (some are placeholders for now)
         setStats({
           pendingBookings,
           confirmedBookings,
           totalServices: 0, // Placeholder
           totalRequests: 0, // Placeholder
-          timeCredits: currentUser?.timeCredits || 0 // Placeholder
+          timeCredits: currentUser?.timeCredits || 0, // Placeholder
+          averageRating: ratingStats?.average_rating || 0,
+          totalRatings: ratingStats?.total_ratings || 0
+        })
+        
+        console.log("Final stats set:", {
+          averageRating: ratingStats?.average_rating || 0,
+          totalRatings: ratingStats?.total_ratings || 0
         })
       } catch (error) {
         console.error("Error fetching dashboard data:", error)
@@ -159,7 +207,24 @@ export default function DashboardPage() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Rating</p>
-                      <p className="text-2xl font-bold text-gray-900 dark:text-white">4.8</p>
+                      <div className="flex items-center gap-2">
+                        <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                          {stats.averageRating > 0 ? stats.averageRating.toFixed(1) : "0.0"}
+                        </p>
+                        {stats.totalRatings > 0 && (
+                          <div className="flex items-center">
+                            
+                            <span className="text-sm text-gray-500 dark:text-gray-400 ml-1">
+                              ({stats.totalRatings})
+                            </span>
+                          </div>
+                        )}
+                        {stats.totalRatings === 0 && (
+                          <span className="text-sm text-gray-500 dark:text-gray-400">
+                            No ratings yet
+                          </span>
+                        )}
+                      </div>
                     </div>
                     <div className="p-3 bg-purple-100 dark:bg-purple-900/30 rounded-full">
                       <Star className="h-6 w-6 text-purple-600 dark:text-purple-400" />

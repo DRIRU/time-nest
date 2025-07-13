@@ -50,11 +50,6 @@ class RatingResponse(BaseModel):
 class RatingStats(BaseModel):
     total_ratings: int
     average_rating: float
-    five_star_count: int
-    four_star_count: int
-    three_star_count: int
-    two_star_count: int
-    one_star_count: int
 
 class ServiceRatingStats(RatingStats):
     service_id: int

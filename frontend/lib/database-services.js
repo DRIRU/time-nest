@@ -702,3 +702,77 @@ export async function submitServiceRating(ratingData) {
   }
 }
 
+/**
+ * Get rating statistics for a service provider
+ * @param {number} providerId Provider user ID
+ * @returns {Promise<Object>} Provider rating statistics
+ */
+export async function getProviderRatingStats(providerId) {
+  try {
+    const currentUser = JSON.parse(localStorage.getItem("currentUser") || "{}");
+    const token = currentUser?.accessToken;
+
+    // Always try to make the API call first to get real data if it exists
+    const response = await fetch(`http://localhost:8000/api/v1/ratings/provider/${providerId}/stats`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      },
+    });
+
+    if (!response.ok) {
+      console.log(`API returned ${response.status} for provider ${providerId}, using default stats`);
+      return {
+        provider_id: providerId,
+        provider_name: currentUser?.firstName ? `${currentUser.firstName} ${currentUser.lastName || ''}`.trim() : "User",
+        total_ratings: 0,
+        average_rating: 0.0
+      };
+    }
+
+    const result = await response.json();
+    console.log("Successfully fetched rating stats from API:", result);
+    return result;
+
+  } catch (error) {
+    console.log("Error fetching provider rating stats, returning default stats:", error.message);
+    
+    // Return default stats instead of throwing error
+    const currentUser = JSON.parse(localStorage.getItem("currentUser") || "{}");
+    return {
+      provider_id: providerId,
+      provider_name: currentUser?.firstName ? `${currentUser.firstName} ${currentUser.lastName || ''}`.trim() : "User",
+      total_ratings: 0,
+      average_rating: 0.0
+    };
+  }
+}
+
+/**
+ * Get rating statistics for a service
+ * @param {number} serviceId Service ID
+ * @returns {Promise<Object>} Service rating statistics
+ */
+export async function getServiceRatingStats(serviceId) {
+  try {
+    const response = await fetch(`http://localhost:8000/api/v1/ratings/service/${serviceId}/stats`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.detail || "Failed to fetch service rating stats");
+    }
+
+    const result = await response.json();
+    return result;
+  } catch (error) {
+    console.error("Error fetching service rating stats:", error);
+    throw error;
+  }
+}
+

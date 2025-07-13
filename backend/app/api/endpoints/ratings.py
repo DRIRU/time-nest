@@ -280,24 +280,14 @@ def get_service_rating_stats(
         # Get rating statistics
         stats = db.query(
             func.count(Rating.rating_id).label('total_ratings'),
-            func.avg(Rating.rating).label('average_rating'),
-            func.sum(func.case([(Rating.rating == 5, 1)], else_=0)).label('five_star_count'),
-            func.sum(func.case([(Rating.rating == 4, 1)], else_=0)).label('four_star_count'),
-            func.sum(func.case([(Rating.rating == 3, 1)], else_=0)).label('three_star_count'),
-            func.sum(func.case([(Rating.rating == 2, 1)], else_=0)).label('two_star_count'),
-            func.sum(func.case([(Rating.rating == 1, 1)], else_=0)).label('one_star_count')
+            func.avg(Rating.rating).label('average_rating')
         ).filter(Rating.service_id == service_id).first()
         
         return ServiceRatingStats(
             service_id=service_id,
             service_title=service.title,
             total_ratings=stats.total_ratings or 0,
-            average_rating=float(stats.average_rating) if stats.average_rating else 0.0,
-            five_star_count=stats.five_star_count or 0,
-            four_star_count=stats.four_star_count or 0,
-            three_star_count=stats.three_star_count or 0,
-            two_star_count=stats.two_star_count or 0,
-            one_star_count=stats.one_star_count or 0
+            average_rating=float(stats.average_rating) if stats.average_rating else 0.0
         )
         
     except HTTPException:
@@ -412,4 +402,51 @@ def delete_rating(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error deleting rating: {str(e)}"
+        )
+
+@router.get("/provider/{provider_id}/stats", response_model=ProviderRatingStats)
+def get_provider_rating_stats(
+    provider_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    Get rating statistics for a specific service provider
+    """
+    try:
+        print(f"Getting rating stats for provider {provider_id}")
+        
+        # Verify provider exists
+        provider = db.query(User).filter(User.user_id == provider_id).first()
+        if not provider:
+            # Return zero stats instead of 404 for non-existent users
+            # This handles cases where users exist in auth but not in our user table yet
+            return ProviderRatingStats(
+                provider_id=provider_id,
+                provider_name="Unknown User",
+                total_ratings=0,
+                average_rating=0.0
+            )
+        
+        # Get rating statistics
+        stats = db.query(
+            func.count(Rating.rating_id).label('total_ratings'),
+            func.avg(Rating.rating).label('average_rating')
+        ).filter(Rating.provider_id == provider_id).first()
+        
+        print(f"Rating stats query result: {stats}")
+        
+        return ProviderRatingStats(
+            provider_id=provider_id,
+            provider_name=f"{provider.first_name} {provider.last_name}",
+            total_ratings=stats.total_ratings or 0,
+            average_rating=float(stats.average_rating) if stats.average_rating else 0.0
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting provider rating stats: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error retrieving provider rating statistics: {str(e)}"
         )
