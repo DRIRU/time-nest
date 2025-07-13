@@ -25,8 +25,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useAuth } from "@/contexts/auth-context"
-import { getServiceBookings, updateServiceBookingStatus } from "@/lib/database-services"
+import { getServiceBookings, updateServiceBookingStatus, submitServiceRating } from "@/lib/database-services"
 import DashboardSidebar from "./dashboard-sidebar"
+import RatingModal from "@/components/ui/rating-modal"
 
 export default function MyBookingsPage() {
   const router = useRouter()
@@ -39,6 +40,11 @@ export default function MyBookingsPage() {
   const [statusFilter, setStatusFilter] = useState("all")
   const [activeTab, setActiveTab] = useState("all")
   const [processingBookingId, setProcessingBookingId] = useState(null)
+  const [ratingModal, setRatingModal] = useState({
+    isOpen: false,
+    booking: null,
+    isSubmitting: false
+  })
 
   useEffect(() => {
     if (loading) return;
@@ -137,18 +143,74 @@ export default function MyBookingsPage() {
     }
   }
 
-  const handleCompleteBooking = async (bookingId) => {
-    try {
-      setProcessingBookingId(bookingId)
-      await updateServiceBookingStatus(bookingId, "completed")
-      await fetchBookings()
-      alert("Booking marked as completed!")
-    } catch (error) {
-      console.error("Error completing booking:", error)
-      alert(`Failed to complete booking: ${error.message}`)
-    } finally {
-      setProcessingBookingId(null)
+  const handleCompleteBooking = async (booking) => {
+    // Check if the user is the one who booked the service (should rate)
+    const isBooker = parseInt(booking.user_id) === parseInt(currentUser?.user_id);
+    
+    if (isBooker) {
+      // Show rating modal for the person who booked the service
+      setRatingModal({
+        isOpen: true,
+        booking: booking,
+        isSubmitting: false
+      });
+    } else {
+      // Service provider just marks as complete without rating
+      try {
+        setProcessingBookingId(booking.booking_id)
+        await updateServiceBookingStatus(booking.booking_id, "completed")
+        await fetchBookings()
+        alert("Booking marked as completed!")
+      } catch (error) {
+        console.error("Error completing booking:", error)
+        alert(`Failed to complete booking: ${error.message}`)
+      } finally {
+        setProcessingBookingId(null)
+      }
     }
+  }
+
+  const handleRatingSubmit = async (ratingData) => {
+    try {
+      setRatingModal(prev => ({ ...prev, isSubmitting: true }));
+      
+      console.log("Rating modal booking data:", ratingModal.booking);
+      console.log("Rating data to submit:", ratingData);
+      
+      // First mark booking as completed
+      await updateServiceBookingStatus(ratingModal.booking.booking_id, "completed");
+      
+      // Prepare rating data
+      const ratingPayload = {
+        bookingId: ratingModal.booking.booking_id,
+        serviceId: ratingModal.booking.service_id,
+        providerId: ratingModal.booking.creator_id,
+        rating: ratingData.rating,
+        review: ratingData.review
+      };
+      
+      console.log("Rating payload:", ratingPayload);
+      
+      // Then submit the rating to the backend
+      await submitServiceRating(ratingPayload);
+      
+      // Refresh bookings list
+      await fetchBookings();
+      
+      // Close modal
+      setRatingModal({ isOpen: false, booking: null, isSubmitting: false });
+      
+      alert("Thank you for your rating! Booking marked as completed.");
+      
+    } catch (error) {
+      console.error("Error submitting rating:", error);
+      alert(`Failed to submit rating: ${error.message}`);
+      setRatingModal(prev => ({ ...prev, isSubmitting: false }));
+    }
+  }
+
+  const handleRatingModalClose = () => {
+    setRatingModal({ isOpen: false, booking: null, isSubmitting: false });
   }
 
   const getStatusBadge = (status) => {
@@ -323,7 +385,7 @@ export default function MyBookingsPage() {
                             )}
                             {isConfirmed && (
                               <Button 
-                                onClick={() => handleCompleteBooking(booking.booking_id)}
+                                onClick={() => handleCompleteBooking(booking)}
                                 disabled={processingBookingId === booking.booking_id}
                               >
                                 <CheckCircle className="h-4 w-4 mr-2" />
@@ -407,6 +469,16 @@ export default function MyBookingsPage() {
           </div>
         </div>
       </div>
+
+      {/* Rating Modal */}
+      <RatingModal
+        isOpen={ratingModal.isOpen}
+        onClose={handleRatingModalClose}
+        onSubmit={handleRatingSubmit}
+        serviceTitle={ratingModal.booking?.service_title}
+        providerName={ratingModal.booking?.service_provider_name}
+        isSubmitting={ratingModal.isSubmitting}
+      />
     </div>
   )
 }

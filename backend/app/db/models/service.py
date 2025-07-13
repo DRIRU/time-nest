@@ -29,8 +29,10 @@ class Service(Base):
     tags = Column(Text)
 
     created_at = Column(DateTime, default=datetime.utcnow)
-    #
     # Relationship with the User model
-    creator = relationship("User", back_populates="services") 
+    creator = relationship("User", back_populates="services")
+    
+    # Relationship with the Rating model
+    ratings = relationship("Rating", back_populates="service", cascade="all, delete-orphan") 
     def __repr__(self):
         return f"<Service(service_id={self.service_id}, title='{self.title}', category='{self.category}')>"

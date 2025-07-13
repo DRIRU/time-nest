@@ -30,3 +30,6 @@ class ServiceBooking(Base):
 
     service = relationship("Service", backref="bookings")
     user = relationship("User", backref="bookings")
+    
+    # Relationship with the Rating model (one-to-one)
+    rating = relationship("Rating", back_populates="booking", uselist=False, cascade="all, delete-orphan")

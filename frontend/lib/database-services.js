@@ -655,3 +655,50 @@ export async function getAllServicesExcludingUser(options = {}) {
   }
 }
 
+/**
+ * Submit a rating for a completed service booking
+ * @param {Object} ratingData Rating data
+ * @param {number} ratingData.bookingId Booking ID
+ * @param {number} ratingData.serviceId Service ID
+ * @param {number} ratingData.providerId Provider user ID
+ * @param {number} ratingData.rating Rating (1-5)
+ * @param {string} ratingData.review Optional review text
+ * @returns {Promise<Object>} Rating response
+ */
+export async function submitServiceRating(ratingData) {
+  try {
+    const currentUser = JSON.parse(localStorage.getItem("currentUser") || "{}");
+    const token = currentUser?.accessToken;
+
+    if (!token) {
+      throw new Error("Authentication token not found. Please log in.");
+    }
+
+    const response = await fetch("http://localhost:8000/api/v1/ratings", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        booking_id: ratingData.bookingId,
+        service_id: ratingData.serviceId,
+        provider_id: ratingData.providerId,
+        rating: ratingData.rating,
+        review: ratingData.review || null
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.detail || "Failed to submit rating");
+    }
+
+    const result = await response.json();
+    return result;
+  } catch (error) {
+    console.error("Error submitting rating:", error);
+    throw error;
+  }
+}
+
