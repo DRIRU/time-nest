@@ -30,7 +30,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { getServiceById, addServiceBooking } from "@/lib/database-services"
+import { getServiceById, addServiceBooking, checkSufficientCredits } from "@/lib/database-services"
 import { initiateServiceChat } from "@/lib/chat-data"
 import { useAuth } from "@/contexts/auth-context"
 import { format, parseISO, set } from "date-fns"
@@ -164,6 +164,13 @@ export default function ServiceDetailPage({ initialService = null }) {
       // Calculate time credits based on duration
       const timeCreditsPerHour = parseFloat(service.timeCredits)
       const timeCreditsUsed = (timeCreditsPerHour / 60) * durationMinutes
+      
+      // Check if user has sufficient credits
+      const hasSufficientCredits = await checkSufficientCredits(timeCreditsUsed)
+      if (!hasSufficientCredits) {
+        setBookingError(`Insufficient credits. You need ${timeCreditsUsed.toFixed(2)} credits for this booking. Please top up your account.`)
+        return
+      }
       
       const bookingData = {
         service_id: parseInt(service.id),

@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from typing import List, Optional, Optional
 from datetime import datetime, timedelta
+from decimal import Decimal
 from pytz import timezone
 from mysql.connector import connect, Error as MySQLError
 import logging
@@ -12,6 +13,7 @@ from ...db.database import create_connection
 from ...db.database import get_db
 from ...db.models.user import User
 from ...db.models.admin import Admin
+from ...core.credit_manager import CreditManager
 from ...schemas.user import (
     UserCreate, 
     UserResponse, 
@@ -115,7 +117,7 @@ def register_user(user_data: UserCreate, db: Session = Depends(get_db)):
         # Hash the password
         hashed_password = hash_password(user_data.password)
 
-        # Create new user
+        # Create new user with initial 10 credits
         new_user = User(
             first_name=user_data.first_name,
             last_name=user_data.last_name,
@@ -124,12 +126,22 @@ def register_user(user_data: UserCreate, db: Session = Depends(get_db)):
             phone_number=user_data.phone_number,
             gender=user_data.gender,
             age=user_data.age,
-            location=user_data.location
+            location=user_data.location,
+            time_credits=10.00,  # Start with 10 credits
+            total_credits_earned=10.00  # Count initial credits as earned
         )
 
         db.add(new_user)
         db.commit()
         db.refresh(new_user)
+
+        # Create initial transaction record for the 10 credits
+        try:
+            credit_manager = CreditManager(db)
+            credit_manager.add_initial_bonus(new_user.user_id, amount=Decimal('10.00'))
+        except Exception as credit_error:
+            # Log the error but don't fail registration
+            print(f"Warning: Could not create initial credit transaction: {credit_error}")
 
         return new_user
 

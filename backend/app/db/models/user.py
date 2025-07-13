@@ -32,6 +32,9 @@ class User(Base):
     # Relationship with the Rating model
     given_ratings = relationship("Rating", foreign_keys="Rating.rater_id", back_populates="rater", cascade="all, delete-orphan")
     received_ratings = relationship("Rating", foreign_keys="Rating.provider_id", back_populates="provider", cascade="all, delete-orphan")
+    
+    # Relationship with TimeTransaction model
+    transactions = relationship("TimeTransaction", back_populates="user", cascade="all, delete-orphan")
 
     def __repr__(self):
         return f"<User(user_id={self.user_id}, email='{self.email}', name='{self.first_name} {self.last_name}')>"

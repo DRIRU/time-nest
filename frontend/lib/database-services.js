@@ -776,3 +776,164 @@ export async function getServiceRatingStats(serviceId) {
   }
 }
 
+/**
+ * Get current user's credit balance and statistics
+ * @returns {Promise<Object>} Credit balance and statistics
+ */
+export async function getUserCreditBalance() {
+  try {
+    const currentUser = JSON.parse(localStorage.getItem("currentUser") || "{}");
+    const token = currentUser?.accessToken;
+
+    if (!token) {
+      throw new Error("Authentication token not found. Please log in.");
+    }
+
+    const response = await fetch("http://localhost:8000/api/v1/credits/balance", {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.detail || "Failed to fetch credit balance");
+    }
+
+    const result = await response.json();
+    return result;
+  } catch (error) {
+    console.error("Error fetching credit balance:", error);
+    throw error;
+  }
+}
+
+/**
+ * Get any user's credit balance by ID
+ * @param {number} userId User ID to check balance for
+ * @returns {Promise<Object>} Credit balance and statistics
+ */
+export async function getUserCreditBalanceById(userId) {
+  try {
+    const currentUser = JSON.parse(localStorage.getItem("currentUser") || "{}");
+    const token = currentUser?.accessToken;
+
+    if (!token) {
+      throw new Error("Authentication token not found. Please log in.");
+    }
+
+    const response = await fetch(`http://localhost:8000/api/v1/credits/balance/${userId}`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.detail || "Failed to fetch credit balance");
+    }
+
+    const result = await response.json();
+    return result;
+  } catch (error) {
+    console.error("Error fetching credit balance for user:", error);
+    throw error;
+  }
+}
+
+/**
+ * Get current user's transaction history
+ * @param {Object} options Query options
+ * @param {number} options.skip Number of transactions to skip
+ * @param {number} options.limit Maximum number of transactions to return
+ * @returns {Promise<Object>} Transaction history with pagination
+ */
+export async function getUserTransactions(options = {}) {
+  try {
+    const currentUser = JSON.parse(localStorage.getItem("currentUser") || "{}");
+    const token = currentUser?.accessToken;
+
+    if (!token) {
+      throw new Error("Authentication token not found. Please log in.");
+    }
+
+    const queryParams = new URLSearchParams();
+    if (options.skip !== undefined) queryParams.append("skip", options.skip);
+    if (options.limit !== undefined) queryParams.append("limit", options.limit);
+
+    const url = `http://localhost:8000/api/v1/credits/transactions${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+
+    const response = await fetch(url, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.detail || "Failed to fetch transactions");
+    }
+
+    const result = await response.json();
+    return result;
+  } catch (error) {
+    console.error("Error fetching transactions:", error);
+    throw error;
+  }
+}
+
+/**
+ * Add initial bonus credits for current user
+ * @returns {Promise<Object>} Transaction response
+ */
+export async function addInitialBonus() {
+  try {
+    const currentUser = JSON.parse(localStorage.getItem("currentUser") || "{}");
+    const token = currentUser?.accessToken;
+
+    if (!token) {
+      throw new Error("Authentication token not found. Please log in.");
+    }
+
+    const response = await fetch(`http://localhost:8000/api/v1/credits/initial-bonus?user_id=${currentUser.user_id}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.detail || "Failed to add initial bonus");
+    }
+
+    const result = await response.json();
+    return result;
+  } catch (error) {
+    console.error("Error adding initial bonus:", error);
+    throw error;
+  }
+}
+
+/**
+ * Check if user has sufficient credits for a booking
+ * @param {number} requiredCredits Amount of credits needed
+ * @returns {Promise<boolean>} True if user has sufficient credits
+ */
+export async function checkSufficientCredits(requiredCredits) {
+  try {
+    const balance = await getUserCreditBalance();
+    return balance.current_balance >= requiredCredits;
+  } catch (error) {
+    console.error("Error checking credit balance:", error);
+    return false;
+  }
+}
+

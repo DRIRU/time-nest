@@ -10,6 +10,8 @@ from ...db.models.serviceBooking import ServiceBooking, BookingStatusEnum
 from ...db.models.service import Service
 from ...db.models.user import User
 from ...schemas.serviceBooking import BookingCreate, BookingResponse, BookingUpdate
+from ...core.credit_manager import CreditManager, InsufficientCreditsError
+from ...db.models.timeTransaction import ReferenceTypeEnum
 from .users import get_current_user_dependency
 
 # Configure logging
@@ -253,15 +255,67 @@ def update_booking(
         booking.duration_minutes = booking_data.duration_minutes
     if booking_data.message is not None:
         booking.message = booking_data.message
+    
+    # Handle status changes with credit transfers
+    old_status = booking.status
     if booking_data.status is not None:
         # Validate status
         try:
-            booking.status = BookingStatusEnum(booking_data.status)
+            new_status = BookingStatusEnum(booking_data.status)
         except ValueError:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Invalid status: {booking_data.status}. Must be one of: {', '.join([e.value for e in BookingStatusEnum])}"
             )
+        
+        # Handle credit transfer when booking is completed
+        if new_status == BookingStatusEnum.completed and old_status != BookingStatusEnum.completed:
+            try:
+                credit_manager = CreditManager(db)
+                
+                # Transfer credits from customer to service provider
+                credit_manager.transfer_credits(
+                    from_user_id=booking.user_id,  # Customer pays
+                    to_user_id=service.creator_id,  # Service provider receives
+                    amount=booking.time_credits_used,
+                    reference_type=ReferenceTypeEnum.service_booking,
+                    reference_id=booking.booking_id,
+                    description=f"Service completed: {service.title}"
+                )
+                
+                logger.info(f"Credit transfer completed for booking {booking_id}: {booking.time_credits_used} credits from user {booking.user_id} to user {service.creator_id}")
+                
+            except InsufficientCreditsError:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Customer has insufficient credits to complete this booking"
+                )
+            except Exception as e:
+                logger.error(f"Error processing credit transfer for booking {booking_id}: {str(e)}")
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="Error processing payment for completed service"
+                )
+        
+        # Handle refund when booking is cancelled
+        elif new_status in [BookingStatusEnum.cancelled, BookingStatusEnum.rejected] and old_status == BookingStatusEnum.confirmed:
+            try:
+                credit_manager = CreditManager(db)
+                
+                # Refund credits if booking was previously paid
+                credit_manager.refund_credits(
+                    original_reference_id=booking.booking_id,
+                    reference_type=ReferenceTypeEnum.service_booking,
+                    reason=f"Booking {new_status.value}"
+                )
+                
+                logger.info(f"Refund processed for booking {booking_id}: {booking.time_credits_used} credits refunded")
+                
+            except Exception as e:
+                logger.error(f"Error processing refund for booking {booking_id}: {str(e)}")
+                # Don't fail the status update if refund fails - log and continue
+        
+        booking.status = new_status
     
     try:
         db.commit()
