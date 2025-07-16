@@ -1,11 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy import func
 from typing import List
 import logging
 
 from ...db.database import get_db
 from ...db.models.service import Service
+from ...db.models.rating import Rating
 from ...schemas.service import ServiceCreate, ServiceResponse, ServiceUpdate
 from .users import get_current_user_dependency
 
@@ -14,6 +16,70 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+def get_service_rating_stats(db: Session, service_id: int):
+    """
+    Calculate average rating and total reviews for a service
+    """
+    rating_stats = db.query(
+        func.avg(Rating.rating).label('average_rating'),
+        func.count(Rating.rating_id).label('total_reviews')
+    ).filter(Rating.service_id == service_id).first()
+    
+    return {
+        'average_rating': float(rating_stats.average_rating) if rating_stats.average_rating else 0.0,
+        'total_reviews': rating_stats.total_reviews if rating_stats.total_reviews else 0
+    }
+
+def format_service_response(service: Service, db: Session, creator_name: str = None):
+    """
+    Format service data for response including rating statistics
+    """
+    from ...db.models.user import User
+    
+    # Map boolean fields to list for response
+    availability_map = {
+        "weekday-mornings": service.availability_weekday_morning,
+        "weekday-afternoons": service.availability_weekday_afternoon,
+        "weekday-evenings": service.availability_weekday_evening,
+        "weekend-mornings": service.availability_weekend_morning,
+        "weekend-afternoons": service.availability_weekend_afternoon,
+        "weekend-evenings": service.availability_weekend_evening,
+        "flexible": service.availability_flexible
+    }
+    
+    availability_response = [option for option, value in availability_map.items() if value]
+    
+    # Convert tags string to list
+    tags_response = []
+    if service.tags:
+        tags_response = service.tags.split(",")
+    
+    # Get rating statistics
+    rating_stats = get_service_rating_stats(db, service.service_id)
+    
+    # If creator_name is not provided, get it from the database
+    if creator_name is None:
+        creator = db.query(User).filter(User.user_id == service.creator_id).first()
+        creator_name = f"{creator.first_name} {creator.last_name}" if creator else "Unknown"
+    
+    return {
+        "service_id": service.service_id,
+        "creator_id": service.creator_id,
+        "creator_name": creator_name,
+        "title": service.title,
+        "description": service.description,
+        "category": service.category,
+        "time_credits_per_hour": service.time_credits_per_hour,
+        "location": service.location,
+        "availability": availability_response,
+        "whats_included": service.whats_included,
+        "requirements": service.requirements,
+        "tags": tags_response,
+        "average_rating": rating_stats['average_rating'],
+        "total_reviews": rating_stats['total_reviews'],
+        "created_at": service.created_at
+    }
 
 @router.post("/", response_model=ServiceResponse, status_code=status.HTTP_201_CREATED)
 def create_service(
@@ -73,34 +139,8 @@ def create_service(
         creator = db.query(User).filter(User.user_id == current_user.user_id).first()
         creator_name = f"{creator.first_name} {creator.last_name}" if creator else "Unknown"
         
-        # Convert the service model to response format
-        # Map boolean fields back to list for response
-        availability_response = []
-        for option, field in availability_map.items():
-            if getattr(new_service, field):
-                availability_response.append(option)
-        
-        # Convert tags string back to list for response
-        tags_response = []
-        if new_service.tags:
-            tags_response = new_service.tags.split(",")
-        
-        # Create response data
-        response_data = {
-            "service_id": new_service.service_id,
-            "creator_id": new_service.creator_id,
-            "creator_name": creator_name,
-            "title": new_service.title,
-            "description": new_service.description,
-            "category": new_service.category,
-            "time_credits_per_hour": new_service.time_credits_per_hour,
-            "location": new_service.location,
-            "availability": availability_response,
-            "whats_included": new_service.whats_included,
-            "requirements": new_service.requirements,
-            "tags": tags_response,
-            "created_at": new_service.created_at
-        }
+        # Use the helper function to format response
+        response_data = format_service_response(new_service, db, creator_name)
 
         return response_data
 
@@ -152,43 +192,13 @@ def get_services(
     # Process each service to format the response correctly
     response_services = []
     for service in services:
-        # Map boolean fields to list for response
-        availability_map = {
-            "weekday-mornings": service.availability_weekday_morning,
-            "weekday-afternoons": service.availability_weekday_afternoon,
-            "weekday-evenings": service.availability_weekday_evening,
-            "weekend-mornings": service.availability_weekend_morning,
-            "weekend-afternoons": service.availability_weekend_afternoon,
-            "weekend-evenings": service.availability_weekend_evening,
-            "flexible": service.availability_flexible
-        }
-        
         # Get creator name
         creator = db.query(User).filter(User.user_id == service.creator_id).first()
         creator_name = f"{creator.first_name} {creator.last_name}" if creator else "Unknown"
         
-        availability_response = [option for option, value in availability_map.items() if value]
-        
-        # Convert tags string to list
-        tags_response = []
-        if service.tags:
-            tags_response = service.tags.split(",")
-        
-        response_services.append({
-            "service_id": service.service_id,
-            "creator_id": service.creator_id,
-            "creator_name": creator_name,
-            "title": service.title,
-            "description": service.description,
-            "category": service.category,
-            "time_credits_per_hour": service.time_credits_per_hour,
-            "location": service.location,
-            "availability": availability_response,
-            "whats_included": service.whats_included,
-            "requirements": service.requirements,
-            "tags": tags_response,
-            "created_at": service.created_at
-        })
+        # Use the helper function to format response
+        service_data = format_service_response(service, db, creator_name)
+        response_services.append(service_data)
     
     return response_services
 
@@ -210,43 +220,12 @@ def get_service(
             detail="Service not found"
         )
     
-    # Map boolean fields to list for response
-    availability_map = {
-        "weekday-mornings": service.availability_weekday_morning,
-        "weekday-afternoons": service.availability_weekday_afternoon,
-        "weekday-evenings": service.availability_weekday_evening,
-        "weekend-mornings": service.availability_weekend_morning,
-        "weekend-afternoons": service.availability_weekend_afternoon,
-        "weekend-evenings": service.availability_weekend_evening,
-        "flexible": service.availability_flexible
-    }
-    
-    availability_response = [option for option, value in availability_map.items() if value]
-    
     # Get creator name
     creator = db.query(User).filter(User.user_id == service.creator_id).first()
     creator_name = f"{creator.first_name} {creator.last_name}" if creator else "Unknown"
     
-    # Convert tags string to list
-    tags_response = []
-    if service.tags:
-        tags_response = service.tags.split(",")
-    
-    response_data = {
-        "service_id": service.service_id,
-        "creator_id": service.creator_id,
-        "creator_name": creator_name,
-        "title": service.title,
-        "description": service.description,
-        "category": service.category,
-        "time_credits_per_hour": service.time_credits_per_hour,
-        "location": service.location,
-        "availability": availability_response,
-        "whats_included": service.whats_included,
-        "requirements": service.requirements,
-        "tags": tags_response,
-        "created_at": service.created_at
-    }
+    # Use the helper function to format response
+    response_data = format_service_response(service, db, creator_name)
     
     return response_data
 
@@ -326,39 +305,12 @@ def update_service(
         db.commit()
         db.refresh(service)
         
-        # Prepare response
-        # Map boolean fields back to list for response
-        availability_map = {
-            "weekday-mornings": service.availability_weekday_morning,
-            "weekday-afternoons": service.availability_weekday_afternoon,
-            "weekday-evenings": service.availability_weekday_evening,
-            "weekend-mornings": service.availability_weekend_morning,
-            "weekend-afternoons": service.availability_weekend_afternoon,
-            "weekend-evenings": service.availability_weekend_evening,
-            "flexible": service.availability_flexible
-        }
+        # Get creator name
+        creator = db.query(User).filter(User.user_id == service.creator_id).first()
+        creator_name = f"{creator.first_name} {creator.last_name}" if creator else "Unknown"
         
-        availability_response = [option for option, value in availability_map.items() if value]
-        
-        # Convert tags string to list
-        tags_response = []
-        if service.tags:
-            tags_response = service.tags.split(",")
-        
-        response_data = {
-            "service_id": service.service_id,
-            "creator_id": service.creator_id,
-            "title": service.title,
-            "description": service.description,
-            "category": service.category,
-            "time_credits_per_hour": service.time_credits_per_hour,
-            "location": service.location,
-            "availability": availability_response,
-            "whats_included": service.whats_included,
-            "requirements": service.requirements,
-            "tags": tags_response,
-            "created_at": service.created_at
-        }
+        # Use the helper function to format response
+        response_data = format_service_response(service, db, creator_name)
         
         return response_data
         

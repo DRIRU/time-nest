@@ -541,13 +541,13 @@ function transformBackendServiceToFrontend(backendService) {
     description: backendService.description,
     timeCredits: parseFloat(backendService.time_credits_per_hour) || backendService.timeCredits,
     location: backendService.location,
-    rating: 4.5, // Placeholder - not yet implemented in backend
+    rating: backendService.average_rating || 0, // Use calculated average rating from backend
     provider: backendService.creator_name || "Service Provider", // Use creator_name from backend
     providerImage: "/placeholder.svg?height=40&width=40&text=SP", // Placeholder
     image: "/placeholder.svg?height=200&width=300&text=" + encodeURIComponent(backendService.title || "Service"), // Placeholder
     availability: availability,
     category: backendService.category,
-    totalReviews: 0, // Placeholder - not yet implemented in backend
+    totalReviews: backendService.total_reviews || 0, // Use calculated total reviews from backend
     requirements: backendService.requirements || "",
     whatIncluded: backendService.whats_included || backendService.whatIncluded || "",
     tags: backendService.tags ? (typeof backendService.tags === 'string' ? backendService.tags.split(',') : backendService.tags) : [],

@@ -45,6 +45,10 @@ class ServiceResponse(ServiceBase):
     # Convert boolean fields back to list for response
     availability: List[str]
     
+    # Rating fields
+    average_rating: float = Field(0.0, description="Average rating from reviews")
+    total_reviews: int = Field(0, description="Total number of reviews")
+    
     class Config:
         from_attributes = True
 

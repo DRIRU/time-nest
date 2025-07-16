@@ -23,7 +23,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Separator } from "@/components/ui/separator"
 import ServiceCard from "./service-card"
 import ServiceListItem from "./service-list-item"
-import { filterServices, getCategories } from "@/lib/services-data"
+import { filterServices, getCategories } from "@/lib/database-services"
 import LocationAutocomplete from "../location-autocomplete"
 import { useAuth } from "@/contexts/auth-context"
 

@@ -42,9 +42,6 @@ class TransactionResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        from_attributes = True
-
 class TransactionListResponse(BaseModel):
     model_config = ConfigDict(
         from_attributes=True,
