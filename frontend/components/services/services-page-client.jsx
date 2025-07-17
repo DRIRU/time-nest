@@ -174,25 +174,25 @@ export default function ServicesPageClient({ initialServices, searchParams }) {
   }
 
   return (
-    <div className="min-h-screen bg-gray-900">
+    <div className="min-h-screen bg-background">
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Page Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-white mb-2">Browse Services</h1>
-          <p className="text-gray-400">Find services offered by TimeNest community members using time credits</p>
+          <h1 className="text-3xl font-bold text-foreground mb-2">Browse Services</h1>
+          <p className="text-muted-foreground">Find services offered by TimeNest community members using time credits</p>
         </div>
 
         {/* Search and Filter Bar - Matching requests page style */}
-        <div className="bg-gray-800 rounded-lg p-4 mb-8">
+        <div className="bg-card rounded-lg p-4 mb-8">
           <form onSubmit={handleSearch} className="flex flex-col lg:flex-row gap-4">
             <div className="flex-1">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
                 <Input
                   type="text"
                   placeholder="Search for services..."
-                  className="pl-10 bg-gray-700 border-gray-600 text-white placeholder-gray-400"
+                  className="pl-10"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
@@ -200,7 +200,7 @@ export default function ServicesPageClient({ initialServices, searchParams }) {
             </div>
             <div className="flex flex-wrap gap-4">
               <Select value={selectedCategory} onValueChange={handleCategoryChange}>
-                <SelectTrigger className="w-40 bg-gray-700 border-gray-600 text-white">
+                <SelectTrigger className="w-40">
                   <SelectValue placeholder="All Categories" />
                 </SelectTrigger>
                 <SelectContent>
@@ -213,7 +213,7 @@ export default function ServicesPageClient({ initialServices, searchParams }) {
                 </SelectContent>
               </Select>
               <Select value={rating} onValueChange={setRating}>
-                <SelectTrigger className="w-32 bg-gray-700 border-gray-600 text-white">
+                <SelectTrigger className="w-32">
                   <SelectValue placeholder="All Ratings" />
                 </SelectTrigger>
                 <SelectContent>
@@ -224,7 +224,7 @@ export default function ServicesPageClient({ initialServices, searchParams }) {
                 </SelectContent>
               </Select>
               <Select value={location} onValueChange={setLocation}>
-                <SelectTrigger className="w-32 bg-gray-700 border-gray-600 text-white">
+                <SelectTrigger className="w-32">
                   <SelectValue placeholder="All Locations" />
                 </SelectTrigger>
                 <SelectContent>
@@ -237,33 +237,33 @@ export default function ServicesPageClient({ initialServices, searchParams }) {
                 <SheetTrigger asChild>
                   <Button
                     variant="outline"
-                    className="flex items-center gap-2 bg-gray-700 border-gray-600 text-white hover:bg-gray-600"
+                    className="flex items-center gap-2"
                   >
                     <Filter className="h-4 w-4" />
                     <span>Filters</span>
                   </Button>
                 </SheetTrigger>
-                <SheetContent className="w-full sm:max-w-md bg-gray-800 border-gray-700">
+                <SheetContent className="w-full sm:max-w-md">
                   <SheetHeader>
-                    <SheetTitle className="text-white">Filter Services</SheetTitle>
-                    <SheetDescription className="text-gray-400">
+                    <SheetTitle>Filter Services</SheetTitle>
+                    <SheetDescription>
                       Refine your search with additional filters
                     </SheetDescription>
                   </SheetHeader>
                   <div className="py-6 space-y-6">
                     <div className="space-y-2">
-                      <h3 className="text-sm font-medium text-white">Time Credits</h3>
+                      <h3 className="text-sm font-medium">Time Credits</h3>
                       <div className="px-2">
                         <Slider value={priceRange} min={0} max={5} step={0.5} onValueChange={setPriceRange} />
-                        <div className="flex justify-between mt-2 text-sm text-gray-400">
+                        <div className="flex justify-between mt-2 text-sm text-muted-foreground">
                           <span>{priceRange[0]} credits</span>
                           <span>{priceRange[1]} credits</span>
                         </div>
                       </div>
                     </div>
-                    <Separator className="bg-gray-700" />
+                    <Separator />
                     <div className="space-y-3">
-                      <h3 className="text-sm font-medium text-white">Availability</h3>
+                      <h3 className="text-sm font-medium">Availability</h3>
                       <div className="space-y-2">
                         {["Weekdays", "Evenings", "Weekends"].map((day) => (
                           <div key={day} className="flex items-center space-x-2">
@@ -272,7 +272,7 @@ export default function ServicesPageClient({ initialServices, searchParams }) {
                               checked={availability.includes(day)}
                               onCheckedChange={() => handleAvailabilityChange(day)}
                             />
-                            <label htmlFor={day} className="text-sm text-gray-300">
+                            <label htmlFor={day} className="text-sm">
                               {day}
                             </label>
                           </div>
@@ -281,7 +281,7 @@ export default function ServicesPageClient({ initialServices, searchParams }) {
                     </div>
                   </div>
                   <SheetFooter>
-                    <Button variant="outline" onClick={resetFilters} className="bg-gray-700 border-gray-600 text-white">
+                    <Button variant="outline" onClick={resetFilters}>
                       Reset Filters
                     </Button>
                     <SheetClose asChild>
@@ -297,12 +297,12 @@ export default function ServicesPageClient({ initialServices, searchParams }) {
         {/* Results Header - Matching requests page style */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
           <div>
-            <h2 className="text-xl font-semibold text-white">
+            <h2 className="text-xl font-semibold">
               {isLoading ? "Searching..." : `${filteredServices.length} services found`}
             </h2>
             <div className="flex flex-wrap gap-2 mt-2">
               {selectedCategory && selectedCategory !== "all" && (
-                <Badge variant="outline" className="flex items-center gap-1 border-gray-600 text-gray-300">
+                <Badge variant="outline" className="flex items-center gap-1">
                   {selectedCategory}
                   <X
                     className="h-3 w-3 cursor-pointer"
@@ -314,7 +314,7 @@ export default function ServicesPageClient({ initialServices, searchParams }) {
                 </Badge>
               )}
               {searchQuery && (
-                <Badge variant="outline" className="flex items-center gap-1 border-gray-600 text-gray-300">
+                <Badge variant="outline" className="flex items-center gap-1">
                   "{searchQuery}"
                   <X
                     className="h-3 w-3 cursor-pointer"
@@ -329,7 +329,7 @@ export default function ServicesPageClient({ initialServices, searchParams }) {
           </div>
           <div className="flex items-center gap-4">
             <Select defaultValue="recommended">
-              <SelectTrigger className="w-[180px] bg-gray-700 border-gray-600 text-white">
+              <SelectTrigger className="w-[180px]">
                 <SelectValue placeholder="Sort by" />
               </SelectTrigger>
               <SelectContent>
@@ -340,12 +340,12 @@ export default function ServicesPageClient({ initialServices, searchParams }) {
                 <SelectItem value="newest">Newest</SelectItem>
               </SelectContent>
             </Select>
-            <div className="flex border border-gray-600 rounded-md">
+            <div className="flex border rounded-md">
               <Button
                 variant={viewMode === "grid" ? "default" : "ghost"}
                 size="icon"
                 onClick={() => setViewMode("grid")}
-                className="rounded-r-none bg-gray-700 border-gray-600 text-white hover:bg-gray-600"
+                className="rounded-r-none"
               >
                 <Grid className="h-4 w-4" />
               </Button>
@@ -353,7 +353,7 @@ export default function ServicesPageClient({ initialServices, searchParams }) {
                 variant={viewMode === "list" ? "default" : "ghost"}
                 size="icon"
                 onClick={() => setViewMode("list")}
-                className="rounded-l-none bg-gray-700 border-gray-600 text-white hover:bg-gray-600"
+                className="rounded-l-none"
               >
                 <List className="h-4 w-4" />
               </Button>
@@ -365,16 +365,16 @@ export default function ServicesPageClient({ initialServices, searchParams }) {
         {isLoading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {[...Array(6)].map((_, i) => (
-              <div key={i} className="bg-gray-800 animate-pulse rounded-lg h-64"></div>
+              <div key={i} className="bg-muted animate-pulse rounded-lg h-64"></div>
             ))}
           </div>
         ) : filteredServices.length === 0 ? (
           <div className="text-center py-12">
-            <div className="text-gray-400 mb-4">
+            <div className="text-muted-foreground mb-4">
               <Search className="h-12 w-12 mx-auto" />
             </div>
-            <h3 className="text-xl font-semibold text-white mb-2">No services found</h3>
-            <p className="text-gray-400 mb-6">Try adjusting your search or filters to find what you're looking for</p>
+            <h3 className="text-xl font-semibold text-foreground mb-2">No services found</h3>
+            <p className="text-muted-foreground mb-6">Try adjusting your search or filters to find what you're looking for</p>
             <Button onClick={resetFilters} className="bg-blue-600 hover:bg-blue-700">
               Clear all filters
             </Button>

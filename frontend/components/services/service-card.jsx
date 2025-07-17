@@ -3,16 +3,16 @@ import Link from "next/link"
 const ServiceCard = ({ service }) => {
   return (
     <Link href={`/services/${service.id}`} className="block">
-      <div className="bg-gray-800 border border-gray-700 rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+      <div className="bg-card border border-border rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow">
         <img className="w-full h-48 object-cover" src={service.image || "/placeholder.svg"} alt={service.title} />
         <div className="p-4">
           <div className="flex justify-between items-start mb-2">
-            <h3 className="font-medium text-white mb-1">{service.title}</h3>
+            <h3 className="font-medium text-foreground mb-1">{service.title}</h3>
             <div className="flex flex-col gap-1">
               <span className="bg-blue-600 text-white text-xs font-medium px-2 py-1 rounded">{service.category}</span>
             </div>
           </div>
-          <p className="text-sm text-gray-400 line-clamp-2 mb-3">{service.description}</p>
+          <p className="text-sm text-muted-foreground line-clamp-2 mb-3">{service.description}</p>
 
           {/* Credits - Show actual cost */}
           <div className="mb-3">
@@ -25,12 +25,12 @@ const ServiceCard = ({ service }) => {
           {service.tags && service.tags.length > 0 && (
             <div className="flex flex-wrap gap-1 mb-3">
               {service.tags.slice(0, 3).map((tag, index) => (
-                <span key={index} className="bg-gray-700 text-gray-300 text-xs px-2 py-1 rounded">
+                <span key={index} className="bg-muted text-muted-foreground text-xs px-2 py-1 rounded">
                   {tag}
                 </span>
               ))}
               {service.tags.length > 3 && (
-                <span className="bg-gray-700 text-gray-300 text-xs px-2 py-1 rounded">
+                <span className="bg-muted text-muted-foreground text-xs px-2 py-1 rounded">
                   +{service.tags.length - 3} more
                 </span>
               )}
@@ -38,7 +38,7 @@ const ServiceCard = ({ service }) => {
           )}
 
           {/* Location, Provider, and Rating */}
-          <div className="space-y-2 text-sm text-gray-400">
+          <div className="space-y-2 text-sm text-muted-foreground">
             <div className="flex items-center">
               <svg className="h-4 w-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
                 <path

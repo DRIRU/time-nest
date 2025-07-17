@@ -218,7 +218,7 @@ export default function AdminLoginPage() {
               {fieldErrors.password && <p className="text-sm text-red-500">{fieldErrors.password}</p>}
             </div>
 
-            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+            {/* <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
               <div className="flex items-start space-x-2">
                 <AlertCircle className="h-4 w-4 text-amber-600 mt-0.5" />
                 <div className="text-sm text-amber-800">
@@ -227,7 +227,7 @@ export default function AdminLoginPage() {
                   <p>Password: admin123</p>
                 </div>
               </div>
-            </div>
+            </div> */}
           </CardContent>
           
           <CardFooter className="flex flex-col space-y-4">
