@@ -3,7 +3,8 @@ import { getServiceById } from "@/lib/database-services" // This import is alrea
 
 export async function GET(request, { params }) {
   try {
-    const service = await getServiceById(params.id)
+    const { id } = await params
+    const service = await getServiceById(id)
 
     if (!service) {
       return NextResponse.json({ error: "Service not found" }, { status: 404 })

@@ -4,7 +4,8 @@ import { getServiceById } from "@/lib/database-services"
 
 export async function generateMetadata({ params }) {
   try {
-    const service = await getServiceById(params.id)
+    const { id } = await params
+    const service = await getServiceById(id)
 
     if (!service) {
       return {
@@ -26,7 +27,8 @@ export async function generateMetadata({ params }) {
 
 export default async function ServiceDetail({ params }) {
   try {
-    const service = await getServiceById(params.id)
+    const { id } = await params
+    const service = await getServiceById(id)
     
     if (!service) {
       return (

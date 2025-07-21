@@ -4,7 +4,8 @@ import { getServiceRequestById } from "@/lib/service-requests-data"
 
 export async function generateMetadata({ params }) {
   try {
-    const request = await getServiceRequestById(params.id)
+    const { id } = await params
+    const request = await getServiceRequestById(id)
 
     if (!request) {
       return {
@@ -26,7 +27,8 @@ export async function generateMetadata({ params }) {
 
 export default async function ServiceRequestPage({ params }) {
   try {
-    const request = await getServiceRequestById(params.id)
+    const { id } = await params
+    const request = await getServiceRequestById(id)
 
     if (!request) {
       return (
@@ -43,7 +45,7 @@ export default async function ServiceRequestPage({ params }) {
 
     return (
       <Layout>
-        <ServiceRequestDetailPage id={params.id} initialRequest={request} />
+        <ServiceRequestDetailPage id={id} initialRequest={request} />
       </Layout>
     )
   } catch (error) {

@@ -334,7 +334,7 @@ export default function DashboardPage() {
                 </CardHeader>
                 <CardContent>
                   <p className="text-gray-600 dark:text-gray-400">
-                    Manage the service requests you've posted.
+                    Manage the service requests you've posted in the platform.
                   </p>
                 </CardContent>
                 <CardFooter>
