@@ -23,7 +23,7 @@ export default function Navbar() {
   const navItems = [
     { path: "/services", label: "Browse Services" },
     { path: "/requests", label: "Service Requests" },
-    { path: "/list-service", label: "List Service" },
+    ...(isLoggedIn ? [{ path: "/list-service", label: "List Service" }] : []),
     ...(isLoggedIn ? [{ path: "/messages", label: "Messages" }] : []),
   ]
 

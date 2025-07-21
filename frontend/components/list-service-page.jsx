@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Clock, Upload, X, Plus, ArrowLeft, Check, Search } from "lucide-react"
@@ -19,7 +19,7 @@ import { mapCategoryValue, addService, addRequest } from "@/lib/database-service
 
 export default function ListServicePage() {
   const router = useRouter()
-  const { isLoggedIn, currentUser } = useAuth()
+  const { isLoggedIn, currentUser, loading } = useAuth()
   const [isLoading, setIsLoading] = useState(false)
   const [postType, setPostType] = useState("") // "service" or "request"
   const [currentStep, setCurrentStep] = useState(0) // 0 for type selection, then 1-3 for forms
@@ -75,6 +75,14 @@ export default function ListServicePage() {
     { value: "high", label: "High - Within 2-3 days", color: "text-orange-600" },
     { value: "urgent", label: "Urgent - ASAP", color: "text-red-600" },
   ]
+
+  // Check if user is logged in on component mount
+  useEffect(() => {
+    if (!loading && !isLoggedIn) {
+      alert("You must be logged in to list a service or request. Please log in to continue.")
+      router.push("/login")
+    }
+  }, [isLoggedIn, loading, router])
 
   const handleInputChange = (field, value) => {
     setFormData((prev) => ({
@@ -350,8 +358,19 @@ export default function ListServicePage() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      {/* Main Content */}
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {/* Show loading while checking authentication */}
+      {loading && (
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-gray-600 dark:text-gray-300">Loading...</p>
+          </div>
+        </div>
+      )}
+      
+      {/* Main Content - only show when not loading and user is authenticated */}
+      {!loading && isLoggedIn && (
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-8">
           <Link href="/services">
@@ -909,7 +928,8 @@ export default function ListServicePage() {
             </div>
           </div>
         </form>
-      </div>
+        </div>
+      )}
     </div>
   )
 }

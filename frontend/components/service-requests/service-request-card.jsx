@@ -20,15 +20,15 @@ export default function ServiceRequestCard({ request }) {
   const getStatusColor = (status) => {
     switch (status) {
       case "Open":
-        return "bg-green-100 text-green-800"
+        return "bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400"
       case "In Progress":
-        return "bg-blue-100 text-blue-800"
+        return "bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400"
       case "Completed":
-        return "bg-purple-100 text-purple-800"
+        return "bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-400"
       case "Closed":
-        return "bg-gray-100 text-gray-800"
+        return "bg-muted text-muted-foreground"
       default:
-        return "bg-gray-100 text-gray-800"
+        return "bg-muted text-muted-foreground"
     }
   }
 
@@ -60,7 +60,7 @@ export default function ServiceRequestCard({ request }) {
             className="object-cover rounded-t-lg"
           />
           {request.images.length > 1 && (
-            <div className="absolute top-2 right-2 bg-black bg-opacity-70 text-white text-xs px-2 py-1 rounded flex items-center gap-1">
+            <div className="absolute top-2 right-2 bg-background/70 backdrop-blur-sm text-foreground text-xs px-2 py-1 rounded flex items-center gap-1">
               <ImageIcon className="h-3 w-3" />
               {request.images.length}
             </div>
@@ -159,7 +159,7 @@ export default function ServiceRequestCard({ request }) {
                   {[...Array(5)].map((_, i) => (
                     <svg
                       key={i}
-                      className={`h-3 w-3 ${i < Math.floor(request.user.rating) ? "text-yellow-400" : "text-gray-300"}`}
+                      className={`h-3 w-3 ${i < Math.floor(request.user.rating) ? "text-yellow-400" : "text-muted-foreground"}`}
                       fill="currentColor"
                       viewBox="0 0 20 20"
                     >

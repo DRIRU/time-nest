@@ -277,46 +277,46 @@ export default function ServiceRequestsPage({ searchParams }) {
   const getUrgencyColor = (urgencyLevel) => {
     switch (urgencyLevel) {
       case "urgent":
-        return "bg-red-100 text-red-700"
+        return "bg-red-100 text-red-700 dark:bg-red-900/20 dark:text-red-400"
       case "high":
-        return "bg-orange-100 text-orange-700"
+        return "bg-orange-100 text-orange-700 dark:bg-orange-900/20 dark:text-orange-400"
       case "normal":
-        return "bg-blue-100 text-blue-700"
+        return "bg-blue-100 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400"
       case "low":
-        return "bg-green-100 text-green-700"
+        return "bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-400"
       default:
-        return "bg-gray-100 text-gray-700"
+        return "bg-muted text-muted-foreground"
     }
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-background">
       {/* Navigation */}
-      <nav className="border-b bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/60 sticky top-0 z-50">
+      <nav className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-2">
               <Link href="/" className="flex items-center space-x-2">
                 <Clock className="h-8 w-8 text-blue-600" />
-                <span className="text-xl font-bold text-gray-900">TimeNest</span>
+                <span className="text-xl font-bold text-foreground">TimeNest</span>
               </Link>
             </div>
             <div className="hidden md:flex items-center space-x-8">
-              <Link href="/services" className="text-gray-700 hover:text-blue-600 transition-colors">
+              <Link href="/services" className="text-muted-foreground hover:text-blue-600 transition-colors">
                 Browse Services
               </Link>
               <Link href="/requests" className="text-blue-600 font-medium">
                 Service Requests
               </Link>
-              <Link href="/#how-it-works" className="text-gray-700 hover:text-blue-600 transition-colors">
+              <Link href="/#how-it-works" className="text-muted-foreground hover:text-blue-600 transition-colors">
                 How It Works
               </Link>
-              <Link href="/list-service" className="text-gray-700 hover:text-blue-600 transition-colors">
+              <Link href="/list-service" className="text-muted-foreground hover:text-blue-600 transition-colors">
                 List Service
               </Link>
               <Link
                 href="/#support"
-                className="text-gray-700 hover:text-blue-600 transition-colors"
+                className="text-muted-foreground hover:text-blue-600 transition-colors"
                 onClick={(e) => {
                   e.preventDefault()
                   window.location.href = "/#support"
@@ -341,8 +341,8 @@ export default function ServiceRequestsPage({ searchParams }) {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Page Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Service Requests</h1>
-          <p className="text-gray-600">Find service requests from community members who need your help</p>
+          <h1 className="text-3xl font-bold text-foreground mb-2">Service Requests</h1>
+          <p className="text-muted-foreground">Find service requests from community members who need your help</p>
           <div className="flex flex-col sm:flex-row gap-4 mt-4">
             <Link href="/services">
               <Button variant="outline" className="flex items-center gap-2">
@@ -360,10 +360,10 @@ export default function ServiceRequestsPage({ searchParams }) {
         </div>
 
         {/* Search and Filter Bar */}
-        <div className="bg-white rounded-lg shadow-md p-4 mb-8">
+        <div className="bg-card rounded-lg shadow-md p-4 mb-8">
           <form onSubmit={handleSearch} className="flex flex-col md:flex-row gap-4">
             <div className="flex-1 relative">
-              <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
               <Input
                 type="text"
                 placeholder="Search for service requests..."
@@ -404,7 +404,7 @@ export default function ServiceRequestsPage({ searchParams }) {
                     <h3 className="text-sm font-medium">Budget Range</h3>
                     <div className="px-2">
                       <Slider value={budgetRange} min={0} max={15} step={0.5} onValueChange={setBudgetRange} />
-                      <div className="flex justify-between mt-2 text-sm text-gray-500">
+                      <div className="flex justify-between mt-2 text-sm text-muted-foreground">
                         <span>{budgetRange[0]} credits</span>
                         <span>{budgetRange[1]} credits</span>
                       </div>
@@ -480,11 +480,11 @@ export default function ServiceRequestsPage({ searchParams }) {
         </div>
 
         {/* Results Section */}
-        <div className="bg-white rounded-lg shadow-md p-6">
+        <div className="bg-card rounded-lg shadow-md p-6">
           {/* Results Header */}
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
             <div>
-              <h2 className="text-lg font-semibold text-gray-900">
+              <h2 className="text-lg font-semibold text-foreground">
                 {isLoading ? "Searching..." : `${filteredRequests.length} requests found`}
               </h2>
               <div className="flex flex-wrap gap-2 mt-2">
@@ -558,16 +558,16 @@ export default function ServiceRequestsPage({ searchParams }) {
           {isLoading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {[...Array(6)].map((_, i) => (
-                <div key={i} className="bg-gray-100 animate-pulse rounded-lg h-64"></div>
+                <div key={i} className="bg-muted animate-pulse rounded-lg h-64"></div>
               ))}
             </div>
           ) : filteredRequests.length === 0 ? (
             <div className="text-center py-12">
-              <div className="text-gray-400 mb-4">
+              <div className="text-muted-foreground mb-4">
                 <Search className="h-12 w-12 mx-auto" />
               </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">No requests found</h3>
-              <p className="text-gray-600 mb-6">Try adjusting your search or filters to find what you're looking for</p>
+              <h3 className="text-xl font-semibold text-foreground mb-2">No requests found</h3>
+              <p className="text-muted-foreground mb-6">Try adjusting your search or filters to find what you're looking for</p>
               <Button onClick={resetFilters}>Clear all filters</Button>
             </div>
           ) : viewMode === "grid" ? (
