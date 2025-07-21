@@ -33,6 +33,10 @@ class Service(Base):
     creator = relationship("User", back_populates="services")
     
     # Relationship with the Rating model
-    ratings = relationship("Rating", back_populates="service", cascade="all, delete-orphan") 
+    ratings = relationship("Rating", back_populates="service", cascade="all, delete-orphan")
+    
+    # Relationship with the Report model
+    reports = relationship("Report", back_populates="reported_service", cascade="all, delete-orphan")
+    
     def __repr__(self):
         return f"<Service(service_id={self.service_id}, title='{self.title}', category='{self.category}')>"

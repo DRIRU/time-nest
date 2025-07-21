@@ -33,6 +33,9 @@ class Request(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     creator = relationship("User", backref="requests")
+    
+    # Relationship with the Report model
+    reports = relationship("Report", back_populates="reported_request", cascade="all, delete-orphan")
 
     def get_tags_list(self):
         return self.tags.split(',') if self.tags else []

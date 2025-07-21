@@ -35,6 +35,10 @@ class User(Base):
     
     # Relationship with TimeTransaction model
     transactions = relationship("TimeTransaction", back_populates="user", cascade="all, delete-orphan")
+    
+    # Relationship with Report model
+    reports_made = relationship("Report", foreign_keys="Report.reporter_id", back_populates="reporter", cascade="all, delete-orphan")
+    reports_received = relationship("Report", foreign_keys="Report.reported_user_id", back_populates="reported_user", cascade="all, delete-orphan")
 
     def __repr__(self):
         return f"<User(user_id={self.user_id}, email='{self.email}', name='{self.first_name} {self.last_name}')>"

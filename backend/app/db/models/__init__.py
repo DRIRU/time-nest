@@ -6,3 +6,4 @@ from .service import Service
 from .request import Request
 from .serviceBooking import ServiceBooking
 from .rating import Rating
+from .report import Report

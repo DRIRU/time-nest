@@ -1,5 +1,6 @@
 from sqlalchemy import Column, Integer, String, DateTime
 from sqlalchemy.sql import func
+from sqlalchemy.orm import relationship
 from ..database import Base
 
 class Admin(Base):
@@ -12,6 +13,9 @@ class Admin(Base):
     last_name = Column(String(50), nullable=False)
     created_at = Column(DateTime, default=func.now())
     last_login = Column(DateTime, nullable=True)
+    
+    # Relationship with Report model
+    assigned_reports = relationship("Report", back_populates="assigned_admin")
 
     def __repr__(self):
         return f"<Admin(admin_id={self.admin_id}, email='{self.email}', name='{self.first_name} {self.last_name}')>"

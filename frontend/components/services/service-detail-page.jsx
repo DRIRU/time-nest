@@ -17,6 +17,7 @@ import {
   X,
   CalendarIcon,
   AlertCircle,
+  Flag,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -30,9 +31,11 @@ import { Textarea } from "@/components/ui/textarea"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import ReportDialog from "@/components/reports/report-dialog"
 import { getServiceById, addServiceBooking, checkSufficientCredits } from "@/lib/database-services"
 import { initiateServiceChat } from "@/lib/chat-data"
 import { useAuth } from "@/contexts/auth-context"
+import { useTheme } from "@/contexts/theme-context"
 import { format, parseISO, set } from "date-fns"
 
 export default function ServiceDetailPage({ initialService = null }) {
@@ -44,6 +47,7 @@ export default function ServiceDetailPage({ initialService = null }) {
 
   // Booking modal state
   const [showBookingModal, setShowBookingModal] = useState(false)
+  const [showReportModal, setShowReportModal] = useState(false)
   const [selectedDate, setSelectedDate] = useState(new Date())
   const [selectedTime, setSelectedTime] = useState("09:00")
   const [durationMinutes, setDurationMinutes] = useState(60)
@@ -433,6 +437,22 @@ export default function ServiceDetailPage({ initialService = null }) {
                   Contact Provider
                 </Button>
 
+                {/* Debug: always show report button temporarily */}
+                {isLoggedIn && currentUser && (
+                  <Button 
+                    variant="outline" 
+                    className="w-full border-red-200 text-red-600 hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-950" 
+                    onClick={() => {
+                      console.log("Report button clicked - currentUser:", currentUser);
+                      console.log("Service creator_id:", service.creator_id);
+                      setShowReportModal(true);
+                    }}
+                  >
+                    <Flag className="h-4 w-4 mr-2" />
+                    Report Service
+                  </Button>
+                )}
+
                 {!isLoggedIn && (
                   <p className="text-xs text-gray-500 text-center">
                     Join TimeNest to book services and contact providers
@@ -618,6 +638,16 @@ export default function ServiceDetailPage({ initialService = null }) {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Report Dialog */}
+      <ReportDialog 
+        isOpen={showReportModal}
+        onClose={() => setShowReportModal(false)}
+        reportedUserId={service.creator_id}
+        serviceId={service.service_id || service.id}
+        serviceName={service.title}
+        reportType="service"
+      />
     </div>
   )
 }

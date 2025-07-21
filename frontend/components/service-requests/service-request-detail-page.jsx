@@ -16,6 +16,7 @@ import {
   DollarSign,
   Send,
   X,
+  Flag,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -28,6 +29,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import ReportDialog from "@/components/reports/report-dialog"
 import { getServiceRequestById, submitProposal, getProposalsForRequest } from "@/lib/service-requests-data"
 import { useAuth } from "@/contexts/auth-context"
 
@@ -52,6 +54,9 @@ export default function ServiceRequestDetailPage({ id, initialRequest = null }) 
   const [proposalsLoading, setProposalsLoading] = useState(false)
   const [proposalsError, setProposalsError] = useState("")
   const [hasSubmittedProposal, setHasSubmittedProposal] = useState(false)
+  
+  // Report modal state
+  const [showReportModal, setShowReportModal] = useState(false)
 
   useEffect(() => {
     const fetchRequestDetails = async () => {
@@ -95,20 +100,24 @@ export default function ServiceRequestDetailPage({ id, initialRequest = null }) 
           const fetchedProposals = await getProposalsForRequest(request.id)
           setProposals(fetchedProposals)
         } else {
-          // Check if the current user has already submitted a proposal
-          const fetchedProposals = await getProposalsForRequest(request.id)
-          const userProposal = fetchedProposals.find(
-            p => parseInt(p.proposer_id) === parseInt(currentUser.user_id)
-          )
-          setHasSubmittedProposal(!!userProposal)
+          // For non-creators, we'll check if they have submitted a proposal
+          // by fetching all their proposals and finding one for this request
+          try {
+            const userProposals = await getProposalsForRequest() // Get all user's proposals
+            const userProposal = userProposals.find(
+              p => parseInt(p.request_id) === parseInt(request.id)
+            )
+            setHasSubmittedProposal(!!userProposal)
+          } catch (proposalErr) {
+            // If we can't fetch user proposals, assume they haven't submitted one
+            setHasSubmittedProposal(false)
+          }
         }
       } catch (err) {
-        // If the error is 403 Forbidden, it means the user is not the request creator
-        if (err.message.includes("403")) {
-          // This is expected for non-creators, so we don't show an error
-        } else {
+        // Only log unexpected errors
+        if (!err.message.includes("403") && !err.message.includes("permission")) {
           setProposalsError("Failed to load proposals")
-          console.error(err)
+          console.error("Unexpected error loading proposals:", err)
         }
       } finally {
         setProposalsLoading(false)
@@ -598,6 +607,21 @@ export default function ServiceRequestDetailPage({ id, initialRequest = null }) 
                   Contact Requester
                 </Button>
 
+                {isLoggedIn && currentUser && currentUser.id !== request.creator_id && (
+                  <Button 
+                    variant="outline" 
+                    className="w-full border-red-200 text-red-600 hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-950" 
+                    onClick={() => {
+                      console.log("Report button clicked - currentUser:", currentUser);
+                      console.log("Request creator_id:", request.creator_id);
+                      setShowReportModal(true);
+                    }}
+                  >
+                    <Flag className="h-4 w-4 mr-2" />
+                    Report Request
+                  </Button>
+                )}
+
                 {!isLoggedIn && (
                   <p className="text-xs text-gray-500 text-center">
                     Join TimeNest to submit proposals and contact requesters
@@ -749,6 +773,16 @@ export default function ServiceRequestDetailPage({ id, initialRequest = null }) 
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Report Dialog */}
+      <ReportDialog 
+        isOpen={showReportModal}
+        onClose={() => setShowReportModal(false)}
+        reportedUserId={request.creator_id}
+        requestId={request.id}
+        requestName={request.title}
+        reportType="request"
+      />
     </div>
   )
 }
