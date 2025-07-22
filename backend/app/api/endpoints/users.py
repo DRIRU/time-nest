@@ -460,7 +460,9 @@ def update_user_profile(
 @router.get("/admin/users")
 def get_all_users_admin(
     search: Optional[str] = None,
-    status: Optional[str] = None,
+    user_status: Optional[str] = None,
+    sort: Optional[str] = None,
+    order: Optional[str] = "asc",
     skip: int = 0,
     limit: int = 100,
     db: Session = Depends(get_db),
@@ -484,15 +486,35 @@ def get_all_users_admin(
             )
         
         # Apply status filter
-        if status and status != "all":
-            if status == "verified":
+        if user_status and user_status != "all":
+            if user_status == "verified":
                 query = query.filter(User.phone_number.isnot(None))
-            elif status == "unverified":
+            elif user_status == "unverified":
                 query = query.filter(User.phone_number.is_(None))
-            elif status == "active":
+            elif user_status == "active":
                 query = query.filter(User.status == "Active")
-            elif status == "inactive":
+            elif user_status == "inactive":
                 query = query.filter(User.status.in_(["Inactive", "Suspended"]))
+        
+        # Apply sorting
+        if sort:
+            print(f"Sorting by: {sort}, order: {order}")
+            if sort == "created_at":
+                try:
+                    if order == "desc":
+                        query = query.order_by(User.date_joined.desc())
+                    else:
+                        query = query.order_by(User.date_joined.asc())
+                    print("Successfully applied date_joined sorting")
+                except Exception as sort_error:
+                    print(f"Error applying sorting: {sort_error}")
+                    # Skip sorting if there's an error
+                    pass
+            elif sort == "name":
+                if order == "desc":
+                    query = query.order_by(User.first_name.desc())
+                else:
+                    query = query.order_by(User.first_name.asc())
         
         # Apply pagination
         users = query.offset(skip).limit(limit).all()
@@ -502,7 +524,7 @@ def get_all_users_admin(
     except Exception as e:
         logger.error(f"Error fetching users: {str(e)}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=500,
             detail="An error occurred while fetching users"
         )
 

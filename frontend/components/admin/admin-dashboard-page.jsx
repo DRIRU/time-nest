@@ -30,6 +30,7 @@ import {
 } from "lucide-react"
 import { getOverviewStats } from "@/lib/service-requests-data"
 import { getAllModeratorApplications, updateModeratorApplicationStatus } from "@/lib/moderator-data"
+import { getRecentUsersAdmin } from "@/lib/users-data"
 import Link from "next/link"
 
 export default function AdminDashboardPage() {
@@ -49,6 +50,7 @@ export default function AdminDashboardPage() {
     }
   })
   const [modApplications, setModApplications] = useState([])
+  const [recentUsers, setRecentUsers] = useState([])
   const [processingRequestId, setProcessingRequestId] = useState(null)
 
   useEffect(() => {
@@ -103,7 +105,6 @@ export default function AdminDashboardPage() {
                 totalCreditsExchanged: overviewStats?.total_credits_exchanged || 0,
                 averageRating: 4.5,
                 activeUsers: overviewStats?.total_users || 0,
-                monthlyGrowth: 12,
                 systemUptime: "99.9%",
               },
               modRequests: {
@@ -135,7 +136,6 @@ export default function AdminDashboardPage() {
               totalCreditsExchanged: overviewStats?.total_credits_exchanged || 0,
               averageRating: 4.5,
               activeUsers: overviewStats?.total_users || 0,
-              monthlyGrowth: 12,
               systemUptime: "99.9%",
             },
             modRequests: {
@@ -145,6 +145,15 @@ export default function AdminDashboardPage() {
               total: 0
             }
           });
+        }
+        
+        // Fetch recent users
+        try {
+          const recent = await getRecentUsersAdmin(adminUser.accessToken, 3);
+          setRecentUsers(Array.isArray(recent) ? recent : (recent?.users || []));
+        } catch (error) {
+          console.error("Error fetching recent users:", error);
+          setRecentUsers([]);
         }
       } catch (error) {
         console.error("Error loading dashboard stats:", error)
@@ -241,7 +250,6 @@ export default function AdminDashboardPage() {
     {
       title: "Total Users",
       value: stats.users?.total_users || 0, 
-      change: "+12%",
       icon: Users,
       color: "text-blue-600",
       bgColor: "bg-blue-100"
@@ -249,7 +257,6 @@ export default function AdminDashboardPage() {
     {
       title: "Active Services",
       value: stats.services?.total_services || 0,
-      change: "+8%",
       icon: Clock,
       color: "text-green-600",
       bgColor: "bg-green-100"
@@ -257,7 +264,6 @@ export default function AdminDashboardPage() {
     {
       title: "Service Requests",
       value: stats.requests?.total_requests || 0,
-      change: "+15%",
       icon: FileText,
       color: "text-purple-600",
       bgColor: "bg-purple-100"
@@ -265,7 +271,6 @@ export default function AdminDashboardPage() {
     {
       title: "Credits Exchanged",
       value: stats.requests?.total_credits_exchanged || 0,
-      change: "+23%",
       icon: DollarSign,
       color: "text-orange-600",
       bgColor: "bg-orange-100"
@@ -319,7 +324,7 @@ export default function AdminDashboardPage() {
         </div>
 
         {/* Quick Stats */}
-<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
   {quickStats.map((stat, index) => (
     <Card key={index} className="dark:bg-gray-800 dark:border-gray-700">
       <CardContent className="pt-6">
@@ -327,7 +332,6 @@ export default function AdminDashboardPage() {
           <div>
             <p className="text-sm text-gray-600 dark:text-gray-400">{stat.title}</p>
             <p className="text-2xl font-bold">{stat.value}</p>
-            <p className="text-xs text-green-600">{stat.change}</p>
           </div>
           <div className={`p-3 rounded-full ${stat.bgColor}`}>
             <stat.icon className={`h-6 w-6 ${stat.color}`} />
@@ -336,9 +340,7 @@ export default function AdminDashboardPage() {
       </CardContent>
     </Card>
   ))}
-</div>
-
-        {/* Main Dashboard Tabs */}
+</div>        {/* Main Dashboard Tabs */}
         <Tabs defaultValue="overview" className="space-y-6">
           <TabsList className="grid w-full grid-cols-3  ">
             <TabsTrigger value="overview">Overview</TabsTrigger>
@@ -375,10 +377,6 @@ export default function AdminDashboardPage() {
                       <Star className="h-4 w-4 text-yellow-400 mr-1" />
                       <span className="font-medium">{stats.platform.averageRating}</span>
                     </div>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-600 dark:text-gray-400">Monthly Growth</span>
-                    <span className="font-medium text-green-600">+{stats.platform.monthlyGrowth}%</span>
                   </div>
                 </CardContent>
               </Card>
@@ -545,20 +543,26 @@ export default function AdminDashboardPage() {
                   <CardTitle>Recent Registrations</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  <div className="space-y-2"> 
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm">Sarah Miller</span>
-                      <Badge variant="secondary" className="text-xs">Provider</Badge>
+                  {recentUsers.length > 0 ? (
+                    <div className="space-y-2">
+                      {recentUsers.map((user, index) => (
+                        <div key={user.id || index} className="flex items-center justify-between">
+                          <span className="text-sm">
+                            {user.first_name || user.firstName} {user.last_name || user.lastName}
+                          </span>
+                          {user.role === "service_provider" && (
+                            <Badge variant="secondary" className="text-xs">
+                              Provider
+                            </Badge>
+                          )}
+                        </div>
+                      ))}
                     </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm">Mike Johnson</span>
-                      <Badge variant="outline" className="text-xs">Customer</Badge>
+                  ) : (
+                    <div className="text-center py-4 text-gray-500 dark:text-gray-400">
+                      <p className="text-sm">No recent registrations</p>
                     </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm">Emily Davis</span>
-                      <Badge variant="secondary" className="text-xs">Provider</Badge>
-                    </div>
-                  </div>
+                  )}
                 </CardContent>
               </Card>
             </div>

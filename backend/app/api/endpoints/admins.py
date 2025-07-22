@@ -14,7 +14,7 @@ def get_stats():
         total_services = 0
         total_requests = 0
         completed_services = 0
-        # total_credits_exchanged = 0
+        total_credits_exchanged = 0
         # total_mod_requests = 0
 
         # Total users
@@ -51,12 +51,14 @@ def get_stats():
             print(f"Error counting completed services: {e}")
 
         # Total credits exchanged
-        # try:
-        #     cursor.execute("SELECT SUM(time_credits) as total_credits_exchanged FROM users")
-        #     result = cursor.fetchall()[0]
-        #     total_credits_exchanged = result["total_credits_exchanged"] if result["total_credits_exchanged"] is not None else 0
-        # except Exception as e:
-        #     print(f"Error summing credits: {e}")
+        try:
+            cursor.execute("SELECT SUM(amount) as total_credits_exchanged FROM time_transactions WHERE amount > 0")
+            result = cursor.fetchall()[0]
+            total_credits_exchanged = float(result["total_credits_exchanged"]) if result["total_credits_exchanged"] is not None else 0
+            print(f"Total credits exchanged: {total_credits_exchanged}")
+        except Exception as e:
+            print(f"Error summing credits: {e}")
+            total_credits_exchanged = 0
 
         # Total moderator requests
         # try:
@@ -71,7 +73,7 @@ def get_stats():
             "total_services": total_services,
             "total_requests": total_requests,
             "completed_services": completed_services,
-            # "total_credits_exchanged": total_credits_exchanged,
+            "total_credits_exchanged": total_credits_exchanged,
             # "total_mod_requests": total_mod_requests
         }
         print(data)
