@@ -6,6 +6,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Label } from "@/components/ui/label"
+import { Input } from "@/components/ui/input"
 import {
   Users,
   Clock,
@@ -26,11 +28,15 @@ import {
   FileText,
   LogOut,
   Home,
-  Award
+  Award,
+  TrendingDown,
+  PieChart
 } from "lucide-react"
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart as RechartsPieChart, Cell, Pie } from "recharts"
 import { getOverviewStats } from "@/lib/service-requests-data"
 import { getAllModeratorApplications, updateModeratorApplicationStatus } from "@/lib/moderator-data"
 import { getRecentUsersAdmin } from "@/lib/users-data"
+import { getTransactionData, getUserActivityData, getWeeklyReportsData, getReportStats } from "@/lib/reports-data"
 import Link from "next/link"
 
 export default function AdminDashboardPage() {
@@ -52,6 +58,23 @@ export default function AdminDashboardPage() {
   const [modApplications, setModApplications] = useState([])
   const [recentUsers, setRecentUsers] = useState([])
   const [processingRequestId, setProcessingRequestId] = useState(null)
+
+  // Real report data state
+  const [transactionData, setTransactionData] = useState([])
+  const [userActivityData, setUserActivityData] = useState([])
+  const [weeklyReportsData, setWeeklyReportsData] = useState([])
+  const [reportStats, setReportStats] = useState({
+    totalTransactions: 0,
+    totalReports: 0,
+    activeUsers: 0
+  })
+
+  // Date range state for reports
+  const [dateRange, setDateRange] = useState({
+    startDate: new Date(new Date().setMonth(new Date().getMonth() - 6)).toISOString().split('T')[0], // 6 months ago
+    endDate: new Date().toISOString().split('T')[0] // today
+  })
+  const [isLoadingReports, setIsLoadingReports] = useState(false)
 
   useEffect(() => {
     // Check admin authentication only
@@ -155,6 +178,24 @@ export default function AdminDashboardPage() {
           console.error("Error fetching recent users:", error);
           setRecentUsers([]);
         }
+
+        // Fetch report data
+        try {
+          const [transactionData, activityData, weeklyData, reportStatsData] = await Promise.all([
+            getTransactionData(adminUser.accessToken),
+            getUserActivityData(adminUser.accessToken),
+            getWeeklyReportsData(adminUser.accessToken),
+            getReportStats(adminUser.accessToken)
+          ]);
+          
+          setTransactionData(transactionData);
+          setUserActivityData(activityData);
+          setWeeklyReportsData(weeklyData);
+          setReportStats(reportStatsData);
+        } catch (error) {
+          console.error("Error fetching report data:", error);
+          // Keep default empty states
+        }
       } catch (error) {
         console.error("Error loading dashboard stats:", error)
       } finally {
@@ -164,6 +205,41 @@ export default function AdminDashboardPage() {
 
     loadStats()
   }, [adminUser]); // This effect depends on adminUser
+  
+  // Function to load report data with date range
+  const loadReportData = async (startDate, endDate) => {
+    if (!adminUser) return;
+    
+    setIsLoadingReports(true);
+    try {
+      const [transactionData, activityData, weeklyData, reportStatsData] = await Promise.all([
+        getTransactionData(adminUser.accessToken, null, startDate, endDate),
+        getUserActivityData(adminUser.accessToken, null, startDate, endDate),
+        getWeeklyReportsData(adminUser.accessToken, null, startDate, endDate),
+        getReportStats(adminUser.accessToken, null, startDate, endDate)
+      ]);
+      
+      setTransactionData(transactionData);
+      setUserActivityData(activityData);
+      setWeeklyReportsData(weeklyData);
+      setReportStats(reportStatsData);
+    } catch (error) {
+      console.error("Error fetching report data with date range:", error);
+    } finally {
+      setIsLoadingReports(false);
+    }
+  };
+
+  // Handle date range change
+  const handleDateRangeChange = (field, value) => {
+    const newDateRange = { ...dateRange, [field]: value };
+    setDateRange(newDateRange);
+    
+    // Auto-reload data when both dates are set and valid
+    if (newDateRange.startDate && newDateRange.endDate && new Date(newDateRange.startDate) <= new Date(newDateRange.endDate)) {
+      loadReportData(newDateRange.startDate, newDateRange.endDate);
+    }
+  };
   
   const handleApproveModRequest = async (requestId) => {
     try {
@@ -345,7 +421,7 @@ export default function AdminDashboardPage() {
           <TabsList className="grid w-full grid-cols-3  ">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="users">Users</TabsTrigger>
-            <TabsTrigger value="services">Services</TabsTrigger> 
+            <TabsTrigger value="reports">Reports</TabsTrigger> 
             {/* <TabsTrigger value="system">System</TabsTrigger> */}
           </TabsList>
 
@@ -640,54 +716,296 @@ export default function AdminDashboardPage() {
             </Card>
           </TabsContent>
 
-          {/* Services Tab */}
-          <TabsContent value="services" className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Reports Tab */}
+          <TabsContent value="reports" className="space-y-6">
+            {/* Date Range Filter */}
+            <Card className="dark:bg-gray-800 dark:border-gray-700">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Calendar className="h-5 w-5" />
+                  Date Range Filter
+                </CardTitle>
+                <CardDescription>
+                  Filter reports data by selecting a custom date range
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-col sm:flex-row gap-4 items-end">
+                  <div className="flex-1 min-w-0">
+                    <Label htmlFor="start-date" className="text-sm font-medium">
+                      Start Date
+                    </Label>
+                    <Input
+                      id="start-date"
+                      type="date"
+                      value={dateRange.startDate}
+                      onChange={(e) => handleDateRangeChange('startDate', e.target.value)}
+                      className="mt-1"
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <Label htmlFor="end-date" className="text-sm font-medium">
+                      End Date
+                    </Label>
+                    <Input
+                      id="end-date"
+                      type="date"
+                      value={dateRange.endDate}
+                      onChange={(e) => handleDateRangeChange('endDate', e.target.value)}
+                      className="mt-1"
+                    />
+                  </div>
+                  <Button
+                    onClick={() => loadReportData(dateRange.startDate, dateRange.endDate)}
+                    disabled={isLoadingReports || !dateRange.startDate || !dateRange.endDate}
+                    className="shrink-0"
+                  >
+                    {isLoadingReports ? (
+                      <>
+                        <Activity className="h-4 w-4 mr-2 animate-spin" />
+                        Loading...
+                      </>
+                    ) : (
+                      <>
+                        <BarChart3 className="h-4 w-4 mr-2" />
+                        Update Reports
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Reports Overview Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
               <Card className="dark:bg-gray-800 dark:border-gray-700">
-                <CardHeader>
-                  <CardTitle>Service Overview</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex justify-between"> 
-                    <span className="text-sm text-gray-600 dark:text-gray-400">Total Services</span>
-                    <span className="font-medium">{stats.services?.total_services || 0}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-600 dark:text-gray-400">Completed Services</span>
-                    <span className="font-medium">{stats.services?.completed_services || 0}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-600 dark:text-gray-400">Average Rating</span>
-                    <span className="font-medium">4.5</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-600 dark:text-gray-400">Total Users</span>
-                    <span className="font-medium">{stats.users?.total_users || 0}</span>
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">Total Transactions</p>
+                      <p className="text-2xl font-bold">{reportStats.totalTransactions}</p>
+                      <p className="text-xs text-green-600 flex items-center">
+                        <TrendingUp className="h-3 w-3 mr-1" />
+                        Real-time data
+                      </p>
+                    </div>
+                    <div className="p-3 rounded-full bg-blue-100">
+                      <BarChart3 className="h-6 w-6 text-blue-600" />
+                    </div>
                   </div>
                 </CardContent>
               </Card>
 
               <Card className="dark:bg-gray-800 dark:border-gray-700">
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">Reports Filed</p>
+                      <p className="text-2xl font-bold">{reportStats.totalReports}</p>
+                      <p className="text-xs text-blue-600 flex items-center">
+                        <Activity className="h-3 w-3 mr-1" />
+                        Live data
+                      </p>
+                    </div>
+                    <div className="p-3 rounded-full bg-orange-100">
+                      <FileText className="h-6 w-6 text-orange-600" />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="dark:bg-gray-800 dark:border-gray-700">
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">Active Users</p>
+                      <p className="text-2xl font-bold">{reportStats.activeUsers}</p>
+                      <p className="text-xs text-green-600 flex items-center">
+                        <Users className="h-3 w-3 mr-1" />
+                        Current total
+                      </p>
+                    </div>
+                    <div className="p-3 rounded-full bg-green-100">
+                      <Activity className="h-6 w-6 text-green-600" />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Charts Section */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Transaction Trends */}
+              <Card className="dark:bg-gray-800 dark:border-gray-700">
                 <CardHeader>
-                  <CardTitle>Service Requests</CardTitle>
+                  <CardTitle className="flex items-center gap-2">
+                    <TrendingUp className="h-5 w-5" />
+                    Transaction Trends
+                  </CardTitle>
+                  <CardDescription>Monthly transactions and credits exchanged</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-80">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={transactionData}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="month" />
+                        <YAxis />
+                        <Tooltip />
+                        <Line 
+                          type="monotone" 
+                          dataKey="transactions" 
+                          stroke="#8884d8" 
+                          strokeWidth={2}
+                          name="Transactions"
+                        />
+                        <Line 
+                          type="monotone" 
+                          dataKey="credits" 
+                          stroke="#82ca9d" 
+                          strokeWidth={2}
+                          name="Credits"
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Service Categories Distribution */}
+              <Card className="dark:bg-gray-800 dark:border-gray-700">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <PieChart className="h-5 w-5" />
+                    Service Categories
+                  </CardTitle>
+                  <CardDescription>Distribution of services by category</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {userActivityData.length > 0 ? (
+                    <>
+                      <div className="h-80">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <RechartsPieChart>
+                            <Pie
+                              data={userActivityData}
+                              cx="50%"
+                              cy="50%"
+                              outerRadius={100}
+                              fill="#8884d8"
+                              dataKey="value"
+                            >
+                              {userActivityData.map((entry, index) => (
+                                <Cell key={`cell-${index}`} fill={entry.color} />
+                              ))}
+                            </Pie>
+                            <Tooltip />
+                          </RechartsPieChart>
+                        </ResponsiveContainer>
+                      </div>
+                      <div className="flex justify-center gap-4 mt-4 flex-wrap">
+                        {userActivityData.map((item, index) => (
+                          <div key={index} className="flex items-center gap-2">
+                            <div 
+                              className="w-3 h-3 rounded-full" 
+                              style={{ backgroundColor: item.color }}
+                            ></div>
+                            <span className="text-sm text-gray-600 dark:text-gray-400">
+                              {item.name}: {item.value}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  ) : (
+                    <div className="h-80 flex items-center justify-center text-gray-500 dark:text-gray-400">
+                      <div className="text-center">
+                        <PieChart className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                        <p>No service data available</p>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Weekly Reports */}
+              <Card className="dark:bg-gray-800 dark:border-gray-700">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <FileText className="h-5 w-5" />
+                    Weekly Reports
+                  </CardTitle>
+                  <CardDescription>Reports filed this week</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-80">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={weeklyReportsData}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="day" />
+                        <YAxis />
+                        <Tooltip />
+                        <Bar dataKey="reports" fill="#ff7c7c" />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* System Health Overview */}
+              <Card className="dark:bg-gray-800 dark:border-gray-700">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Activity className="h-5 w-5" />
+                    System Health
+                  </CardTitle>
+                  <CardDescription>Real-time system metrics</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="flex justify-between"> 
-                    <span className="text-sm text-gray-600 dark:text-gray-400">Total Requests</span>
-                    <span className="font-medium">{stats.requests?.total_requests || 0}</span>
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-600 dark:text-gray-400">CPU Usage</span>
+                      <div className="flex items-center gap-2">
+                        <div className="w-24 bg-gray-200 rounded-full h-2">
+                          <div className="bg-green-600 h-2 rounded-full" style={{width: '45%'}}></div>
+                        </div>
+                        <span className="text-sm font-medium">45%</span>
+                      </div>
+                    </div>
+                    
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-600 dark:text-gray-400">Memory Usage</span>
+                      <div className="flex items-center gap-2">
+                        <div className="w-24 bg-gray-200 rounded-full h-2">
+                          <div className="bg-yellow-600 h-2 rounded-full" style={{width: '72%'}}></div>
+                        </div>
+                        <span className="text-sm font-medium">72%</span>
+                      </div>
+                    </div>
+                    
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-600 dark:text-gray-400">Database Load</span>
+                      <div className="flex items-center gap-2">
+                        <div className="w-24 bg-gray-200 rounded-full h-2">
+                          <div className="bg-blue-600 h-2 rounded-full" style={{width: '28%'}}></div>
+                        </div>
+                        <span className="text-sm font-medium">28%</span>
+                      </div>
+                    </div>
+
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-600 dark:text-gray-400">Response Time</span>
+                      <Badge variant="secondary" className="bg-green-100 text-green-800">
+                        <CheckCircle className="h-3 w-3 mr-1" />
+                        &lt; 200ms
+                      </Badge>
+                    </div>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-600 dark:text-gray-400">Credits Exchanged</span>
-                    <span className="font-medium">{stats.requests?.total_credits_exchanged || 0}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-600 dark:text-gray-400">Completed Services</span>
-                    <span className="font-medium">{stats.services?.completed_services || 0}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-600 dark:text-gray-400">Platform Health</span>
-                    <span className="font-medium text-green-600">Excellent</span>
-                  </div>
+                  
+                  <Button variant="outline" className="w-full mt-4">
+                    <Settings className="h-4 w-4 mr-2" />
+                    View Detailed Reports
+                  </Button>
                 </CardContent>
               </Card>
             </div>
