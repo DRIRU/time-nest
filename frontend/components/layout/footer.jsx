@@ -88,6 +88,11 @@ export default function Footer() {
                   Terms of Service
                 </Link>
               </li>
+              <li>
+                <Link href="/moderator/login" className="hover:text-blue-400 transition-colors text-xs">
+                  Moderator Access
+                </Link>
+              </li>
             </ul>
           </div>
         </div>

@@ -9,6 +9,7 @@ from ...db.database import get_db
 from ...db.models.modRequest import ModRequest, ModRequestStatus
 from ...db.models.user import User
 from ...db.models.admin import Admin
+from ...db.models.moderator import Moderator, ModeratorStatus
 from ...schemas.modRequest import ModRequestCreate, ModRequestResponse, ModRequestUpdate
 from .users import get_current_user_dependency, get_current_admin_dependency
 
@@ -286,8 +287,56 @@ def update_mod_request(
     # Update status if provided
     if request_data.status is not None:
         try:
-            request.status = ModRequestStatus(request_data.status)
+            old_status = request.status
+            new_status = ModRequestStatus(request_data.status)
+            request.status = new_status
             request.reviewed_at = datetime.utcnow()
+            
+            # If status is being changed to approved, create moderator account
+            if old_status != ModRequestStatus.approved and new_status == ModRequestStatus.approved:
+                logger.info(f"🎯 Creating moderator for approved request {request.request_id}")
+                
+                # Check if moderator account already exists
+                existing_moderator = db.query(Moderator).filter(
+                    Moderator.user_id == request.user_id
+                ).first()
+                
+                if existing_moderator:
+                    logger.info(f"⚠️ Moderator already exists for user {request.user_id}")
+                else:
+                    logger.info(f"✅ No existing moderator found, creating new one for user {request.user_id}")
+                    
+                    # Get user details
+                    user = db.query(User).filter(User.user_id == request.user_id).first()
+                    if user:
+                        logger.info(f"👤 Found user: {user.email}")
+                        
+                        # Use the existing user's hashed password (they can use same login credentials)
+                        hashed_password = user.password_hash
+                        
+                        # Create moderator account
+                        new_moderator = Moderator(
+                            user_id=user.user_id,
+                            email=user.email,
+                            password_hash=hashed_password,
+                            first_name=user.first_name,
+                            last_name=user.last_name,
+                            phone_number=user.phone_number,
+                            status=ModeratorStatus.active,
+                            approved_by=current_user.admin_id if hasattr(current_user, 'admin_id') else None,
+                            mod_request_id=request.request_id
+                        )
+                        
+                        db.add(new_moderator)
+                        logger.info(f"🎉 Moderator account created for user {user.user_id}")
+                        
+                        # TODO: Send email to user with login credentials
+                        # This should include the default password and instructions to change it
+                    else:
+                        logger.error(f"❌ User not found for user_id: {request.user_id}")
+            else:
+                logger.info(f"ℹ️ Moderator creation condition not met. Old status: {old_status}, New status: {new_status}")
+            
         except ValueError:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,

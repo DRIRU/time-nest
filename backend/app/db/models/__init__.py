@@ -7,3 +7,6 @@ from .request import Request
 from .serviceBooking import ServiceBooking
 from .rating import Rating
 from .report import Report
+from .timeTransaction import TimeTransaction
+from .modRequest import ModRequest
+from .moderator import Moderator

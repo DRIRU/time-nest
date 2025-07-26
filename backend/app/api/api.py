@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from .endpoints import users, services, requests, service_bookings, request_proposals, mod_requests, admins, chat, ratings, credits, reports
+from .endpoints import users, services, requests, service_bookings, request_proposals, mod_requests, admins, chat, ratings, credits, reports, moderators
 
 api_router = APIRouter()
 
@@ -20,6 +20,9 @@ api_router.include_router(request_proposals.router, prefix="/request-proposals",
 
 # Include moderator application routes
 api_router.include_router(mod_requests.router, prefix="/mod-requests", tags=["mod-requests"])
+
+# Include moderator routes
+api_router.include_router(moderators.router, prefix="/moderators", tags=["moderators"])
 
 # Include admin routes
 api_router.include_router(admins.router, prefix="/admin", tags=["admin"])

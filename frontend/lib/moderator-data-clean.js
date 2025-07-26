@@ -307,37 +307,31 @@ export async function getModeratorStats() {
 
 /**
  * Get moderator activity log
- * @param {string} accessToken - Moderator access token  
- * @param {number} limit - Number of activities to return (default: 5)
- * @returns {Promise<Array>} Array of activity objects
+ * @param {string} dateFilter Date filter (today, week, month)
+ * @returns {Promise<Object>} Activity data
  */
-export async function getModeratorActivity(accessToken, limit = 5) {
+export async function getModeratorActivity(dateFilter = "today") {
   // Mock implementation - replace with real API call
   return new Promise((resolve) => {
     setTimeout(() => {
-      resolve([
-        {
-          id: 1,
-          action: "Report Resolved",
-          description: "Resolved user behavior complaint",
-          timestamp: "2025-07-26T14:30:00Z",
-          moderator: "Current User"
-        },
-        {
-          id: 2,
-          action: "Content Approved",
-          description: "Approved service posting after review",
-          timestamp: "2025-07-25T13:15:00Z",
-          moderator: "Current User"
-        },
-        {
-          id: 3,
-          action: "User Warning Issued",
-          description: "Issued warning for inappropriate behavior",
-          timestamp: "2025-07-25T10:45:00Z",
-          moderator: "Current User"
-        }
-      ].slice(0, limit));
+      resolve({
+        activities: [
+          {
+            id: 1,
+            action: "Report Resolved",
+            description: "Resolved user behavior complaint",
+            timestamp: "2025-07-26T14:30:00Z",
+            moderator: "Current User"
+          },
+          {
+            id: 2,
+            action: "Content Approved",
+            description: "Approved service posting after review",
+            timestamp: "2025-07-25T13:15:00Z",
+            moderator: "Current User"
+          }
+        ]
+      });
     }, 300);
   });
 }
