@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy import desc
 from typing import List, Optional
 import logging
 from datetime import datetime, timedelta
@@ -10,11 +11,13 @@ from ...db.database import get_db
 from ...db.models.moderator import Moderator, ModeratorStatus
 from ...db.models.user import User
 from ...db.models.modRequest import ModRequest, ModRequestStatus
+from ...db.models.report import Report
 from ...schemas.moderator import (
     ModeratorCreate, ModeratorUpdate, ModeratorResponse, 
     ModeratorLogin, ModeratorLoginResponse, ModeratorStats
 )
-from ...core.security import verify_password, hash_password as get_password_hash, create_access_token, verify_token
+from ...schemas.report import ReportResponse, ReportSummary
+from ...core.security import verify_password, hash_password as get_password_hash, create_access_token, decode_access_token
 from .users import get_current_user_dependency, get_current_admin_dependency
 
 # Configure logging
@@ -29,7 +32,7 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="moderators/login")
 def get_current_moderator(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
     """Get current moderator from token"""
     try:
-        payload = verify_token(token)
+        payload = decode_access_token(token)
         if payload is None:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
@@ -345,4 +348,159 @@ def update_moderator_status(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An error occurred while updating moderator status"
+        )
+
+@router.get("/reports", response_model=List[ReportResponse])
+def get_reports_for_moderator(
+    status_filter: Optional[str] = None,
+    report_type: Optional[str] = None,
+    category: Optional[str] = None,
+    limit: int = 50,
+    offset: int = 0,
+    current_moderator: Moderator = Depends(get_current_moderator),
+    db: Session = Depends(get_db)
+):
+    """
+    Get all reports for moderator review with user details
+    """
+    try:
+        # Query reports
+        query = db.query(Report)
+        
+        # Apply filters
+        if status_filter:
+            query = query.filter(Report.status == status_filter)
+        if report_type:
+            query = query.filter(Report.report_type == report_type)
+        if category:
+            query = query.filter(Report.category == category)
+        
+        # Order by creation date (newest first)
+        query = query.order_by(desc(Report.created_at))
+        
+        # Apply pagination
+        reports = query.offset(offset).limit(limit).all()
+        
+        # Fetch user details for each report
+        detailed_reports = []
+        for report in reports:
+            # Get reporter information
+            reporter = db.query(User).filter(User.user_id == report.reporter_id).first()
+            # Get reported user information
+            reported_user = db.query(User).filter(User.user_id == report.reported_user_id).first()
+            
+            # Create report dict matching ReportResponse schema
+            report_dict = {
+                "report_id": report.report_id,
+                "reporter_id": report.reporter_id,
+                "reported_user_id": report.reported_user_id,
+                "reported_service_id": report.reported_service_id,
+                "reported_request_id": report.reported_request_id,
+                "report_type": report.report_type,
+                "category": report.category,
+                "title": report.title,
+                "description": report.description,
+                "status": report.status,
+                "assigned_admin_id": getattr(report, 'assigned_admin_id', None),
+                "admin_notes": report.admin_notes,
+                "resolution": getattr(report, 'resolution', None),
+                "created_at": report.created_at,
+                "updated_at": report.updated_at,
+                "resolved_at": report.resolved_at,
+                # Add user names as expected by schema
+                "reporter_name": reporter.first_name if reporter else "Unknown User",
+                "reported_user_name": reported_user.first_name if reported_user else "Unknown User",
+                "service_title": None,  # TODO: Fetch service title if needed
+                "request_title": None   # TODO: Fetch request title if needed
+            }
+            detailed_reports.append(report_dict)
+        
+        logger.info(f"Moderator {current_moderator.moderator_id} accessed {len(detailed_reports)} reports with user details")
+        print(detailed_reports)
+        print("Hello")
+        return detailed_reports
+        
+    except Exception as e:
+        logger.error(f"Error fetching reports for moderator: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An error occurred while fetching reports"
+        )
+
+@router.put("/reports/{report_id}", response_model=ReportResponse)
+def update_report_for_moderator(
+    report_id: int,
+    status_update: str,
+    admin_notes: Optional[str] = None,
+    current_moderator: Moderator = Depends(get_current_moderator),
+    db: Session = Depends(get_db)
+):
+    """
+    Update report status as moderator
+    """
+    try:
+        report = db.query(Report).filter(Report.report_id == report_id).first()
+        
+        if not report:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Report not found"
+            )
+        
+        # Update report
+        report.status = status_update
+        if admin_notes:
+            report.admin_notes = admin_notes
+        
+        # Set resolved_at when status changes to resolved or dismissed
+        if status_update in ['resolved', 'dismissed'] and not report.resolved_at:
+            report.resolved_at = datetime.utcnow()
+        
+        db.commit()
+        db.refresh(report)
+        
+        logger.info(f"Moderator {current_moderator.moderator_id} updated report {report_id} to {status_update}")
+        
+        return report
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error updating report for moderator: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An error occurred while updating report"
+        )
+
+@router.get("/reports/stats", response_model=ReportSummary)
+def get_report_stats_for_moderator(
+    current_moderator: Moderator = Depends(get_current_moderator),
+    db: Session = Depends(get_db)
+):
+    """
+    Get report statistics for moderator
+    """
+    try:
+        total_reports = db.query(Report).count()
+        pending_reports = db.query(Report).filter(Report.status == 'pending').count()
+        under_review_reports = db.query(Report).filter(Report.status == 'under_review').count()
+        resolved_reports = db.query(Report).filter(Report.status == 'resolved').count()
+        dismissed_reports = db.query(Report).filter(Report.status == 'dismissed').count()
+        escalated_reports = db.query(Report).filter(Report.status == 'escalated').count()
+        
+        return ReportSummary(
+            total_reports=total_reports,
+            pending_reports=pending_reports,
+            under_review_reports=under_review_reports,
+            resolved_reports=resolved_reports,
+            dismissed_reports=dismissed_reports,
+            escalated_reports=escalated_reports
+        )
+        
+    except Exception as e:
+        logger.error(f"Error fetching report stats for moderator: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An error occurred while fetching report statistics"
         )

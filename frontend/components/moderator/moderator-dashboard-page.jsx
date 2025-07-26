@@ -102,10 +102,49 @@ export default function ModeratorDashboardPage() {
           getModeratorActivity(moderatorUser.accessToken, 5)
         ])
         
+        console.log("Loaded moderator data:", { statsData, reportsData, contentData, activityData })
+        
+        // Ensure all reports have proper IDs
+        const validReports = (Array.isArray(reportsData) ? reportsData : []).map((report, index) => ({
+          ...report,
+          id: report.id || report.report_id || `report-${index}`,
+          type: report.report_type || report.type || "Unknown",
+          severity: report.severity || "Medium",
+          reportedUser: report.reported_user_name || report.reported_user?.username || "Unknown User",
+          reportedBy: report.reporter_name || report.reporter?.username || "System",
+          reason: report.category || "No reason specified",
+          description: report.description || "No description provided",
+          timestamp: report.created_at || new Date().toISOString(),
+          status: report.status || "pending"
+        }))
+
+        // Ensure all content has proper IDs
+        const validContent = (Array.isArray(contentData) ? contentData : []).map((item, index) => ({
+          ...item,
+          id: item.id || `content-${index}`,
+          type: item.type || "Content",
+          title: item.title || "Unknown Content",
+          author: item.author || "Unknown User",
+          flaggedBy: item.flaggedBy || "System",
+          reason: item.reason || "No reason specified",
+          timestamp: item.timestamp || new Date().toISOString(),
+          status: item.status || "pending"
+        }))
+
+        // Ensure all activities have proper IDs
+        const validActivity = (Array.isArray(activityData) ? activityData : []).map((act, index) => ({
+          ...act,
+          id: act.id || `activity-${index}`,
+          action: act.action || "Unknown Action",
+          description: act.description || "No description",
+          timestamp: act.timestamp || new Date().toISOString(),
+          moderator: act.moderator || "Unknown Moderator"
+        }))
+        
         setStats(statsData)
-        setPendingReports(reportsData)
-        setFlaggedContent(contentData)
-        setRecentActivity(Array.isArray(activityData) ? activityData : [])
+        setPendingReports(validReports)
+        setFlaggedContent(validContent)
+        setRecentActivity(validActivity)
 
       } catch (error) {
         console.error("Error loading moderator stats:", error)
@@ -362,7 +401,7 @@ export default function ModeratorDashboardPage() {
                               {report.description}
                             </p>
                             <p className="text-xs text-gray-500 mt-2">
-                              Submitted: {new Date(report.submittedAt).toLocaleString()}
+                              Submitted: {new Date(report.created_at).toLocaleString()}
                             </p>
                           </div>
                         </div>

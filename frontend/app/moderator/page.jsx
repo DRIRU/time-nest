@@ -1,5 +1,5 @@
 import ModeratorDashboardPage from "@/components/moderator/moderator-dashboard-page"
 
-export default function ModeratorDashboard() {
+export default function ModeratorHome() {
   return <ModeratorDashboardPage />
 }

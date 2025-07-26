@@ -53,7 +53,7 @@ export default function ModeratorLoginPage() {
         }))
         
         // Redirect to moderator dashboard
-        router.push("/moderator/dashboard")
+        router.push("/moderator")
       } else {
         throw new Error("Login failed - no access token received")
       }

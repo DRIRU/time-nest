@@ -162,35 +162,96 @@ export async function updateModeratorApplicationStatus(requestId, newStatus, tok
  * @returns {Promise<Array>} Array of pending reports
  */
 export async function getPendingReports(tokenOverride = null) {
-  // Mock implementation - replace with real API call
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      resolve([
-        {
-          id: 1,
-          type: "User Report",
-          reporter: "John Doe",
-          reported: "Jane Smith",
-          reason: "Inappropriate behavior",
-          description: "User was being rude in chat messages",
-          timestamp: "2025-07-26T10:30:00Z",
-          status: "pending",
-          priority: "medium"
-        },
-        {
-          id: 2,
-          type: "Content Report",
-          reporter: "Alice Johnson",
-          reported: "Service Provider XYZ",
-          reason: "Misleading service description",
-          description: "The service description doesn't match what was delivered",
-          timestamp: "2025-07-26T09:15:00Z",
-          status: "pending",
-          priority: "high"
-        }
-      ]);
-    }, 500);
-  });
+  try {
+    // Use provided token or get from localStorage
+    let token = tokenOverride;
+    
+    if (!token) {
+      const moderatorData = getStoredModeratorData();
+      token = moderatorData?.accessToken;
+    }
+
+    if (!token) {
+      throw new Error("Authentication token not found. Please log in as moderator.");
+    }
+
+    const response = await fetch("http://localhost:8000/api/v1/reports?status_filter=pending", {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      }
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      let errorMessage = "Failed to fetch pending reports";
+      
+      if (errorData.detail) {
+        errorMessage = errorData.detail;
+      }
+      
+      throw new Error(errorMessage);
+    }
+
+    const result = await response.json();
+    return Array.isArray(result) ? result : [];
+  } catch (error) {
+    console.error("Error fetching pending reports:", error);
+    throw error;
+  }
+}
+
+/**
+ * Get all reports with optional filtering
+ * @param {Object} filters Optional filters {status, type, category, limit, offset}
+ * @returns {Promise<Array>} Array of reports
+ */
+export async function getAllReports(filters = {}) {
+  try {
+    const moderatorData = getStoredModeratorData();
+    const token = moderatorData?.accessToken;
+
+    if (!token) {
+      throw new Error("Authentication token not found. Please log in as moderator.");
+    }
+
+    // Build query parameters
+    const params = new URLSearchParams();
+    if (filters.status) params.append('status_filter', filters.status);
+    if (filters.type) params.append('report_type', filters.type);
+    if (filters.category) params.append('category', filters.category);
+    if (filters.limit) params.append('limit', filters.limit);
+    if (filters.offset) params.append('offset', filters.offset);
+
+    const queryString = params.toString();
+    const url = `http://localhost:8000/api/v1/reports${queryString ? '?' + queryString : ''}`;
+
+    const response = await fetch(url, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      }
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      let errorMessage = "Failed to fetch reports";
+      
+      if (errorData.detail) {
+        errorMessage = errorData.detail;
+      }
+      
+      throw new Error(errorMessage);
+    }
+
+    const result = await response.json();
+    return Array.isArray(result) ? result : [];
+  } catch (error) {
+    console.error("Error fetching reports:", error);
+    throw error;
+  }
 }
 
 /**
@@ -201,18 +262,48 @@ export async function getPendingReports(tokenOverride = null) {
  * @returns {Promise<Object>} Updated report
  */
 export async function updateReportStatus(reportId, status, resolution = "") {
-  // Mock implementation - replace with real API call
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      resolve({
-        id: reportId,
-        status: status,
-        resolution: resolution,
-        resolvedAt: new Date().toISOString(),
-        resolvedBy: "Current Moderator"
-      });
-    }, 300);
-  });
+  try {
+    const moderatorData = getStoredModeratorData();
+    const token = moderatorData?.accessToken;
+
+    if (!token) {
+      throw new Error("Authentication token not found. Please log in as moderator.");
+    }
+
+    const updateData = {
+      status: status
+    };
+
+    if (resolution) {
+      updateData.admin_notes = resolution;
+    }
+
+    const response = await fetch(`http://localhost:8000/api/v1/reports/${reportId}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      },
+      body: JSON.stringify(updateData)
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      let errorMessage = "Failed to update report status";
+      
+      if (errorData.detail) {
+        errorMessage = errorData.detail;
+      }
+      
+      throw new Error(errorMessage);
+    }
+
+    const result = await response.json();
+    return result;
+  } catch (error) {
+    console.error("Error updating report status:", error);
+    throw error;
+  }
 }
 
 /**
@@ -220,34 +311,54 @@ export async function updateReportStatus(reportId, status, resolution = "") {
  * @returns {Promise<Array>} Array of flagged content
  */
 export async function getFlaggedContent() {
-  // Mock implementation - replace with real API call
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      resolve([
-        {
-          id: 1,
-          type: "Service Listing",
-          title: "Quick Home Cleaning",
-          content: "I'll clean your house super fast and cheap!",
-          author: "CleaningPro123",
-          flaggedBy: "Community",
-          reason: "Suspicious pricing",
-          timestamp: "2025-07-26T08:45:00Z",
-          status: "pending"
-        },
-        {
-          id: 2,
-          type: "Comment",
-          content: "This service is terrible, don't trust them!",
-          author: "DisgruntledUser",
-          flaggedBy: "AutoMod",
-          reason: "Potential defamation",
-          timestamp: "2025-07-26T07:20:00Z",
-          status: "pending"
-        }
-      ]);
-    }, 400);
-  });
+  try {
+    const moderatorData = getStoredModeratorData();
+    const token = moderatorData?.accessToken;
+
+    if (!token) {
+      throw new Error("Authentication token not found. Please log in as moderator.");
+    }
+
+    // Get reports about services and requests (flagged content)
+    const response = await fetch("http://localhost:8000/api/v1/reports?report_type=content", {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      }
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      let errorMessage = "Failed to fetch flagged content";
+      
+      if (errorData.detail) {
+        errorMessage = errorData.detail;
+      }
+      
+      throw new Error(errorMessage);
+    }
+
+    const result = await response.json();
+    
+    // Transform reports into flagged content format
+    const flaggedContent = (Array.isArray(result) ? result : []).map(report => ({
+      id: report.report_id,
+      type: report.reported_service_id ? "Service Listing" : "Request",
+      title: report.title || "Content Report",
+      content: report.description,
+      author: report.reported_user?.username || "Unknown User",
+      flaggedBy: report.reporter?.username || "System",
+      reason: report.category,
+      timestamp: report.created_at,
+      status: report.status
+    }));
+
+    return flaggedContent;
+  } catch (error) {
+    console.error("Error fetching flagged content:", error);
+    throw error;
+  }
 }
 
 /**
@@ -258,18 +369,66 @@ export async function getFlaggedContent() {
  * @returns {Promise<Object>} Moderation result
  */
 export async function moderateContent(contentId, action, reason = "") {
-  // Mock implementation - replace with real API call
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      resolve({
-        id: contentId,
-        action: action,
-        reason: reason,
-        moderatedAt: new Date().toISOString(),
-        moderatedBy: "Current Moderator"
-      });
-    }, 300);
-  });
+  try {
+    const moderatorData = getStoredModeratorData();
+    const token = moderatorData?.accessToken;
+
+    if (!token) {
+      throw new Error("Authentication token not found. Please log in as moderator.");
+    }
+
+    // Map action to report status
+    let reportStatus;
+    switch (action.toLowerCase()) {
+      case 'approve':
+        reportStatus = 'resolved';
+        break;
+      case 'reject':
+      case 'hide':
+        reportStatus = 'resolved';
+        break;
+      default:
+        reportStatus = 'under_review';
+    }
+
+    const updateData = {
+      status: reportStatus,
+      admin_notes: reason || `Content ${action}ed by moderator`
+    };
+
+    const response = await fetch(`http://localhost:8000/api/v1/reports/${contentId}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      },
+      body: JSON.stringify(updateData)
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      let errorMessage = "Failed to moderate content";
+      
+      if (errorData.detail) {
+        errorMessage = errorData.detail;
+      }
+      
+      throw new Error(errorMessage);
+    }
+
+    const result = await response.json();
+    return {
+      id: contentId,
+      action: action,
+      reason: reason,
+      moderatedAt: new Date().toISOString(),
+      moderatedBy: moderatorData.email,
+      result: result
+    };
+  } catch (error) {
+    console.error("Error moderating content:", error);
+    throw error;
+  }
 }
 
 /**
@@ -277,63 +436,130 @@ export async function moderateContent(contentId, action, reason = "") {
  * @returns {Promise<Object>} Moderator stats
  */
 export async function getModeratorStats() {
-  // Mock implementation - replace with real API call
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      resolve({
-        reports: {
-          pending: 5,
-          resolved: 23,
-          total: 28
-        },
-        content: {
-          flagged: 8,
-          approved: 45,
-          rejected: 12
-        },
-        users: {
-          warned: 7,
-          suspended: 2,
-          banned: 1
-        },
-        activity: {
-          actionsToday: 12,
-          averageResponseTime: "2.5 hours"
-        }
-      });
-    }, 300);
-  });
+  try {
+    const moderatorData = getStoredModeratorData();
+    const token = moderatorData?.accessToken;
+
+    if (!token) {
+      throw new Error("Authentication token not found. Please log in as moderator.");
+    }
+
+    // Get report summary statistics
+    const reportsResponse = await fetch("http://localhost:8000/api/v1/reports/stats/summary", {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      }
+    });
+
+    let reportsStats = {
+      pending: 0,
+      resolved: 0,
+      total: 0
+    };
+
+    if (reportsResponse.ok) {
+      const reportsData = await reportsResponse.json();
+      reportsStats = {
+        pending: reportsData.pending_reports || 0,
+        resolved: reportsData.resolved_reports || 0,
+        total: reportsData.total_reports || 0
+      };
+    }
+
+    // For now, return calculated stats from reports and some mock data for other metrics
+    // TODO: Implement actual user and content statistics endpoints
+    return {
+      reports: reportsStats,
+      content: {
+        flagged: reportsStats.pending,
+        approved: Math.floor(reportsStats.resolved * 0.7),
+        rejected: Math.floor(reportsStats.resolved * 0.3)
+      },
+      users: {
+        warned: 0, // TODO: Implement user warnings system
+        suspended: 0, // TODO: Implement user suspension system
+        banned: 0 // TODO: Implement user ban system
+      },
+      activity: {
+        actionsToday: 0, // TODO: Implement activity tracking
+        averageResponseTime: "N/A" // TODO: Calculate average response time
+      }
+    };
+  } catch (error) {
+    console.error("Error fetching moderator stats:", error);
+    // Return default stats on error
+    return {
+      reports: {
+        pending: 0,
+        resolved: 0,
+        total: 0
+      },
+      content: {
+        flagged: 0,
+        approved: 0,
+        rejected: 0
+      },
+      users: {
+        warned: 0,
+        suspended: 0,
+        banned: 0
+      },
+      activity: {
+        actionsToday: 0,
+        averageResponseTime: "N/A"
+      }
+    };
+  }
 }
 
 /**
  * Get moderator activity log
  * @param {string} dateFilter Date filter (today, week, month)
- * @returns {Promise<Object>} Activity data
+ * @returns {Promise<Array>} Array of activity objects
  */
 export async function getModeratorActivity(dateFilter = "today") {
-  // Mock implementation - replace with real API call
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      resolve({
-        activities: [
-          {
-            id: 1,
-            action: "Report Resolved",
-            description: "Resolved user behavior complaint",
-            timestamp: "2025-07-26T14:30:00Z",
-            moderator: "Current User"
-          },
-          {
-            id: 2,
-            action: "Content Approved",
-            description: "Approved service posting after review",
-            timestamp: "2025-07-25T13:15:00Z",
-            moderator: "Current User"
-          }
-        ]
-      });
-    }, 300);
-  });
+  try {
+    const moderatorData = getStoredModeratorData();
+    const token = moderatorData?.accessToken;
+
+    if (!token) {
+      throw new Error("Authentication token not found. Please log in as moderator.");
+    }
+
+    // Get recent reports resolved by this moderator
+    const limit = dateFilter === "today" ? 5 : dateFilter === "week" ? 20 : 50;
+    const response = await fetch(`http://localhost:8000/api/v1/reports?status_filter=resolved&limit=${limit}`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      }
+    });
+
+    if (!response.ok) {
+      console.warn("Could not fetch moderator activities, using empty array");
+      return [];
+    }
+
+    const reports = await response.json();
+    
+    // Transform reports into activity log format
+    const activities = (Array.isArray(reports) ? reports : []).map((report, index) => ({
+      id: report.report_id,
+      action: "Report Resolved",
+      description: `Resolved ${report.report_type} report: ${report.title || report.category}`,
+      timestamp: report.resolved_at || report.updated_at || report.created_at,
+      moderator: moderatorData?.email || "Current User"
+    }));
+
+    return activities;
+  } catch (error) {
+    console.error("Error fetching moderator activity:", error);
+    // Return empty array on error
+    return [];
+  }
 }
 
 // Moderator Authentication Functions
