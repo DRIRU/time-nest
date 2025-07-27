@@ -56,6 +56,23 @@ export default function ServiceDetailPage({ initialService = null }) {
   const [bookingError, setBookingError] = useState("")
   const [bookingSuccess, setBookingSuccess] = useState(false)
 
+  // Calculate rating statistics from reviews
+  const calculateRatingStats = () => {
+    if (!service?.reviews || service.reviews.length === 0) {
+      return { averageRating: 0, totalReviews: 0 }
+    }
+    
+    const totalRating = service.reviews.reduce((sum, review) => sum + (review.rating || 0), 0)
+    const averageRating = totalRating / service.reviews.length
+    
+    return {
+      averageRating: Math.round(averageRating * 10) / 10, // Round to 1 decimal place
+      totalReviews: service.reviews.length
+    }
+  }
+
+  const { averageRating, totalReviews } = calculateRatingStats()
+
   useEffect(() => {
     if (initialService) {
       setService(initialService)
@@ -265,7 +282,7 @@ export default function ServiceDetailPage({ initialService = null }) {
                       <div className="flex items-center text-gray-600 dark:text-gray-300">
                         <Star className="h-5 w-5 mr-2 flex-shrink-0 fill-yellow-400 text-yellow-400" />
                         <span>
-                          {service.rating}/5 ({service.totalReviews || 0} reviews)
+                          {averageRating}/5 ({totalReviews} reviews)
                         </span>
                       </div>
                     </div>
@@ -290,7 +307,7 @@ export default function ServiceDetailPage({ initialService = null }) {
                 <Tabs defaultValue="description" className="w-full">
                   <TabsList className="grid w-full grid-cols-3">
                     <TabsTrigger value="description">Description</TabsTrigger>
-                    <TabsTrigger value="skills">Skills & Expertise</TabsTrigger>
+                    <TabsTrigger value="reviews">Rating & Reviews</TabsTrigger>
                     <TabsTrigger value="provider">About Provider</TabsTrigger>
                   </TabsList>
 
@@ -339,32 +356,110 @@ export default function ServiceDetailPage({ initialService = null }) {
                     </div>
                   </TabsContent>
 
-                  <TabsContent value="skills" className="mt-6">
+                  <TabsContent value="reviews" className="mt-6">
                     <div className="space-y-6">
-                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Skills & Expertise</h3>
-
-                      {service.skills && service.skills.length > 0 ? (
-                        <div className="space-y-4">
-                          <div className="flex flex-wrap gap-2">
-                            {service.skills.map((skill, index) => (
-                              <Badge key={index} variant="secondary" className="text-sm">
-                                {skill}
-                              </Badge>
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Rating & Reviews</h3>
+                        <div className="flex items-center gap-2">
+                          <div className="flex items-center">
+                            {[1, 2, 3, 4, 5].map((star) => (
+                              <Star
+                                key={star}
+                                className={`h-5 w-5 ${
+                                  star <= Math.floor(averageRating)
+                                    ? "fill-yellow-400 text-yellow-400"
+                                    : "text-gray-300"
+                                }`}
+                              />
                             ))}
                           </div>
+                          <span className="text-lg font-semibold text-gray-900 dark:text-white">
+                            {averageRating}/5
+                          </span>
+                          <span className="text-sm text-gray-500">
+                            ({totalReviews} reviews)
+                          </span>
                         </div>
-                      ) : (
-                        <p className="text-gray-600 dark:text-gray-300">No specific skills listed for this service.</p>
-                      )}
+                      </div>
 
+                      {/* Rating Distribution */}
                       <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
-                        <h4 className="font-medium mb-2 text-gray-900 dark:text-white">Specializations:</h4>
-                        <ul className="space-y-1 text-sm text-gray-600 dark:text-gray-300">
-                          <li>• Expert in {service.category.toLowerCase()}</li>
-                          <li>• Years of professional experience</li>
-                          <li>• Proven track record</li>
-                          <li>• Client satisfaction focused</li>
-                        </ul>
+                        <h4 className="font-medium mb-3 text-gray-900 dark:text-white">Rating Overview</h4>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="text-center">
+                            <div className="text-3xl font-bold text-blue-600">{averageRating}</div>
+                            <div className="text-sm text-gray-500">Average Rating</div>
+                          </div>
+                          <div className="text-center">
+                            <div className="text-3xl font-bold text-blue-600">{totalReviews}</div>
+                            <div className="text-sm text-gray-500">Total Reviews</div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Reviews List */}
+                      <div className="space-y-4">
+                        <h4 className="font-medium text-gray-900 dark:text-white">Recent Reviews</h4>
+                        
+                        {service.reviews && service.reviews.length > 0 ? (
+                          <div className="space-y-4">
+                            {service.reviews.slice(0, 5).map((review, index) => (
+                              <div key={index} className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+                                <div className="flex items-start justify-between mb-2">
+                                  <div className="flex items-center gap-3">
+                                    <Avatar className="h-8 w-8">
+                                      <AvatarFallback className="text-sm">
+                                        {(review.rater_name?.charAt(0) || review.reviewer_name?.charAt(0) || review.user_name?.charAt(0) || "U")}
+                                      </AvatarFallback>
+                                    </Avatar>
+                                    <div>
+                                      <p className="font-medium text-sm text-gray-900 dark:text-white">
+                                        {review.rater_name || review.reviewer_name || review.user_name || "Anonymous User"}
+                                      </p>
+                                      <p className="text-xs text-gray-500">
+                                        {review.created_at ? format(parseISO(review.created_at), "MMM d, yyyy") : "Date not available"}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center">
+                                    {[1, 2, 3, 4, 5].map((star) => (
+                                      <Star
+                                        key={star}
+                                        className={`h-4 w-4 ${
+                                          star <= (review.rating || 0)
+                                            ? "fill-yellow-400 text-yellow-400"
+                                            : "text-gray-300"
+                                        }`}
+                                      />
+                                    ))}
+                                    <span className="ml-1 text-sm font-medium">
+                                      {review.rating || 0}
+                                    </span>
+                                  </div>
+                                </div>
+                                <p className="text-gray-700 dark:text-gray-300 text-sm">
+                                  {review.review || review.comment || review.review_text || "No comment provided."}
+                                </p>
+                              </div>
+                            ))}
+                            
+                            {service.reviews.length > 5 && (
+                              <div className="text-center pt-4">
+                                <Button variant="outline" size="sm">
+                                  View All {service.reviews.length} Reviews
+                                </Button>
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="text-center py-8">
+                            <Star className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                            <h4 className="text-lg font-medium text-gray-900 dark:text-white mb-2">No Reviews Yet</h4>
+                            <p className="text-gray-500 text-sm">
+                              Be the first to book this service and leave a review!
+                            </p>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </TabsContent>
@@ -391,11 +486,11 @@ export default function ServiceDetailPage({ initialService = null }) {
 
                       <div className="grid grid-cols-3 gap-4">
                         <div className="text-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                          <p className="text-2xl font-bold text-blue-600">{service.rating}</p>
+                          <p className="text-2xl font-bold text-blue-600">{averageRating}</p>
                           <p className="text-sm text-gray-600 dark:text-gray-300">Average Rating</p>
                         </div>
                         <div className="text-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                          <p className="text-2xl font-bold text-blue-600">{service.totalReviews || 0}</p>
+                          <p className="text-2xl font-bold text-blue-600">{totalReviews}</p>
                           <p className="text-sm text-gray-600 dark:text-gray-300">Reviews</p>
                         </div>
                         <div className="text-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
@@ -473,11 +568,11 @@ export default function ServiceDetailPage({ initialService = null }) {
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-gray-600 dark:text-gray-300">Rating:</span>
-                  <span className="font-medium">{service.rating}/5</span>
+                  <span className="font-medium">{averageRating}/5</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-gray-600 dark:text-gray-300">Reviews:</span>
-                  <span className="font-medium">{service.totalReviews || 0}</span>
+                  <span className="font-medium">{totalReviews}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-gray-600 dark:text-gray-300">Location:</span>
@@ -492,7 +587,7 @@ export default function ServiceDetailPage({ initialService = null }) {
             </Card>
 
             {/* Safety Tips */}
-            <Card className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+            {/* <Card className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-gray-900 dark:text-white">
                   <Shield className="h-5 w-5" />
@@ -505,7 +600,7 @@ export default function ServiceDetailPage({ initialService = null }) {
                 <p>• Check provider ratings and reviews</p>
                 <p>• Report any suspicious activity</p>
               </CardContent>
-            </Card>
+            </Card> */}
           </div>
         </div>
       </div>

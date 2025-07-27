@@ -205,7 +205,7 @@ export default function ProfilePage() {
                   {user.role === "service_provider" && (
                     <div className="flex items-center justify-center mt-3">
                       <Star className="h-4 w-4 text-yellow-400 mr-1" />
-                      <span className="font-medium">{user.profile.rating}</span>
+                      <span className="font-medium">{user.rating}</span>
                       <span className="text-gray-600 dark:text-gray-400 ml-1">
                         ({user.profile.reviewCount} reviews)
                       </span>
@@ -219,7 +219,8 @@ export default function ProfilePage() {
                   <div className="flex items-center text-sm">
                     <Calendar className="h-4 w-4 text-gray-400 mr-3" />
                     <span className="text-gray-600 dark:text-gray-400">
-                      Joined {user.joined_date ? new Date(user.joined_date).toLocaleDateString() : 'Recently'}
+                      {console.log("User joined date:", user.joined_date)}
+                      Joined {user.joined_date ? user.joined_date : 'Recently'}
                     </span>
                   </div>
 

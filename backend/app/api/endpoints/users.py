@@ -408,12 +408,36 @@ def get_all_users(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)
 def get_user_profile(current_user: User = Depends(get_current_user_dependency), db: Session = Depends(get_db)):
     user_profile = db.query(User).filter(User.email == current_user.email).first()
     name = user_profile.first_name + " " + user_profile.last_name
+    
+    # Calculate real-time statistics from database
+    from ...db.models.serviceBooking import ServiceBooking
+    from ...db.models.service import Service
+    
+    # Count services completed (as a provider)
+    services_completed = db.query(ServiceBooking).join(Service).filter(
+        Service.creator_id == user_profile.user_id,
+        ServiceBooking.status == 'completed'
+    ).count()
+    
+    # Count services availed (as a customer)
+    services_availed = db.query(ServiceBooking).filter(
+        ServiceBooking.user_id == user_profile.user_id,
+        ServiceBooking.status == 'completed'
+    ).count()
+    
     profile_data_response = {
+        "user_id": user_profile.user_id,
         "name": name,
         "email": user_profile.email,
         "phone_number": user_profile.phone_number if user_profile.phone_number else "Not provided",
         "joined_date": user_profile.date_joined.strftime("%d-%m-%Y") if user_profile.date_joined else "Not provided",
         "location": user_profile.location if user_profile.location else "Not provided",
+        "status": user_profile.status if user_profile.status else "Active",
+        "total_credits_earned": float(user_profile.total_credits_earned) if user_profile.total_credits_earned else 0.0,
+        "total_credits_spent": float(user_profile.total_credits_spent) if user_profile.total_credits_spent else 0.0,
+        "time_credits": float(user_profile.time_credits) if user_profile.time_credits else 0.0,
+        "services_completed_count": services_completed,  # Use calculated value
+        "services_availed_count": services_availed,      # Use calculated value
     }
     print(profile_data_response)
     return profile_data_response

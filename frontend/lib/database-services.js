@@ -77,8 +77,30 @@ export async function getServiceById(id) {
     }
 
     const data = await response.json();
-    // The backend directly returns the service object, not wrapped in a 'service' property
-    return transformBackendServiceToFrontend(data);
+    
+    // Also fetch reviews for this service
+    let reviews = [];
+    try {
+      const reviewsResponse = await fetch(`http://localhost:8000/api/v1/ratings/service/${id}`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+      
+      if (reviewsResponse.ok) {
+        const reviewsData = await reviewsResponse.json();
+        reviews = reviewsData.ratings || [];
+      }
+    } catch (reviewsError) {
+      console.warn("Error fetching reviews:", reviewsError);
+    }
+    
+    // Transform the service data and add reviews
+    const transformedService = transformBackendServiceToFrontend(data);
+    transformedService.reviews = reviews;
+    
+    return transformedService;
   } catch (error) {
     console.error(`Error fetching service with ID ${id}:`, error);
     return null;

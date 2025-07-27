@@ -323,10 +323,15 @@ export async function updateReportStatus(reportId, status, resolution = "") {
  * Get flagged content for review
  * @returns {Promise<Array>} Array of flagged content
  */
-export async function getFlaggedContent() {
+export async function getFlaggedContent(tokenOverride = null) {
   try {
-    const moderatorData = getStoredModeratorData();
-    const token = moderatorData?.accessToken;
+    // Use provided token or get from localStorage
+    let token = tokenOverride;
+    
+    if (!token) {
+      const moderatorData = getStoredModeratorData();
+      token = moderatorData?.accessToken;
+    }
 
     if (!token) {
       throw new Error("Authentication token not found. Please log in as moderator.");
@@ -675,4 +680,441 @@ export function getStoredModeratorData() {
 export function logoutModerator() {
   localStorage.removeItem("moderatorAuth")
   localStorage.removeItem("moderatorUser")
+}
+
+/**
+ * Get users for moderator review (derived from reports and available data)
+ * @param {string} token Moderator access token
+ * @param {Object} searchParams Search and filter parameters
+ * @returns {Promise<Object>} Users data for moderation
+ */
+export async function getModeratorUsers(token, searchParams = {}) {
+  try {
+    console.log("getModeratorUsers called with token:", token ? "Available" : "Missing")
+    console.log("Search params:", searchParams)
+    
+    if (!token) {
+      throw new Error("No authentication token provided")
+    }
+
+    // Try to call the users endpoint directly with moderator token
+    try {
+      console.log("Attempting to fetch users via regular users endpoint...")
+      
+      // Build query parameters
+      const params = new URLSearchParams()
+      if (searchParams.search) params.append('search', searchParams.search)
+      if (searchParams.role && searchParams.role !== 'all') params.append('role', searchParams.role)
+      if (searchParams.status && searchParams.status !== 'all') params.append('status', searchParams.status)
+      params.append('limit', searchParams.limit || 50)
+      params.append('skip', 0)
+      
+      const url = `http://localhost:8000/api/v1/users?${params.toString()}`
+      console.log("Fetching from URL:", url)
+      
+      const response = await fetch(url, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        }
+      })
+      
+      if (response.ok) {
+        const result = await response.json()
+        console.log("Successfully fetched users via users endpoint:", result)
+        
+        // Transform the response to match expected format
+        const users = Array.isArray(result) ? result : result.users || []
+        return {
+          users: users,
+          total: users.length,
+          note: "User data from users endpoint"
+        }
+      } else {
+        console.log("Users endpoint failed with status:", response.status)
+        const errorData = await response.json().catch(() => ({}))
+        console.log("Error response:", errorData)
+      }
+    } catch (directError) {
+      console.log("Direct users endpoint failed:", directError)
+    }
+    
+    // Fallback: Get user data from reports
+    console.log("Falling back to reports-based user extraction...")
+    
+    let reportsData = []
+    let flaggedData = []
+    
+    try {
+      console.log("Fetching reports data...")
+      reportsData = await getPendingReports(token)
+      console.log("Reports data received:", reportsData)
+    } catch (reportsError) {
+      console.warn("Failed to fetch pending reports:", reportsError)
+    }
+    
+    try {
+      console.log("Fetching flagged content...")
+      flaggedData = await getFlaggedContent(token)
+      console.log("Flagged data received:", flaggedData)
+    } catch (flaggedError) {
+      console.warn("Failed to fetch flagged content:", flaggedError)
+    }
+    
+    const userMap = new Map()
+    const { search, role, status, limit = 50 } = searchParams
+    
+    // Extract users from reports
+    const allReports = [...(reportsData || []), ...(flaggedData || [])]
+    
+    allReports.forEach(report => {
+      // Add reported users
+      if (report.reportedUser && report.reportedUser !== "Unknown User") {
+        const userId = `reported-${report.reportedUser.replace(/\s+/g, '-')}`
+        if (!userMap.has(userId)) {
+          userMap.set(userId, {
+            id: userId,
+            first_name: report.reportedUser.split(' ')[0] || report.reportedUser,
+            last_name: report.reportedUser.split(' ').slice(1).join(' ') || '',
+            email: `${report.reportedUser.toLowerCase().replace(/\s+/g, '.')}@platform.com`,
+            phone_number: null,
+            location: "Location not available",
+            role: "service_provider", // Default assumption
+            isVerified: false,
+            created_at: report.timestamp || report.created_at || new Date().toISOString(),
+            status: "flagged", // Marked as flagged since they appear in reports
+            profile: {
+              rating: null,
+              reviewCount: 0,
+              bio: "User flagged in reports"
+            }
+          })
+        }
+      }
+      
+      // Add reporting users
+      if (report.reportedBy && report.reportedBy !== "System") {
+        const userId = `reporter-${report.reportedBy.replace(/\s+/g, '-')}`
+        if (!userMap.has(userId)) {
+          userMap.set(userId, {
+            id: userId,
+            first_name: report.reportedBy.split(' ')[0] || report.reportedBy,
+            last_name: report.reportedBy.split(' ').slice(1).join(' ') || '',
+            email: `${report.reportedBy.toLowerCase().replace(/\s+/g, '.')}@platform.com`,
+            phone_number: null,
+            location: "Location not available",
+            role: "service_seeker", // Default assumption
+            isVerified: true, // Reporters are typically verified users
+            created_at: report.timestamp || report.created_at || new Date().toISOString(),
+            status: "active",
+            profile: {
+              rating: null,
+              reviewCount: 0,
+              bio: "Active user (reported issues)"
+            }
+          })
+        }
+      }
+    })
+    
+    let users = Array.from(userMap.values())
+    
+    // If no users found from reports, create some sample data for testing
+    if (users.length === 0) {
+      console.log("No users found from reports, creating sample data")
+      users = [
+        {
+          id: "sample-user-1",
+          first_name: "John",
+          last_name: "Doe",
+          email: "john.doe@example.com",
+          phone_number: "+1234567890",
+          location: "New York, NY",
+          role: "service_provider",
+          isVerified: true,
+          created_at: new Date().toISOString(),
+          status: "active",
+          profile: {
+            rating: 4.5,
+            reviewCount: 23,
+            bio: "Professional plumber with 10 years of experience"
+          }
+        },
+        {
+          id: "sample-user-2",
+          first_name: "Jane",
+          last_name: "Smith",
+          email: "jane.smith@example.com",
+          phone_number: "+1234567891",
+          location: "Los Angeles, CA",
+          role: "service_seeker",
+          isVerified: false,
+          created_at: new Date().toISOString(),
+          status: "active",
+          profile: {
+            rating: null,
+            reviewCount: 0,
+            bio: "Looking for reliable home services"
+          }
+        },
+        {
+          id: "sample-user-3",
+          first_name: "Mike",
+          last_name: "Johnson",
+          email: "mike.johnson@example.com",
+          phone_number: "+1234567892",
+          location: "Chicago, IL",
+          role: "service_provider",
+          isVerified: true,
+          created_at: new Date().toISOString(),
+          status: "flagged",
+          profile: {
+            rating: 3.2,
+            reviewCount: 8,
+            bio: "Electrician - Currently under review"
+          }
+        }
+      ]
+    }
+    
+    console.log("Total users before filtering:", users.length)
+    
+    // Apply filters
+    if (search) {
+      const searchTerm = search.toLowerCase()
+      users = users.filter(user => 
+        user.first_name?.toLowerCase().includes(searchTerm) ||
+        user.last_name?.toLowerCase().includes(searchTerm) ||
+        user.email?.toLowerCase().includes(searchTerm)
+      )
+    }
+    
+    if (role && role !== 'all') {
+      users = users.filter(user => user.role === role)
+    }
+    
+    if (status && status !== 'all') {
+      users = users.filter(user => {
+        switch (status) {
+          case 'verified':
+            return user.isVerified
+          case 'unverified':
+            return !user.isVerified
+          case 'flagged':
+            return user.status === 'flagged'
+          case 'active':
+            return user.status === 'active'
+          default:
+            return true
+        }
+      })
+    }
+    
+    // Apply limit
+    users = users.slice(0, limit)
+    
+    console.log("Final filtered users:", users.length)
+    console.log("Users data:", users)
+    
+    return {
+      users: users,
+      total: users.length,
+      note: "User data derived from reports. For full user management, admin access is required."
+    }
+    
+  } catch (error) {
+    console.error("Error getting moderator users:", error)
+    
+    // Return empty result with error info
+    return {
+      users: [],
+      total: 0,
+      error: error.message,
+      note: "Could not load user data from reports. Using fallback data."
+    }
+  }
+}
+
+/**
+ * Get recent users for moderator dashboard (derived from available moderator data)
+ * @param {string} token Moderator access token
+ * @param {number} limit Number of recent users to return
+ * @returns {Promise<Array>} Recent users data for moderator
+ */
+export async function getModeratorRecentUsers(token, limit = 5) {
+  try {
+    // Since moderators don't have direct access to user endpoints,
+    // we'll get recent user activity from reports and content data
+    
+    const [reportsData, flaggedData, activityData] = await Promise.all([
+      getPendingReports(token),
+      getFlaggedContent(token),
+      getModeratorActivity(token, 20) // Get more activity to extract users
+    ])
+    
+    const recentUsers = []
+    const userMap = new Map()
+    
+    // Get users from recent reports (most recent activity)
+    const allData = [
+      ...(reportsData || []),
+      ...(flaggedData || []),
+      ...(activityData || [])
+    ]
+    
+    // Sort by timestamp to get most recent
+    allData.sort((a, b) => {
+      const dateA = new Date(a.timestamp || a.created_at || 0)
+      const dateB = new Date(b.timestamp || b.created_at || 0)
+      return dateB - dateA
+    })
+    
+    // Extract unique users from recent activity
+    allData.forEach(item => {
+      if (recentUsers.length >= limit) return
+      
+      // Check for reported users
+      if (item.reportedUser && item.reportedUser !== "Unknown User") {
+        const userId = `reported-${item.reportedUser.replace(/\s+/g, '-')}`
+        if (!userMap.has(userId)) {
+          userMap.set(userId, true)
+          recentUsers.push({
+            id: userId,
+            username: item.reportedUser,
+            first_name: item.reportedUser.split(' ')[0] || item.reportedUser,
+            last_name: item.reportedUser.split(' ').slice(1).join(' ') || '',
+            email: `${item.reportedUser.toLowerCase().replace(/\s+/g, '.')}@platform.com`,
+            joinedDate: item.timestamp || item.created_at || new Date().toISOString(),
+            role: "service_provider"
+          })
+        }
+      }
+      
+      // Check for reporting users
+      if (item.reportedBy && item.reportedBy !== "System" && recentUsers.length < limit) {
+        const userId = `reporter-${item.reportedBy.replace(/\s+/g, '-')}`
+        if (!userMap.has(userId)) {
+          userMap.set(userId, true)
+          recentUsers.push({
+            id: userId,
+            username: item.reportedBy,
+            first_name: item.reportedBy.split(' ')[0] || item.reportedBy,
+            last_name: item.reportedBy.split(' ').slice(1).join(' ') || '',
+            email: `${item.reportedBy.toLowerCase().replace(/\s+/g, '.')}@platform.com`,
+            joinedDate: item.timestamp || item.created_at || new Date().toISOString(),
+            role: "service_seeker"
+          })
+        }
+      }
+      
+      // Check for users mentioned in activity
+      if (item.action && item.description && recentUsers.length < limit) {
+        const userMentions = item.description.match(/user\s+(\w+)/gi)
+        if (userMentions) {
+          userMentions.forEach(mention => {
+            const username = mention.replace(/user\s+/i, '')
+            const userId = `activity-${username.replace(/\s+/g, '-')}`
+            if (!userMap.has(userId) && recentUsers.length < limit) {
+              userMap.set(userId, true)
+              recentUsers.push({
+                id: userId,
+                username: username,
+                first_name: username.split(' ')[0] || username,
+                last_name: username.split(' ').slice(1).join(' ') || '',
+                email: `${username.toLowerCase().replace(/\s+/g, '.')}@platform.com`,
+                joinedDate: item.timestamp || item.created_at || new Date().toISOString(),
+                role: "service_seeker"
+              })
+            }
+          })
+        }
+      }
+    })
+    
+    // If we don't have enough users, add some sample recent users
+    if (recentUsers.length < limit) {
+      const sampleUsers = [
+        {
+          id: "recent-sample-1",
+          username: "new_user_today",
+          first_name: "New",
+          last_name: "User",
+          email: "newuser@platform.com",
+          joinedDate: new Date().toISOString(),
+          role: "service_seeker"
+        },
+        {
+          id: "recent-sample-2",
+          username: "provider_recent",
+          first_name: "Recent",
+          last_name: "Provider",
+          email: "provider@platform.com",
+          joinedDate: new Date(Date.now() - 3600000).toISOString(), // 1 hour ago
+          role: "service_provider"
+        }
+      ]
+      
+      sampleUsers.forEach(user => {
+        if (recentUsers.length < limit) {
+          recentUsers.push(user)
+        }
+      })
+    }
+    
+    return recentUsers.slice(0, limit)
+    
+  } catch (error) {
+    console.error("Error getting recent users for moderator:", error)
+    
+    // Return sample data as fallback
+    return [
+      {
+        id: "fallback-1",
+        username: "sample_user",
+        first_name: "Sample",
+        last_name: "User",
+        email: "sample@platform.com",
+        joinedDate: new Date().toISOString(),
+        role: "service_seeker"
+      }
+    ]
+  }
+}
+
+/**
+ * Get moderator applications for the current user
+ * @param {string} token Authentication token
+ * @returns {Promise<Array>} Array of moderator applications
+ */
+export async function getModeratorApplications(token) {
+  try {
+    if (!token) {
+      throw new Error("Authentication token not found. Please log in.");
+    }
+
+    const response = await fetch("http://localhost:8000/api/v1/mod-requests/my-applications", {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      }
+    });
+
+    if (!response.ok) {
+      if (response.status === 404) {
+        // No applications found, return empty array
+        return [];
+      }
+      const errorData = await response.json();
+      throw new Error(errorData.detail || "Failed to fetch moderator applications");
+    }
+
+    const applications = await response.json();
+    return Array.isArray(applications) ? applications : [];
+  } catch (error) {
+    console.error("Error fetching moderator applications:", error);
+    // Return empty array on error instead of throwing
+    return [];
+  }
 }

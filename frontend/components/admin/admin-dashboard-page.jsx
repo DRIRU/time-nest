@@ -36,7 +36,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { getOverviewStats } from "@/lib/service-requests-data"
 import { getAllModeratorApplications, updateModeratorApplicationStatus } from "@/lib/moderator-data"
 import { getRecentUsersAdmin } from "@/lib/users-data"
-import { getTransactionData, getUserActivityData, getWeeklyReportsData, getReportStats } from "@/lib/reports-data"
+import { getTransactionData, getUserActivityData, getWeeklyReportsData, getReportStats, getServicesBookingsData, getRequestsProposalsData, getSystemHealth } from "@/lib/reports-data"
 import Link from "next/link"
 
 export default function AdminDashboardPage() {
@@ -63,6 +63,16 @@ export default function AdminDashboardPage() {
   const [transactionData, setTransactionData] = useState([])
   const [userActivityData, setUserActivityData] = useState([])
   const [weeklyReportsData, setWeeklyReportsData] = useState([])
+  const [servicesBookingsData, setServicesBookingsData] = useState([])
+  const [requestsProposalsData, setRequestsProposalsData] = useState([])
+  const [systemHealthData, setSystemHealthData] = useState({
+    cpu_usage: 0,
+    memory_usage: 0,
+    disk_usage: 0,
+    database_status: "Unknown",
+    api_response_time: 0,
+    uptime_percent: 0
+  })
   const [reportStats, setReportStats] = useState({
     totalTransactions: 0,
     totalReports: 0,
@@ -90,6 +100,18 @@ export default function AdminDashboardPage() {
       setAdminUser(JSON.parse(adminUserData))
     }
   }, [router]);
+
+  // Set up auto-refresh for system health data
+  useEffect(() => {
+    if (!adminUser) return;
+
+    // Refresh system health every 30 seconds
+    const interval = setInterval(() => {
+      refreshSystemHealth();
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, [adminUser]);
 
   // Separate useEffect for loading data that depends on adminUser being set
   useEffect(() => {
@@ -181,17 +203,23 @@ export default function AdminDashboardPage() {
 
         // Fetch report data
         try {
-          const [transactionData, activityData, weeklyData, reportStatsData] = await Promise.all([
+          const [transactionData, activityData, weeklyData, servicesBookings, requestsProposals, reportStatsData, systemHealth] = await Promise.all([
             getTransactionData(adminUser.accessToken),
             getUserActivityData(adminUser.accessToken),
             getWeeklyReportsData(adminUser.accessToken),
-            getReportStats(adminUser.accessToken)
+            getServicesBookingsData(adminUser.accessToken),
+            getRequestsProposalsData(adminUser.accessToken),
+            getReportStats(adminUser.accessToken),
+            getSystemHealth(adminUser.accessToken)
           ]);
           
           setTransactionData(transactionData);
           setUserActivityData(activityData);
           setWeeklyReportsData(weeklyData);
+          setServicesBookingsData(servicesBookings);
+          setRequestsProposalsData(requestsProposals);
           setReportStats(reportStatsData);
+          setSystemHealthData(systemHealth);
         } catch (error) {
           console.error("Error fetching report data:", error);
           // Keep default empty states
@@ -212,21 +240,37 @@ export default function AdminDashboardPage() {
     
     setIsLoadingReports(true);
     try {
-      const [transactionData, activityData, weeklyData, reportStatsData] = await Promise.all([
+      const [transactionData, activityData, weeklyData, servicesBookings, requestsProposals, reportStatsData] = await Promise.all([
         getTransactionData(adminUser.accessToken, null, startDate, endDate),
         getUserActivityData(adminUser.accessToken, null, startDate, endDate),
         getWeeklyReportsData(adminUser.accessToken, null, startDate, endDate),
+        getServicesBookingsData(adminUser.accessToken, null, startDate, endDate),
+        getRequestsProposalsData(adminUser.accessToken, null, startDate, endDate),
         getReportStats(adminUser.accessToken, null, startDate, endDate)
       ]);
       
       setTransactionData(transactionData);
       setUserActivityData(activityData);
       setWeeklyReportsData(weeklyData);
+      setServicesBookingsData(servicesBookings);
+      setRequestsProposalsData(requestsProposals);
       setReportStats(reportStatsData);
     } catch (error) {
       console.error("Error fetching report data with date range:", error);
     } finally {
       setIsLoadingReports(false);
+    }
+  };
+
+  // Function to refresh system health data
+  const refreshSystemHealth = async () => {
+    if (!adminUser) return;
+    
+    try {
+      const systemHealth = await getSystemHealth(adminUser.accessToken);
+      setSystemHealthData(systemHealth);
+    } catch (error) {
+      console.error("Error refreshing system health:", error);
     }
   };
 
@@ -440,12 +484,38 @@ export default function AdminDashboardPage() {
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-gray-600 dark:text-gray-400">System Uptime</span>
                     <Badge variant="secondary" className="bg-green-100 text-green-800">
-                      {stats.platform.systemUptime}
+                      {systemHealthData.uptime_percent}%
+                    </Badge>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600 dark:text-gray-400">Database Status</span>
+                    <Badge 
+                      variant="secondary" 
+                      className={
+                        systemHealthData.database_status === "Connected" 
+                          ? "bg-green-100 text-green-800" 
+                          : "bg-red-100 text-red-800"
+                      }
+                    >
+                      {systemHealthData.database_status}
                     </Badge>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-gray-600 dark:text-gray-400">Active Users (24h)</span>
                     <span className="font-medium">{stats.platform.activeUsers}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600 dark:text-gray-400">API Response Time</span>
+                    <Badge 
+                      variant="secondary" 
+                      className={
+                        systemHealthData.api_response_time < 200 
+                          ? "bg-green-100 text-green-800" 
+                          : "bg-yellow-100 text-yellow-800"
+                      }
+                    >
+                      {systemHealthData.api_response_time}ms
+                    </Badge>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-gray-600 dark:text-gray-400">Average Rating</span>
@@ -952,6 +1022,80 @@ export default function AdminDashboardPage() {
                 </CardContent>
               </Card>
 
+              {/* Services vs Bookings */}
+              <Card className="dark:bg-gray-800 dark:border-gray-700">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Clock className="h-5 w-5" />
+                    Services vs Bookings
+                  </CardTitle>
+                  <CardDescription>Services listed vs service bookings made over time</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-80">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={servicesBookingsData}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="month" />
+                        <YAxis />
+                        <Tooltip />
+                        <Line 
+                          type="monotone" 
+                          dataKey="servicesListed" 
+                          stroke="#3b82f6" 
+                          strokeWidth={2}
+                          name="Services Listed"
+                        />
+                        <Line 
+                          type="monotone" 
+                          dataKey="serviceBookings" 
+                          stroke="#10b981" 
+                          strokeWidth={2}
+                          name="Service Bookings"
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Requests vs Proposals */}
+              <Card className="dark:bg-gray-800 dark:border-gray-700">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <MessageSquare className="h-5 w-5" />
+                    Requests vs Proposals
+                  </CardTitle>
+                  <CardDescription>Service requests vs proposals submitted over time</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-80">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={requestsProposalsData}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="month" />
+                        <YAxis />
+                        <Tooltip />
+                        <Line 
+                          type="monotone" 
+                          dataKey="serviceRequests" 
+                          stroke="#8b5cf6" 
+                          strokeWidth={2}
+                          name="Service Requests"
+                        />
+                        <Line 
+                          type="monotone" 
+                          dataKey="proposals" 
+                          stroke="#f59e0b" 
+                          strokeWidth={2}
+                          name="Proposals Submitted"
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                </CardContent>
+              </Card>
+
               {/* System Health Overview */}
               <Card className="dark:bg-gray-800 dark:border-gray-700">
                 <CardHeader>
@@ -959,7 +1103,7 @@ export default function AdminDashboardPage() {
                     <Activity className="h-5 w-5" />
                     System Health
                   </CardTitle>
-                  <CardDescription>Real-time system metrics</CardDescription>
+                  <CardDescription>Real-time system metrics from your server</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="space-y-3">
@@ -967,9 +1111,15 @@ export default function AdminDashboardPage() {
                       <span className="text-sm text-gray-600 dark:text-gray-400">CPU Usage</span>
                       <div className="flex items-center gap-2">
                         <div className="w-24 bg-gray-200 rounded-full h-2">
-                          <div className="bg-green-600 h-2 rounded-full" style={{width: '45%'}}></div>
+                          <div 
+                            className={`h-2 rounded-full ${
+                              systemHealthData.cpu_usage > 80 ? 'bg-red-600' : 
+                              systemHealthData.cpu_usage > 60 ? 'bg-yellow-600' : 'bg-green-600'
+                            }`}
+                            style={{width: `${systemHealthData.cpu_usage}%`}}
+                          ></div>
                         </div>
-                        <span className="text-sm font-medium">45%</span>
+                        <span className="text-sm font-medium">{systemHealthData.cpu_usage}%</span>
                       </div>
                     </div>
                     
@@ -977,34 +1127,96 @@ export default function AdminDashboardPage() {
                       <span className="text-sm text-gray-600 dark:text-gray-400">Memory Usage</span>
                       <div className="flex items-center gap-2">
                         <div className="w-24 bg-gray-200 rounded-full h-2">
-                          <div className="bg-yellow-600 h-2 rounded-full" style={{width: '72%'}}></div>
+                          <div 
+                            className={`h-2 rounded-full ${
+                              systemHealthData.memory_usage > 85 ? 'bg-red-600' : 
+                              systemHealthData.memory_usage > 70 ? 'bg-yellow-600' : 'bg-green-600'
+                            }`}
+                            style={{width: `${systemHealthData.memory_usage}%`}}
+                          ></div>
                         </div>
-                        <span className="text-sm font-medium">72%</span>
+                        <span className="text-sm font-medium">{systemHealthData.memory_usage}%</span>
                       </div>
                     </div>
                     
                     <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600 dark:text-gray-400">Database Load</span>
+                      <span className="text-sm text-gray-600 dark:text-gray-400">Disk Usage</span>
                       <div className="flex items-center gap-2">
                         <div className="w-24 bg-gray-200 rounded-full h-2">
-                          <div className="bg-blue-600 h-2 rounded-full" style={{width: '28%'}}></div>
+                          <div 
+                            className={`h-2 rounded-full ${
+                              systemHealthData.disk_usage > 90 ? 'bg-red-600' : 
+                              systemHealthData.disk_usage > 75 ? 'bg-yellow-600' : 'bg-blue-600'
+                            }`}
+                            style={{width: `${systemHealthData.disk_usage}%`}}
+                          ></div>
                         </div>
-                        <span className="text-sm font-medium">28%</span>
+                        <span className="text-sm font-medium">{systemHealthData.disk_usage}%</span>
                       </div>
                     </div>
 
                     <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600 dark:text-gray-400">Response Time</span>
-                      <Badge variant="secondary" className="bg-green-100 text-green-800">
+                      <span className="text-sm text-gray-600 dark:text-gray-400">Database Status</span>
+                      <Badge 
+                        variant="secondary" 
+                        className={
+                          systemHealthData.database_status === "Connected" 
+                            ? "bg-green-100 text-green-800" 
+                            : "bg-red-100 text-red-800"
+                        }
+                      >
+                        {systemHealthData.database_status === "Connected" ? (
+                          <CheckCircle className="h-3 w-3 mr-1" />
+                        ) : (
+                          <AlertTriangle className="h-3 w-3 mr-1" />
+                        )}
+                        {systemHealthData.database_status}
+                      </Badge>
+                    </div>
+
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-600 dark:text-gray-400">API Response Time</span>
+                      <Badge 
+                        variant="secondary" 
+                        className={
+                          systemHealthData.api_response_time < 200 
+                            ? "bg-green-100 text-green-800" 
+                            : systemHealthData.api_response_time < 500 
+                            ? "bg-yellow-100 text-yellow-800"
+                            : "bg-red-100 text-red-800"
+                        }
+                      >
                         <CheckCircle className="h-3 w-3 mr-1" />
-                        &lt; 200ms
+                        {systemHealthData.api_response_time}ms
+                      </Badge>
+                    </div>
+
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-600 dark:text-gray-400">System Uptime</span>
+                      <Badge variant="secondary" className="bg-blue-100 text-blue-800">
+                        <Activity className="h-3 w-3 mr-1" />
+                        {systemHealthData.uptime_percent}%
                       </Badge>
                     </div>
                   </div>
                   
-                  <Button variant="outline" className="w-full mt-4">
+                  <div className="pt-3 border-t border-gray-200 dark:border-gray-700">
+                    <div className="flex justify-between items-center text-xs text-gray-500 dark:text-gray-400">
+                      <span>Last updated: {new Date(systemHealthData.timestamp).toLocaleTimeString()}</span>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        onClick={refreshSystemHealth}
+                        className="h-6 px-2 text-xs"
+                      >
+                        Refresh
+                      </Button>
+                    </div>
+                  </div>
+                  
+                  <Button variant="outline" className="w-full mt-4" onClick={refreshSystemHealth}>
                     <Settings className="h-4 w-4 mr-2" />
-                    View Detailed Reports
+                    Refresh System Health
                   </Button>
                 </CardContent>
               </Card>

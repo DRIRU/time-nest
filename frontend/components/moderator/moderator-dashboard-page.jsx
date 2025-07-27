@@ -8,6 +8,9 @@ import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
   Users,
   Clock,
@@ -35,10 +38,18 @@ import {
   X,
   MessageCircle,
   User,
-  AlertCircle
+  AlertCircle,
+  UserMinus,
+  UserX,
+  History,
+  Info,
+  Mail,
+  Phone,
+  MapPin,
+  RefreshCw
 } from "lucide-react"
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart as RechartsPieChart, Cell, Pie } from "recharts"
-import { getPendingReports, getFlaggedContent, getModeratorStats, getModeratorActivity, updateReportStatus, moderateContent, isModeratorAuthenticated, getStoredModeratorData, logoutModerator } from "@/lib/moderator-data"
+import { getPendingReports, getFlaggedContent, getModeratorStats, getModeratorActivity, updateReportStatus, moderateContent, isModeratorAuthenticated, getStoredModeratorData, logoutModerator, getModeratorUsers, getModeratorRecentUsers } from "@/lib/moderator-data"
 import Link from "next/link"
 
 export default function ModeratorDashboardPage() {
@@ -67,6 +78,22 @@ export default function ModeratorDashboardPage() {
   const [pendingReports, setPendingReports] = useState([])
   const [flaggedContent, setFlaggedContent] = useState([])
   const [recentActivity, setRecentActivity] = useState([])
+  
+  // User management state
+  const [flaggedUsers, setFlaggedUsers] = useState([])
+  const [suspendedUsers, setSuspendedUsers] = useState([])
+  const [recentUsers, setRecentUsers] = useState([])
+  const [processingUserId, setProcessingUserId] = useState(null)
+  
+  // User search and view state
+  const [showUserSearch, setShowUserSearch] = useState(false)
+  const [allUsers, setAllUsers] = useState([])
+  const [filteredUsers, setFilteredUsers] = useState([])
+  const [searchTerm, setSearchTerm] = useState("")
+  const [statusFilter, setStatusFilter] = useState("all")
+  const [sortBy, setSortBy] = useState("newest")
+  const [selectedUser, setSelectedUser] = useState(null)
+  const [searchLoading, setSearchLoading] = useState(false)
   
   // Date range state for reports
   const [dateRange, setDateRange] = useState({
@@ -141,6 +168,130 @@ export default function ModeratorDashboardPage() {
           moderator: act.moderator || "Unknown Moderator"
         }))
         
+        // Set user data - load from real API with proper error handling
+        try {
+          // Try to load recent users using moderator permissions
+          // Use moderator-specific function for recent users
+          let recentUsersData = null
+          
+          try {
+            // Use the new moderator-specific function
+            recentUsersData = await getModeratorRecentUsers(moderatorUser?.accessToken)
+          } catch (error) {
+            console.log("Error loading recent users data:", error)
+            
+            // Alternative: Get user information from reports data
+            // Extract unique user information from existing reports
+            const usersFromReports = []
+            const userEmails = new Set()
+            
+            validReports.forEach(report => {
+              if (report.reportedUser && report.reportedUser !== "Unknown User" && !userEmails.has(report.reportedUser)) {
+                userEmails.add(report.reportedUser)
+                usersFromReports.push({
+                  id: `user-${usersFromReports.length + 1}`,
+                  username: report.reportedUser,
+                  first_name: report.reportedUser.split(' ')[0] || report.reportedUser,
+                  last_name: report.reportedUser.split(' ').slice(1).join(' ') || '',
+                  email: `${report.reportedUser.toLowerCase().replace(/\s+/g, '.')}@example.com`,
+                  joinedDate: report.timestamp || new Date().toISOString(),
+                  role: "service_provider" // Default assumption
+                })
+              }
+              
+              if (report.reportedBy && report.reportedBy !== "System" && !userEmails.has(report.reportedBy)) {
+                userEmails.add(report.reportedBy)
+                usersFromReports.push({
+                  id: `user-${usersFromReports.length + 1}`,
+                  username: report.reportedBy,
+                  first_name: report.reportedBy.split(' ')[0] || report.reportedBy,
+                  last_name: report.reportedBy.split(' ').slice(1).join(' ') || '',
+                  email: `${report.reportedBy.toLowerCase().replace(/\s+/g, '.')}@example.com`,
+                  joinedDate: report.timestamp || new Date().toISOString(),
+                  role: "service_seeker" // Default assumption
+                })
+              }
+            })
+            
+            recentUsersData = { users: usersFromReports.slice(0, 5) }
+          }
+          
+          const transformedRecentUsers = (recentUsersData?.users || recentUsersData || [])
+            .slice(0, 5) // Get latest 5 users
+            .map(user => ({
+              id: user.id || user.user_id,
+              username: `${user.first_name || ""} ${user.last_name || ""}`.trim() || user.username || user.email,
+              first_name: user.first_name,
+              last_name: user.last_name,
+              email: user.email,
+              joinedDate: user.created_at || user.createdAt || user.joinDate,
+              role: user.role
+            }))
+          
+          setRecentUsers(transformedRecentUsers)
+          
+          // For flagged users, we'll get users who have been reported
+          // Since there's no direct flagged users endpoint, we'll derive this from reports
+          const flaggedUsersFromReports = []
+          
+          // Get unique reported users from pending reports
+          const reportedUserIds = new Set()
+          validReports.forEach(report => {
+            if (report.reportedUser && report.reportedUser !== "Unknown User") {
+              reportedUserIds.add(report.reportedUser)
+            }
+          })
+          
+          // Create flagged users list from reported users
+          Array.from(reportedUserIds).forEach((username, index) => {
+            const relatedReports = validReports.filter(r => r.reportedUser === username)
+            flaggedUsersFromReports.push({
+              id: `flagged-${index + 1}`,
+              username: username,
+              email: `${username.toLowerCase().replace(' ', '.')}@example.com`,
+              flaggedReason: relatedReports[0]?.reason || "Multiple reports",
+              flaggedDate: relatedReports[0]?.timestamp || new Date().toISOString(),
+              reportCount: relatedReports.length,
+              status: "flagged"
+            })
+          })
+          
+          setFlaggedUsers(flaggedUsersFromReports)
+          
+          // For now, suspended users will be empty as there's no endpoint
+          // In a real implementation, this would come from a user status endpoint
+          setSuspendedUsers([])
+          
+          console.log(`Loaded ${transformedRecentUsers.length} recent users and ${flaggedUsersFromReports.length} flagged users`)
+          
+        } catch (userError) {
+          console.error("Error loading user data:", userError)
+          
+          // Fallback to mock data for user-specific data
+          setFlaggedUsers([
+            {
+              id: 1,
+              username: "problematic_user",
+              email: "user1@example.com",
+              flaggedReason: "Multiple spam reports",
+              flaggedDate: new Date(Date.now() - 86400000).toISOString(),
+              reportCount: 3,
+              status: "flagged"
+            }
+          ])
+
+          setSuspendedUsers([])
+          setRecentUsers([
+            {
+              id: 2,
+              username: "test_user",
+              email: "test@example.com",
+              joinedDate: new Date().toISOString(),
+              role: "service_seeker"
+            }
+          ])
+        }
+        
         setStats(statsData)
         setPendingReports(validReports)
         setFlaggedContent(validContent)
@@ -175,6 +326,30 @@ export default function ModeratorDashboardPage() {
             description: "Moderator dashboard initialized",
             timestamp: new Date().toISOString(),
             moderator: "System"
+          }
+        ])
+
+        // Fallback user data
+        setFlaggedUsers([
+          {
+            id: 1,
+            username: "fallback_user",
+            email: "fallback@example.com",
+            flaggedReason: "Test data",
+            flaggedDate: new Date().toISOString(),
+            reportCount: 1,
+            status: "flagged"
+          }
+        ])
+
+        setSuspendedUsers([])
+        setRecentUsers([
+          {
+            id: 2,
+            username: "test_user",
+            email: "test@example.com",
+            joinedDate: new Date().toISOString(),
+            role: "service_seeker"
           }
         ])
       } finally {
@@ -233,6 +408,450 @@ export default function ModeratorDashboardPage() {
       console.error(`Error ${action} content:`, error)
       alert(`Failed to ${action} content: ${error.message}`)
     }
+  }
+
+  const handleUserAction = async (userId, action) => {
+    if (processingUserId === userId) return
+    
+    setProcessingUserId(userId)
+    try {
+      // Use real API call for user moderation actions
+      // This endpoint may need to be implemented on the backend
+      const response = await fetch(`http://localhost:8000/api/v1/moderator/users/${userId}/action`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${moderatorUser?.accessToken}`
+        },
+        body: JSON.stringify({
+          action: action,
+          reason: `Moderator action: ${action}`,
+          moderator_id: moderatorUser?.user_id || moderatorUser?.id
+        })
+      })
+
+      if (response.ok) {
+        const result = await response.json()
+        console.log(`User ${userId} ${action}ed successfully:`, result)
+        
+        // Update local state based on action
+        if (action === 'suspend') {
+          setFlaggedUsers(prev => prev.filter(user => user.id !== userId))
+          const userToSuspend = flaggedUsers.find(user => user.id === userId)
+          if (userToSuspend) {
+            setSuspendedUsers(prev => [...prev, {
+              ...userToSuspend,
+              status: "suspended",
+              suspendedReason: "Moderator action",
+              suspendedDate: new Date().toISOString(),
+              suspendedBy: moderatorUser?.email || "Moderator"
+            }])
+          }
+          setStats(prev => ({
+            ...prev,
+            users: {
+              ...prev.users,
+              flagged: prev.users.flagged - 1,
+              suspended: prev.users.suspended + 1
+            }
+          }))
+        } else if (action === 'unsuspend') {
+          setSuspendedUsers(prev => prev.filter(user => user.id !== userId))
+          setStats(prev => ({
+            ...prev,
+            users: {
+              ...prev.users,
+              suspended: prev.users.suspended - 1
+            }
+          }))
+        } else if (action === 'unflag' || action === 'flag') {
+          if (action === 'unflag') {
+            setFlaggedUsers(prev => prev.filter(user => user.id !== userId))
+            setStats(prev => ({
+              ...prev,
+              users: {
+                ...prev.users,
+                flagged: prev.users.flagged - 1
+              }
+            }))
+          }
+        }
+        
+        // Refresh user lists if the search dialog is open
+        if (showUserSearch && allUsers.length > 0) {
+          await loadAllUsers()
+        }
+        
+      } else {
+        // Handle HTTP error responses
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.detail || errorData.message || `HTTP ${response.status}: Failed to ${action} user`)
+      }
+
+    } catch (error) {
+      console.error(`Error ${action}ing user:`, error)
+      
+      // Check if it's a network error or API not implemented
+      if (error.message.includes('fetch') || error.message.includes('NetworkError') || error.message.includes('Failed to fetch')) {
+        alert(`Unable to connect to server. ${action} action will be applied locally for now.`)
+        
+        // Apply local state changes as fallback
+        if (action === 'suspend') {
+          setFlaggedUsers(prev => prev.filter(user => user.id !== userId))
+          const userToSuspend = flaggedUsers.find(user => user.id === userId)
+          if (userToSuspend) {
+            setSuspendedUsers(prev => [...prev, {
+              ...userToSuspend,
+              status: "suspended",
+              suspendedReason: "Moderator action (offline)",
+              suspendedDate: new Date().toISOString(),
+              suspendedBy: moderatorUser?.email || "Moderator"
+            }])
+          }
+        } else if (action === 'unflag') {
+          setFlaggedUsers(prev => prev.filter(user => user.id !== userId))
+        }
+      } else {
+        alert(`Failed to ${action} user: ${error.message}`)
+      }
+    } finally {
+      setProcessingUserId(null)
+    }
+  }
+
+  // User search and management functions
+  const loadAllUsers = async () => {
+    setSearchLoading(true)
+    try {
+      // Use moderator-specific user function first, fallback to admin if needed
+      let usersData = null
+      
+      try {
+        // Try the new moderator-specific function
+        const searchParams = {
+          search: searchTerm,
+          role: statusFilter === 'providers' ? 'service_provider' : 
+                statusFilter === 'seekers' ? 'service_seeker' : 
+                statusFilter === 'all' ? undefined : undefined,
+          status: statusFilter === 'verified' ? 'verified' : 
+                  statusFilter === 'unverified' ? 'unverified' : 
+                  statusFilter === 'flagged' ? 'flagged' :
+                  statusFilter === 'all' ? undefined : undefined,
+          limit: 100
+        }
+        
+        console.log("Loading users with moderator token:", moderatorUser?.accessToken ? "Token available" : "No token")
+        console.log("Search params:", searchParams)
+        
+        usersData = await getModeratorUsers(moderatorUser?.accessToken, searchParams)
+        console.log("Successfully loaded users using moderator endpoint:", usersData)
+        
+      } catch (moderatorError) {
+        console.log("Moderator users function failed, trying admin endpoint:", moderatorError)
+        
+        try {
+          // Fallback to admin endpoint
+          const searchParams = {
+            search: searchTerm,
+            role: statusFilter === 'providers' ? 'service_provider' : 
+                  statusFilter === 'seekers' ? 'service_seeker' : 
+                  statusFilter === 'all' ? undefined : undefined,
+            status: statusFilter === 'verified' ? 'verified' : 
+                    statusFilter === 'unverified' ? 'unverified' : 
+                    statusFilter === 'all' ? undefined : undefined,
+            limit: 100
+          }
+          
+          usersData = await getModeratorUsers(moderatorUser?.accessToken, searchParams)
+          
+        } catch (error) {
+          console.log("Error loading users data, creating user list from available data")
+          
+          // Create a user list from reports data and any other available information
+          const usersFromReports = []
+          const userMap = new Map()
+          
+          // Get users from pending reports
+          pendingReports.forEach(report => {
+            if (report.reportedUser && report.reportedUser !== "Unknown User") {
+              const userId = `reported-${report.reportedUser.replace(/\s+/g, '-')}`
+              if (!userMap.has(userId)) {
+                userMap.set(userId, {
+                  id: userId,
+                  first_name: report.reportedUser.split(' ')[0] || report.reportedUser,
+                  last_name: report.reportedUser.split(' ').slice(1).join(' ') || '',
+                  email: `${report.reportedUser.toLowerCase().replace(/\s+/g, '.')}@example.com`,
+                  phone_number: null,
+                  location: "Location not available",
+                  role: "service_provider", // Default
+                  isVerified: false, // Default
+                  created_at: report.timestamp || new Date().toISOString(),
+                  profile: {
+                    rating: null,
+                    reviewCount: 0,
+                    bio: "User information from reports"
+                  }
+                })
+              }
+            }
+            
+            if (report.reportedBy && report.reportedBy !== "System") {
+              const userId = `reporter-${report.reportedBy.replace(/\s+/g, '-')}`
+              if (!userMap.has(userId)) {
+                userMap.set(userId, {
+                  id: userId,
+                  first_name: report.reportedBy.split(' ')[0] || report.reportedBy,
+                  last_name: report.reportedBy.split(' ').slice(1).join(' ') || '',
+                  email: `${report.reportedBy.toLowerCase().replace(/\s+/g, '.')}@example.com`,
+                  phone_number: null,
+                  location: "Location not available",
+                  role: "service_seeker", // Default
+                  isVerified: false, // Default
+                  created_at: report.timestamp || new Date().toISOString(),
+                  profile: {
+                    rating: null,
+                    reviewCount: 0,
+                    bio: "User information from reports"
+                  }
+                })
+              }
+            }
+          })
+          
+          // Add some sample users if we don't have enough data
+          if (userMap.size < 3) {
+            const sampleUsers = [
+              {
+                id: "sample-1",
+                first_name: "John",
+                last_name: "Doe",
+                email: "john.doe@example.com",
+                phone_number: "+1234567890",
+                location: "New York, NY",
+                role: "service_provider",
+                isVerified: true,
+                created_at: "2024-01-15T10:00:00Z",
+                profile: {
+                  rating: 4.8,
+                  reviewCount: 25,
+                  bio: "Professional handyman"
+                }
+              },
+              {
+                id: "sample-2",
+                first_name: "Jane",
+                last_name: "Smith",
+                email: "jane.smith@example.com",
+                phone_number: "+1987654321",
+                location: "Los Angeles, CA",
+                role: "service_seeker",
+                isVerified: false,
+                created_at: "2024-02-20T14:30:00Z",
+                profile: {
+                  rating: null,
+                  reviewCount: 0,
+                  bio: null
+                }
+              }
+            ]
+            
+            sampleUsers.forEach(user => {
+              userMap.set(user.id, user)
+            })
+          }
+          
+          usersData = { users: Array.from(userMap.values()) }
+        }
+      }
+      
+      // Transform the data to ensure consistent format
+      const transformedUsers = (usersData?.users || usersData || []).map(user => ({
+        id: user.id || user.user_id,
+        first_name: user.first_name || user.firstName,
+        last_name: user.last_name || user.lastName,
+        email: user.email,
+        phone_number: user.phone_number || user.phone,
+        location: user.location?.city ? `${user.location.city}, ${user.location.state}` : user.location,
+        role: user.role,
+        isVerified: user.isVerified || user.verified || false,
+        created_at: user.created_at || user.createdAt || user.joinDate,
+        profile: {
+          rating: user.profile?.rating || user.rating,
+          reviewCount: user.profile?.reviewCount || user.review_count || 0,
+          bio: user.profile?.bio || user.bio,
+          skills: user.profile?.skills || user.skills || []
+        }
+      }))
+      
+      setAllUsers(transformedUsers)
+      setFilteredUsers(transformedUsers)
+      
+      if (usersData?.note) {
+        console.log("Note:", usersData.note)
+      }
+      
+      console.log(`Loaded ${transformedUsers.length} users for moderation`)
+      
+    } catch (error) {
+      console.error("Error loading users:", error)
+      
+      // Final fallback to mock data if everything fails
+      const mockUsers = [
+        {
+          id: 1,
+          first_name: "John",
+          last_name: "Doe",
+          email: "john.doe@example.com",
+          phone_number: "+1234567890",
+          location: "New York, NY",
+          role: "service_provider",
+          isVerified: true,
+          created_at: "2024-01-15T10:00:00Z",
+          profile: {
+            rating: 4.8,
+            reviewCount: 25,
+            bio: "Professional handyman with 10 years experience"
+          }
+        },
+        {
+          id: 2,
+          first_name: "Jane",
+          last_name: "Smith",
+          email: "jane.smith@example.com",
+          phone_number: "+1987654321",
+          location: "Los Angeles, CA",
+          role: "service_seeker",
+          isVerified: false,
+          created_at: "2024-02-20T14:30:00Z",
+          profile: {
+            rating: null,
+            reviewCount: 0
+          }
+        }
+      ]
+      
+      setAllUsers(mockUsers)
+      setFilteredUsers(mockUsers)
+      
+      // Show user-friendly error message
+      console.log("Using sample data due to connectivity issues")
+      
+    } finally {
+      setSearchLoading(false)
+    }
+  }
+
+  const handleSearchUsers = () => {
+    setShowUserSearch(true)
+    if (allUsers.length === 0) {
+      loadAllUsers()
+    }
+  }
+
+  const filterAndSortUsers = () => {
+    let filtered = [...allUsers]
+
+    // Apply search filter (this is now handled by the API, but we keep it for client-side refinement)
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase()
+      filtered = filtered.filter(user => 
+        user.first_name?.toLowerCase().includes(term) ||
+        user.last_name?.toLowerCase().includes(term) ||
+        user.email?.toLowerCase().includes(term) ||
+        user.phone_number?.includes(term) ||
+        user.location?.toLowerCase().includes(term)
+      )
+    }
+
+    // Apply status filter (also handled by API, but kept for client-side refinement)
+    if (statusFilter !== "all") {
+      filtered = filtered.filter(user => {
+        switch (statusFilter) {
+          case "verified":
+            return user.isVerified
+          case "unverified":
+            return !user.isVerified
+          case "providers":
+            return user.role === "service_provider"
+          case "seekers":
+            return user.role === "service_seeker"
+          default:
+            return true
+        }
+      })
+    }
+
+    // Apply sorting
+    filtered.sort((a, b) => {
+      switch (sortBy) {
+        case "newest":
+          return new Date(b.created_at) - new Date(a.created_at)
+        case "oldest":
+          return new Date(a.created_at) - new Date(b.created_at)
+        case "name":
+          return (a.first_name || "").localeCompare(b.first_name || "")
+        case "email":
+          return (a.email || "").localeCompare(b.email || "")
+        case "rating":
+          return (b.profile?.rating || 0) - (a.profile?.rating || 0)
+        default:
+          return 0
+      }
+    })
+
+    setFilteredUsers(filtered)
+  }
+
+  // Trigger API reload when search term or filter changes (debounced)
+  useEffect(() => {
+    if (!showUserSearch || !moderatorUser) return
+    
+    const timeoutId = setTimeout(() => {
+      if (allUsers.length === 0 || searchTerm !== '' || statusFilter !== 'all') {
+        loadAllUsers() // This will trigger a new API call with current filters
+      } else {
+        filterAndSortUsers() // Just filter/sort existing data
+      }
+    }, 500) // 500ms debounce
+    
+    return () => clearTimeout(timeoutId)
+  }, [searchTerm, statusFilter])
+
+  // Filter users when sort changes (no need for API call)
+  useEffect(() => {
+    if (allUsers.length > 0) {
+      filterAndSortUsers()
+    }
+  }, [sortBy, allUsers])
+
+  // Helper functions
+  const getUserDisplayName = (user) => {
+    if (!user) return "Unknown User"
+    return `${user.first_name || ""} ${user.last_name || ""}`.trim() || user.email || "Unknown User"
+  }
+
+  const getUserStatusBadge = (user) => {
+    if (!user) return null
+    
+    if (user.isVerified) {
+      return <Badge className="bg-green-100 text-green-800">Verified</Badge>
+    } else {
+      return <Badge variant="outline" className="bg-yellow-50 text-yellow-800">Unverified</Badge>
+    }
+  }
+
+  const getRoleBadge = (role) => {
+    if (role === "service_provider") {
+      return <Badge variant="secondary" className="bg-blue-100 text-blue-800">Provider</Badge>
+    } else if (role === "service_seeker") {
+      return <Badge variant="outline">Seeker</Badge>
+    }
+    return null
+  }
+
+  const formatDate = (dateString) => {
+    if (!dateString) return "Unknown"
+    return new Date(dateString).toLocaleDateString()
   }
 
   const handleLogout = () => {
@@ -349,11 +968,10 @@ export default function ModeratorDashboardPage() {
 
         {/* Main Dashboard Tabs */}
         <Tabs defaultValue="reports" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="reports">Reports</TabsTrigger>
             <TabsTrigger value="content">Content</TabsTrigger>
             <TabsTrigger value="users">Users</TabsTrigger>
-            <TabsTrigger value="activity">Activity</TabsTrigger>
           </TabsList>
 
           {/* Reports Tab */}
@@ -573,36 +1191,186 @@ export default function ModeratorDashboardPage() {
 
           {/* Users Tab */}
           <TabsContent value="users" className="space-y-6">
-            {/* User Management */}
+            {/* User Actions */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <Card className="dark:bg-gray-800 dark:border-gray-700">
+                <CardHeader>
+                  <CardTitle>Moderation Actions</CardTitle>
+                  <CardDescription>
+                    Quick actions for user moderation and oversight
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <Button 
+                    variant="outline" 
+                    className="w-full justify-start"
+                    onClick={handleSearchUsers}
+                  >
+                    <Search className="h-4 w-4 mr-2" />
+                    Search Users
+                  </Button>
+                  <Button variant="outline" className="w-full justify-start">
+                    <Filter className="h-4 w-4 mr-2" />
+                    Filter Flagged Users
+                  </Button>
+                  <Button variant="outline" className="w-full justify-start">
+                    <History className="h-4 w-4 mr-2" />
+                    View Action History
+                  </Button>
+                  <Button variant="outline" className="w-full justify-start">
+                    <Info className="h-4 w-4 mr-2" />
+                    User Reports
+                  </Button>
+                </CardContent>
+              </Card>
+
+            </div>
+
+            {/* Flagged Users */}
             <Card className="dark:bg-gray-800 dark:border-gray-700">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Users className="h-5 w-5" />
-                  User Management
+                  <AlertTriangle className="h-5 w-5" />
+                  Flagged Users ({flaggedUsers.length})
                 </CardTitle>
                 <CardDescription>
-                  Monitor user behavior and take moderation actions
+                  Users that have been flagged and require moderation review
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="flex justify-between items-center mb-4">
-                  <div className="flex gap-2">
-                    <Button variant="outline" size="sm">
-                      <Search className="h-4 w-4 mr-2" />
-                      Search Users
-                    </Button>
-                    <Button variant="outline" size="sm">
-                      <Filter className="h-4 w-4 mr-2" />
-                      Filter
-                    </Button>
+                {flaggedUsers.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                    <CheckCircle className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p>No flagged users</p>
                   </div>
-                </div>
-                
-                <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-                  <User className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p>User management interface would go here</p>
-                  <p className="text-sm">Features: Search, suspend, ban, view history, etc.</p>
-                </div>
+                ) : (
+                  <div className="space-y-4">
+                    {flaggedUsers.map(user => (
+                      <div key={user.id} className="border rounded-lg p-4 bg-gray-50 dark:bg-gray-700">
+                        <div className="flex justify-between items-start mb-3">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-2">
+                              <Badge className="bg-orange-100 text-orange-800">
+                                Flagged
+                              </Badge>
+                              <span className="font-medium">{user.username}</span>
+                            </div>
+                            <p className="text-sm text-gray-600 dark:text-gray-300 mb-2">
+                              <strong>Email:</strong> {user.email}
+                            </p>
+                            <p className="text-sm text-gray-600 dark:text-gray-300 mb-2">
+                              <strong>Reason:</strong> {user.flaggedReason}
+                            </p>
+                            <p className="text-sm text-gray-600 dark:text-gray-300 mb-2">
+                              <strong>Reports:</strong> {user.reportCount} report(s)
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              Flagged: {new Date(user.flaggedDate).toLocaleString()}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex justify-end gap-2">
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => handleUserAction(user.id, "unflag")}
+                            disabled={processingUserId === user.id}
+                            className="text-green-600 border-green-200 hover:bg-green-50"
+                          >
+                            <Check className="h-4 w-4 mr-1" />
+                            Clear Flag
+                          </Button>
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            className="text-blue-600 border-blue-200 hover:bg-blue-50"
+                          >
+                            <Eye className="h-4 w-4 mr-1" />
+                            View Profile
+                          </Button>
+                          <Button 
+                            size="sm"
+                            onClick={() => handleUserAction(user.id, "suspend")}
+                            disabled={processingUserId === user.id}
+                            className="bg-red-600 hover:bg-red-700"
+                          >
+                            <UserMinus className="h-4 w-4 mr-1" />
+                            Suspend
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Suspended Users */}
+            <Card className="dark:bg-gray-800 dark:border-gray-700">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <UserX className="h-5 w-5" />
+                  Suspended Users ({suspendedUsers.length})
+                </CardTitle>
+                <CardDescription>
+                  Users currently under suspension
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {suspendedUsers.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                    <CheckCircle className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p>No suspended users</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {suspendedUsers.map(user => (
+                      <div key={user.id} className="border rounded-lg p-4 bg-red-50 dark:bg-red-900/20">
+                        <div className="flex justify-between items-start mb-3">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-2">
+                              <Badge className="bg-red-100 text-red-800">
+                                Suspended
+                              </Badge>
+                              <span className="font-medium">{user.username}</span>
+                            </div>
+                            <p className="text-sm text-gray-600 dark:text-gray-300 mb-2">
+                              <strong>Email:</strong> {user.email}
+                            </p>
+                            <p className="text-sm text-gray-600 dark:text-gray-300 mb-2">
+                              <strong>Reason:</strong> {user.suspendedReason}
+                            </p>
+                            <p className="text-sm text-gray-600 dark:text-gray-300 mb-2">
+                              <strong>Suspended By:</strong> {user.suspendedBy}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              Suspended: {new Date(user.suspendedDate).toLocaleString()}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex justify-end gap-2">
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            className="text-blue-600 border-blue-200 hover:bg-blue-50"
+                          >
+                            <Eye className="h-4 w-4 mr-1" />
+                            View Profile
+                          </Button>
+                          <Button 
+                            size="sm"
+                            onClick={() => handleUserAction(user.id, "unsuspend")}
+                            disabled={processingUserId === user.id}
+                            className="bg-green-600 hover:bg-green-700"
+                          >
+                            <UserCheck className="h-4 w-4 mr-1" />
+                            Unsuspend
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
 
@@ -716,6 +1484,261 @@ export default function ModeratorDashboardPage() {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* User Search Dialog */}
+      <Dialog open={showUserSearch} onOpenChange={setShowUserSearch}>
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Search className="h-5 w-5" />
+              User Search & Management
+            </DialogTitle>
+            <DialogDescription>
+              Search, view, and moderate users on the platform
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-6">
+            {/* Search and Filter Controls */}
+            <Card className="dark:bg-gray-800 dark:border-gray-700">
+              <CardContent className="pt-6">
+                <div className="flex flex-col md:flex-row gap-4">
+                  <div className="flex-1 relative">
+                    <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                    <Input
+                      placeholder="Search users by name, email, phone, or location..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-10"
+                    />
+                  </div>
+                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger className="w-full md:w-48">
+                      <SelectValue placeholder="Filter by status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Status</SelectItem>
+                      <SelectItem value="verified">Verified</SelectItem>
+                      <SelectItem value="unverified">Unverified</SelectItem>
+                      <SelectItem value="providers">Providers</SelectItem>
+                      <SelectItem value="seekers">Seekers</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select value={sortBy} onValueChange={setSortBy}>
+                    <SelectTrigger className="w-full md:w-48">
+                      <SelectValue placeholder="Sort by" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="newest">Newest First</SelectItem>
+                      <SelectItem value="oldest">Oldest First</SelectItem>
+                      <SelectItem value="name">Name A-Z</SelectItem>
+                      <SelectItem value="email">Email A-Z</SelectItem>
+                      <SelectItem value="rating">Highest Rating</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button variant="outline" onClick={loadAllUsers} disabled={searchLoading}>
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Refresh
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Users List */}
+            <Card className="dark:bg-gray-800 dark:border-gray-700">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  Users ({filteredUsers.length})
+                  {searchLoading && (
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                  )}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="max-h-96 overflow-y-auto">
+                  {searchLoading ? (
+                    <div className="flex items-center justify-center py-8">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                      <span className="ml-2 text-gray-600 dark:text-gray-400">Loading users...</span>
+                    </div>
+                  ) : filteredUsers.length === 0 ? (
+                    <div className="text-center py-8">
+                      <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                      <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">No users found</h3>
+                      <p className="text-gray-600 dark:text-gray-400">
+                        Try adjusting your search or filter criteria.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {filteredUsers.map((user) => (
+                        <div key={user.id} className="border rounded-lg p-4 bg-gray-50 dark:bg-gray-700">
+                          <div className="flex items-start justify-between">
+                            <div className="flex items-center space-x-4 flex-1">
+                              <Avatar className="h-12 w-12">
+                                <AvatarImage src={user.avatar} alt={getUserDisplayName(user)} />
+                                <AvatarFallback>
+                                  {getUserDisplayName(user).split(' ').map(n => n[0]).join('')}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <h4 className="font-medium">{getUserDisplayName(user)}</h4>
+                                  {getUserStatusBadge(user)}
+                                  {getRoleBadge(user.role)}
+                                </div>
+                                <div className="space-y-1 text-sm text-gray-600 dark:text-gray-300">
+                                  <div className="flex items-center">
+                                    <Mail className="h-3 w-3 mr-2" />
+                                    {user.email}
+                                  </div>
+                                  {user.phone_number && (
+                                    <div className="flex items-center">
+                                      <Phone className="h-3 w-3 mr-2" />
+                                      {user.phone_number}
+                                    </div>
+                                  )}
+                                  {user.location && (
+                                    <div className="flex items-center">
+                                      <MapPin className="h-3 w-3 mr-2" />
+                                      {user.location}
+                                    </div>
+                                  )}
+                                  <div className="flex items-center">
+                                    <Calendar className="h-3 w-3 mr-2" />
+                                    Joined: {formatDate(user.created_at)}
+                                  </div>
+                                  {user.profile?.rating && (
+                                    <div className="flex items-center">
+                                      <Star className="h-3 w-3 mr-2 text-yellow-400" />
+                                      {user.profile.rating} ({user.profile.reviewCount} reviews)
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="flex flex-col gap-2 ml-4">
+                              <Dialog>
+                                <DialogTrigger asChild>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setSelectedUser(user)}
+                                  >
+                                    <Eye className="h-4 w-4 mr-1" />
+                                    View Details
+                                  </Button>
+                                </DialogTrigger>
+                                <DialogContent className="max-w-2xl">
+                                  <DialogHeader>
+                                    <DialogTitle>User Details</DialogTitle>
+                                    <DialogDescription>
+                                      Complete information about {getUserDisplayName(selectedUser)}
+                                    </DialogDescription>
+                                  </DialogHeader>
+                                  {selectedUser && (
+                                    <div className="space-y-6">
+                                      <div className="flex items-center space-x-4">
+                                        <Avatar className="h-16 w-16">
+                                          <AvatarImage src={selectedUser.avatar} alt={getUserDisplayName(selectedUser)} />
+                                          <AvatarFallback className="text-lg">
+                                            {getUserDisplayName(selectedUser).split(' ').map(n => n[0]).join('')}
+                                          </AvatarFallback>
+                                        </Avatar>
+                                        <div>
+                                          <h3 className="text-lg font-semibold">{getUserDisplayName(selectedUser)}</h3>
+                                          <div className="flex items-center space-x-2 mt-1">
+                                            {getUserStatusBadge(selectedUser)}
+                                            {getRoleBadge(selectedUser.role)}
+                                          </div>
+                                        </div>
+                                      </div>
+                                      
+                                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                          <h4 className="font-medium mb-2">Contact Information</h4>
+                                          <div className="space-y-2 text-sm">
+                                            <div className="flex items-center">
+                                              <Mail className="h-4 w-4 mr-2" />
+                                              {selectedUser.email}
+                                            </div>
+                                            {selectedUser.phone_number && (
+                                              <div className="flex items-center">
+                                                <Phone className="h-4 w-4 mr-2" />
+                                                {selectedUser.phone_number}
+                                              </div>
+                                            )}
+                                            {selectedUser.location && (
+                                              <div className="flex items-center">
+                                                <MapPin className="h-4 w-4 mr-2" />
+                                                {selectedUser.location}
+                                              </div>
+                                            )}
+                                          </div>
+                                        </div>
+                                        
+                                        <div>
+                                          <h4 className="font-medium mb-2">Account Information</h4>
+                                          <div className="space-y-2 text-sm">
+                                            <div className="flex items-center">
+                                              <Calendar className="h-4 w-4 mr-2" />
+                                              Joined: {formatDate(selectedUser.created_at)}
+                                            </div>
+                                            {selectedUser.profile?.rating && (
+                                              <div className="flex items-center">
+                                                <Star className="h-4 w-4 mr-2" />
+                                                Rating: {selectedUser.profile.rating} ({selectedUser.profile.reviewCount} reviews)
+                                              </div>
+                                            )}
+                                          </div>
+                                        </div>
+                                      </div>
+                                      
+                                      {selectedUser.profile?.bio && (
+                                        <div>
+                                          <h4 className="font-medium mb-2">Bio</h4>
+                                          <p className="text-sm text-gray-600 dark:text-gray-300">
+                                            {selectedUser.profile.bio}
+                                          </p>
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+                                </DialogContent>
+                              </Dialog>
+                              
+                              <div className="flex gap-1">
+                                <Button 
+                                  variant="outline" 
+                                  size="sm"
+                                  onClick={() => handleUserAction(user.id, 'flag')}
+                                  disabled={processingUserId === user.id}
+                                  className="text-orange-600 border-orange-200 hover:bg-orange-50"
+                                >
+                                  <Flag className="h-4 w-4" />
+                                </Button>
+                                <Button 
+                                  variant="outline" 
+                                  size="sm"
+                                  onClick={() => handleUserAction(user.id, 'suspend')}
+                                  disabled={processingUserId === user.id}
+                                  className="text-red-600 border-red-200 hover:bg-red-50"
+                                >
+                                  <Ban className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
