@@ -216,15 +216,15 @@ export default function AdminDashboardPage() {
           setRecentUsers([]);
         }
 
-        // Fetch report data
+        // Fetch report data with the current date range
         try {
           const [transactionData, activityData, weeklyData, servicesBookings, requestsProposals, reportStatsData, systemHealth] = await Promise.all([
-            getTransactionData(adminUser.accessToken),
-            getUserActivityData(adminUser.accessToken),
-            getWeeklyReportsData(adminUser.accessToken),
-            getServicesBookingsData(adminUser.accessToken),
-            getRequestsProposalsData(adminUser.accessToken),
-            getReportStats(adminUser.accessToken),
+            getTransactionData(adminUser.accessToken, null, dateRange.startDate, dateRange.endDate),
+            getUserActivityData(adminUser.accessToken, null, dateRange.startDate, dateRange.endDate),
+            getWeeklyReportsData(adminUser.accessToken, null, dateRange.startDate, dateRange.endDate),
+            getServicesBookingsData(adminUser.accessToken, null, dateRange.startDate, dateRange.endDate),
+            getRequestsProposalsData(adminUser.accessToken, null, dateRange.startDate, dateRange.endDate),
+            getReportStats(adminUser.accessToken, null, dateRange.startDate, dateRange.endDate),
             getSystemHealth(adminUser.accessToken)
           ]);
           
@@ -263,6 +263,16 @@ export default function AdminDashboardPage() {
         getRequestsProposalsData(adminUser.accessToken, null, startDate, endDate),
         getReportStats(adminUser.accessToken, null, startDate, endDate)
       ]);
+      
+      console.log('=== FRONTEND CHART DATA RECEIVED ===');
+      console.log('Transaction Data:', transactionData);
+      console.log('User Activity Data:', activityData);
+      console.log('Weekly Reports Data:', weeklyData);
+      console.log('Services Bookings Data:', servicesBookings);
+      console.log('Requests Proposals Data:', requestsProposals);
+      console.log('Report Stats Data:', reportStatsData);
+      console.log('Date Range:', { startDate, endDate });
+      console.log('====================================');
       
       setTransactionData(transactionData);
       setUserActivityData(activityData);
@@ -1109,22 +1119,42 @@ export default function AdminDashboardPage() {
                   <div className="h-80">
                     <ResponsiveContainer width="100%" height="100%">
                       <LineChart data={transactionData}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="month" />
-                        <YAxis />
-                        <Tooltip />
+                        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                        <XAxis 
+                          dataKey="month" 
+                          axisLine={false}
+                          tickLine={false}
+                          tick={{ fontSize: 12, fill: '#666' }}
+                        />
+                        <YAxis 
+                          axisLine={false}
+                          tickLine={false}
+                          tick={{ fontSize: 12, fill: '#666' }}
+                        />
+                        <Tooltip 
+                          contentStyle={{
+                            backgroundColor: 'white',
+                            border: '1px solid #e0e0e0',
+                            borderRadius: '8px',
+                            boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+                          }}
+                        />
                         <Line 
                           type="monotone" 
                           dataKey="transactions" 
-                          stroke="#8884d8" 
-                          strokeWidth={2}
+                          stroke="#8b5cf6" 
+                          strokeWidth={3}
+                          dot={{ fill: '#8b5cf6', r: 4 }}
+                          activeDot={{ r: 6, stroke: '#8b5cf6', strokeWidth: 2, fill: 'white' }}
                           name="Transactions"
                         />
                         <Line 
                           type="monotone" 
                           dataKey="credits" 
-                          stroke="#82ca9d" 
-                          strokeWidth={2}
+                          stroke="#f59e0b" 
+                          strokeWidth={3}
+                          dot={{ fill: '#f59e0b', r: 4 }}
+                          activeDot={{ r: 6, stroke: '#f59e0b', strokeWidth: 2, fill: 'white' }}
                           name="Credits"
                         />
                       </LineChart>
@@ -1202,11 +1232,31 @@ export default function AdminDashboardPage() {
                   <div className="h-80">
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={weeklyReportsData}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="day" />
-                        <YAxis />
-                        <Tooltip />
-                        <Bar dataKey="reports" fill="#ff7c7c" />
+                        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                        <XAxis 
+                          dataKey="day" 
+                          axisLine={false}
+                          tickLine={false}
+                          tick={{ fontSize: 12, fill: '#666' }}
+                        />
+                        <YAxis 
+                          axisLine={false}
+                          tickLine={false}
+                          tick={{ fontSize: 12, fill: '#666' }}
+                        />
+                        <Tooltip 
+                          contentStyle={{
+                            backgroundColor: 'white',
+                            border: '1px solid #e0e0e0',
+                            borderRadius: '8px',
+                            boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+                          }}
+                        />
+                        <Bar 
+                          dataKey="reports" 
+                          fill="#ff7c7c" 
+                          radius={[4, 4, 0, 0]}
+                        />
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
@@ -1226,22 +1276,42 @@ export default function AdminDashboardPage() {
                   <div className="h-80">
                     <ResponsiveContainer width="100%" height="100%">
                       <LineChart data={servicesBookingsData}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="month" />
-                        <YAxis />
-                        <Tooltip />
+                        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                        <XAxis 
+                          dataKey="month" 
+                          axisLine={false}
+                          tickLine={false}
+                          tick={{ fontSize: 12, fill: '#666' }}
+                        />
+                        <YAxis 
+                          axisLine={false}
+                          tickLine={false}
+                          tick={{ fontSize: 12, fill: '#666' }}
+                        />
+                        <Tooltip 
+                          contentStyle={{
+                            backgroundColor: 'white',
+                            border: '1px solid #e0e0e0',
+                            borderRadius: '8px',
+                            boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+                          }}
+                        />
                         <Line 
                           type="monotone" 
                           dataKey="servicesListed" 
                           stroke="#3b82f6" 
-                          strokeWidth={2}
+                          strokeWidth={3}
+                          dot={{ fill: '#3b82f6', r: 4 }}
+                          activeDot={{ r: 6, stroke: '#3b82f6', strokeWidth: 2, fill: 'white' }}
                           name="Services Listed"
                         />
                         <Line 
                           type="monotone" 
                           dataKey="serviceBookings" 
                           stroke="#10b981" 
-                          strokeWidth={2}
+                          strokeWidth={3}
+                          dot={{ fill: '#10b981', r: 4 }}
+                          activeDot={{ r: 6, stroke: '#10b981', strokeWidth: 2, fill: 'white' }}
                           name="Service Bookings"
                         />
                       </LineChart>
@@ -1263,22 +1333,42 @@ export default function AdminDashboardPage() {
                   <div className="h-80">
                     <ResponsiveContainer width="100%" height="100%">
                       <LineChart data={requestsProposalsData}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="month" />
-                        <YAxis />
-                        <Tooltip />
+                        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                        <XAxis 
+                          dataKey="month" 
+                          axisLine={false}
+                          tickLine={false}
+                          tick={{ fontSize: 12, fill: '#666' }}
+                        />
+                        <YAxis 
+                          axisLine={false}
+                          tickLine={false}
+                          tick={{ fontSize: 12, fill: '#666' }}
+                        />
+                        <Tooltip 
+                          contentStyle={{
+                            backgroundColor: 'white',
+                            border: '1px solid #e0e0e0',
+                            borderRadius: '8px',
+                            boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+                          }}
+                        />
                         <Line 
                           type="monotone" 
                           dataKey="serviceRequests" 
-                          stroke="#8b5cf6" 
-                          strokeWidth={2}
+                          stroke="#2563eb" 
+                          strokeWidth={3}
+                          dot={{ fill: '#2563eb', r: 4 }}
+                          activeDot={{ r: 6, stroke: '#2563eb', strokeWidth: 2, fill: 'white' }}
                           name="Service Requests"
                         />
                         <Line 
                           type="monotone" 
                           dataKey="proposals" 
-                          stroke="#f59e0b" 
-                          strokeWidth={2}
+                          stroke="#16a34a" 
+                          strokeWidth={3}
+                          dot={{ fill: '#16a34a', r: 4 }}
+                          activeDot={{ r: 6, stroke: '#16a34a', strokeWidth: 2, fill: 'white' }}
                           name="Proposals Submitted"
                         />
                       </LineChart>

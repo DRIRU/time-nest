@@ -36,7 +36,7 @@ def get_stats():
             cursor.execute("SELECT count(*) as total_users FROM users")
             result = cursor.fetchall()[0]
             total_users = int(result["total_users"]) if result["total_users"] is not None else 0
-            print(f"Total users: {total_users}")
+            # print(f"Total users: {total_users}")
         except Exception as e:
             print(f"Error counting users: {e}")
             total_users = 0
@@ -46,7 +46,7 @@ def get_stats():
             cursor.execute("SELECT count(*) as total_services FROM services")
             result = cursor.fetchall()[0]
             total_services = int(result["total_services"]) if result["total_services"] is not None else 0
-            print(f"Total services: {total_services}")
+            # print(f"Total services: {total_services}")
         except Exception as e:
             print(f"Error counting services: {e}")
             total_services = 0
@@ -56,7 +56,15 @@ def get_stats():
             cursor.execute("SELECT count(*) as total_requests FROM requests")
             result = cursor.fetchall()[0]
             total_requests = int(result["total_requests"]) if result["total_requests"] is not None else 0
-            print(f"Total requests: {total_requests}")
+            print(f"Total requests from DB: {total_requests}")
+            
+            # Let's also check what requests exist and when they were created
+            cursor.execute("SELECT request_id, title, created_at FROM requests ORDER BY created_at DESC LIMIT 10")
+            recent_requests = cursor.fetchall()
+            print("Recent requests in DB:")
+            for req in recent_requests:
+                print(f"  ID: {req['request_id']}, Title: {req['title']}, Created: {req['created_at']}")
+                
         except Exception as e:
             print(f"Error counting requests: {e}")
             total_requests = 0
@@ -66,7 +74,7 @@ def get_stats():
             cursor.execute("SELECT count(*) as completed_services FROM service_bookings WHERE status = 'completed'")
             result = cursor.fetchall()[0]
             completed_services = int(result["completed_services"]) if result["completed_services"] is not None else 0
-            print(f"Completed services: {completed_services}")
+            # print(f"Completed services: {completed_services}")
         except Exception as e:
             print(f"Error counting completed services: {e}")
             completed_services = 0
@@ -76,17 +84,32 @@ def get_stats():
             cursor.execute("SELECT SUM(amount) as total_credits_exchanged FROM time_transactions WHERE amount > 0")
             result = cursor.fetchall()[0]
             total_credits_exchanged = float(result["total_credits_exchanged"]) if result["total_credits_exchanged"] is not None else 0.0
-            print(f"Total credits exchanged: {total_credits_exchanged}")
+            # print(f"Total credits exchanged: {total_credits_exchanged}")
         except Exception as e:
             print(f"Error summing credits: {e}")
             total_credits_exchanged = 0.0
 
-        # Total moderator requests
-        # try:
-        #     cursor.execute("SELECT count(*) as total_mod_requests FROM mod_requests")
-        #     total_mod_requests = cursor.fetchall()[0]["total_mod_requests"]
-        # except Exception as e:
-        #     print(f"Error counting mod requests: {e}")
+        # Total proposals
+        total_proposals = 0
+        try:
+            cursor.execute("SELECT count(*) as total_proposals FROM request_proposals")
+            result = cursor.fetchall()[0]
+            total_proposals = int(result["total_proposals"]) if result["total_proposals"] is not None else 0
+            print(f"Total proposals from DB: {total_proposals}")
+            
+            # Let's also check what proposals exist - use submitted_at instead of created_at
+            try:
+                cursor.execute("SELECT proposal_id, request_id, submitted_at FROM request_proposals ORDER BY submitted_at DESC LIMIT 10")
+                recent_proposals = cursor.fetchall()
+                print("Recent proposals in DB:")
+                for prop in recent_proposals:
+                    print(f"  Proposal ID: {prop['proposal_id']}, Request ID: {prop['request_id']}, Submitted: {prop['submitted_at']}")
+            except Exception as inner_e:
+                print(f"Error checking proposal details: {inner_e}")
+                
+        except Exception as e:
+            print(f"Error counting proposals: {e}")
+            total_proposals = 0
 
         conn.close()
         
@@ -97,9 +120,12 @@ def get_stats():
             "total_requests": int(total_requests) if total_requests is not None else 0,
             "completed_services": int(completed_services) if completed_services is not None else 0,
             "total_credits_exchanged": float(total_credits_exchanged) if total_credits_exchanged is not None else 0.0,
+            "total_proposals": int(total_proposals) if total_proposals is not None else 0,
             # "total_mod_requests": total_mod_requests
         }
-        print(data)
+        print("=== ADMIN STATS DATA FOR CHARTS ===")
+        print(f"Data being sent to frontend: {data}")
+        print("===================================")
         return data
     except Exception as e:
         if conn is not None:
@@ -116,9 +142,194 @@ def get_stats():
             "total_requests": 0,
             "completed_services": 0,
             "total_credits_exchanged": 0.0,
+            "total_proposals": 0,
         }
-        print(f"Returning fallback data due to error: {fallback_data}")
+        # print(f"Returning fallback data due to error: {fallback_data}")
         return fallback_data
+
+@router.get("/monthly-trends")
+def get_monthly_trends(start_date: str = None, end_date: str = None):
+    """Get monthly breakdown of requests and proposals based on actual database timestamps"""
+    conn = None
+    try:
+        conn = create_connection()
+        if conn is None:
+            raise Exception("Failed to create database connection")
+            
+        cursor = conn.cursor(dictionary=True)
+        if cursor is None:
+            raise Exception("Failed to create database cursor")
+
+        # Set default date range if not provided
+        date_filter = ""
+        if start_date and end_date:
+            date_filter = f"AND created_at >= '{start_date}' AND created_at <= '{end_date}'"
+            print(f"Using date filter: {date_filter}")
+        else:
+            date_filter = "AND created_at >= DATE_SUB(CURDATE(), INTERVAL 12 MONTH)"
+
+        # Get monthly requests data
+        requests_by_month = []
+        try:
+            query = f"""
+                SELECT 
+                    YEAR(created_at) as year,
+                    MONTH(created_at) as month,
+                    COUNT(*) as requests_count
+                FROM requests 
+                WHERE 1=1 {date_filter}
+                GROUP BY YEAR(created_at), MONTH(created_at)
+                ORDER BY year, month
+            """
+            print(f"Requests query: {query}")
+            cursor.execute(query)
+            requests_by_month = cursor.fetchall()
+            print("Monthly requests data:", requests_by_month)
+        except Exception as e:
+            print(f"Error getting monthly requests: {e}")
+
+        # Get monthly proposals data  
+        proposals_by_month = []
+        try:
+            # Set up date filter for proposals (using submitted_at instead of created_at)
+            proposals_date_filter = ""
+            if start_date and end_date:
+                proposals_date_filter = f"AND submitted_at >= '{start_date}' AND submitted_at <= '{end_date}'"
+                print(f"Using proposals date filter: {proposals_date_filter}")
+            else:
+                proposals_date_filter = "AND submitted_at >= DATE_SUB(CURDATE(), INTERVAL 12 MONTH)"
+            
+            query = f"""
+                SELECT 
+                    YEAR(submitted_at) as year,
+                    MONTH(submitted_at) as month,
+                    COUNT(*) as proposals_count
+                FROM request_proposals 
+                WHERE 1=1 {proposals_date_filter}
+                GROUP BY YEAR(submitted_at), MONTH(submitted_at)
+                ORDER BY year, month
+            """
+            print(f"Proposals query: {query}")
+            cursor.execute(query)
+            proposals_by_month = cursor.fetchall()
+            print("Monthly proposals data:", proposals_by_month)
+        except Exception as e:
+            print(f"Error getting monthly proposals: {e}")
+
+        # Get monthly services data
+        services_by_month = []
+        try:
+            # Set up date filter for services (using created_at)
+            services_date_filter = ""
+            if start_date and end_date:
+                services_date_filter = f"AND created_at >= '{start_date}' AND created_at <= '{end_date}'"
+                print(f"Using services date filter: {services_date_filter}")
+            else:
+                services_date_filter = "AND created_at >= DATE_SUB(CURDATE(), INTERVAL 12 MONTH)"
+            
+            query = f"""
+                SELECT 
+                    YEAR(created_at) as year,
+                    MONTH(created_at) as month,
+                    COUNT(*) as services_count
+                FROM services 
+                WHERE 1=1 {services_date_filter}
+                GROUP BY YEAR(created_at), MONTH(created_at)
+                ORDER BY year, month
+            """
+            print(f"Services query: {query}")
+            cursor.execute(query)
+            services_by_month = cursor.fetchall()
+            print("Monthly services data:", services_by_month)
+        except Exception as e:
+            print(f"Error getting monthly services: {e}")
+
+        # Get monthly bookings data
+        bookings_by_month = []
+        try:
+            # Set up date filter for bookings (using booking_date)
+            bookings_date_filter = ""
+            if start_date and end_date:
+                bookings_date_filter = f"AND booking_date >= '{start_date}' AND booking_date <= '{end_date}'"
+                print(f"Using bookings date filter: {bookings_date_filter}")
+            else:
+                bookings_date_filter = "AND booking_date >= DATE_SUB(CURDATE(), INTERVAL 12 MONTH)"
+            
+            query = f"""
+                SELECT 
+                    YEAR(booking_date) as year,
+                    MONTH(booking_date) as month,
+                    COUNT(*) as bookings_count
+                FROM service_bookings 
+                WHERE 1=1 {bookings_date_filter}
+                GROUP BY YEAR(booking_date), MONTH(booking_date)
+                ORDER BY year, month
+            """
+            print(f"Bookings query: {query}")
+            cursor.execute(query)
+            bookings_by_month = cursor.fetchall()
+            print("Monthly bookings data:", bookings_by_month)
+        except Exception as e:
+            print(f"Error getting monthly bookings: {e}")
+
+        conn.close()
+        
+        # Combine the data into a monthly trends format
+        monthly_data = {}
+        
+        # Add requests data
+        for row in requests_by_month:
+            month_key = f"{row['year']}-{row['month']:02d}"
+            if month_key not in monthly_data:
+                monthly_data[month_key] = {"requests": 0, "proposals": 0, "services": 0, "bookings": 0, "year": row['year'], "month": row['month']}
+            monthly_data[month_key]["requests"] = row['requests_count']
+
+        # Add proposals data
+        for row in proposals_by_month:
+            month_key = f"{row['year']}-{row['month']:02d}"
+            if month_key not in monthly_data:
+                monthly_data[month_key] = {"requests": 0, "proposals": 0, "services": 0, "bookings": 0, "year": row['year'], "month": row['month']}
+            monthly_data[month_key]["proposals"] = row['proposals_count']
+
+        # Add services data
+        for row in services_by_month:
+            month_key = f"{row['year']}-{row['month']:02d}"
+            if month_key not in monthly_data:
+                monthly_data[month_key] = {"requests": 0, "proposals": 0, "services": 0, "bookings": 0, "year": row['year'], "month": row['month']}
+            monthly_data[month_key]["services"] = row['services_count']
+
+        # Add bookings data
+        for row in bookings_by_month:
+            month_key = f"{row['year']}-{row['month']:02d}"
+            if month_key not in monthly_data:
+                monthly_data[month_key] = {"requests": 0, "proposals": 0, "services": 0, "bookings": 0, "year": row['year'], "month": row['month']}
+            monthly_data[month_key]["bookings"] = row['bookings_count']
+
+        # Convert to list format for frontend
+        trends_list = []
+        for month_key in sorted(monthly_data.keys()):
+            data = monthly_data[month_key]
+            month_names = ["", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+            month_label = f"{month_names[data['month']]} {data['year']}"
+            trends_list.append({
+                "month": month_label,
+                "serviceRequests": data["requests"],
+                "proposals": data["proposals"],
+                "servicesListed": data["services"],
+                "serviceBookings": data["bookings"]
+            })
+
+        print("Final monthly trends data:", trends_list)
+        return {"monthly_trends": trends_list}
+
+    except Exception as e:
+        if conn is not None:
+            try:
+                conn.close()
+            except:
+                pass
+        print(f"Database error in /admin/monthly-trends: {str(e)}")
+        return {"monthly_trends": []}
 
 @router.get("/system-health")
 def get_system_health():
@@ -127,7 +338,7 @@ def get_system_health():
         # Get CPU usage - use multiple methods for more accuracy
         # Method 1: Get current CPU percentage (like Task Manager's current reading)
         cpu_percent_instant = psutil.cpu_percent(interval=None)  # Non-blocking, instant reading
-        print(f"CPU Instant Usage: {cpu_percent_instant}%")
+        # print(f"CPU Instant Usage: {cpu_percent_instant}%")
         # Method 2: Get average over 1 second (more stable)
         cpu_percent_avg = psutil.cpu_percent(interval=1.0)
         
@@ -137,7 +348,7 @@ def get_system_health():
         # Use the 1-second average as it's more similar to Task Manager
         cpu_percent = cpu_percent_avg
         
-        print(f"CPU Debug - Instant: {cpu_percent_instant}%, 1sec avg: {cpu_percent_avg}%, Per core: {cpu_per_core}")
+        # print(f"CPU Debug - Instant: {cpu_percent_instant}%, 1sec avg: {cpu_percent_avg}%, Per core: {cpu_per_core}")
         
         # If still getting 0, try alternative method
         if cpu_percent == 0.0:
@@ -188,7 +399,7 @@ def get_system_health():
             disk_total_gb = disk.total / (1024**3)
             disk_used_gb = disk.used / (1024**3)    
             disk_free_gb = disk.free / (1024**3)
-            print(f"Current drive ({drive_letter}) stats - Total: {disk_total_gb:.1f}GB, Used: {disk_used_gb:.1f}GB, Free: {disk_free_gb:.1f}GB, Used%: {disk_percent:.1f}%")
+            # print(f"Current drive ({drive_letter}) stats - Total: {disk_total_gb:.1f}GB, Used: {disk_used_gb:.1f}GB, Free: {disk_free_gb:.1f}GB, Used%: {disk_percent:.1f}%")
             
         except Exception as e:
             print(f"Error getting disk usage: {e}")
@@ -220,7 +431,7 @@ def get_system_health():
         # Additional CPU info for debugging
         cpu_times = psutil.cpu_times()
         cpu_freq = psutil.cpu_freq()
-        print(f"CPU Debug - Usage: {cpu_percent}%, Count: {psutil.cpu_count()}, Freq: {cpu_freq.current if cpu_freq else 'Unknown'}MHz")
+        # print(f"CPU Debug - Usage: {cpu_percent}%, Count: {psutil.cpu_count()}, Freq: {cpu_freq.current if cpu_freq else 'Unknown'}MHz")
         
         return {
             "cpu_usage": round(cpu_percent, 1),
