@@ -48,11 +48,11 @@ export default function DashboardSidebar() {
       href: "/profile",
       icon: User,
     },
-    {
-      name: "Settings",
-      href: "/settings",
-      icon: Settings,
-    },
+    // {
+    //   name: "Settings",
+    //   href: "/settings",
+    //   icon: Settings,
+    // },
   ]
 
   const handleLogout = () => {

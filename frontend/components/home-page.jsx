@@ -38,49 +38,49 @@ export default function HomePage() {
     {
       name: "Home & Garden",
       icon: Home,
-      count: "234 services",
+      // count: "234 services",
       color: "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300",
     },
     {
       name: "Tech Support",
       icon: Laptop,
-      count: "156 services",
+      // count: "156 services",
       color: "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300",
     },
     {
       name: "Tutoring",
       icon: BookOpen,
-      count: "189 services",
+      // count: "189 services",
       color: "bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300",
     },
     {
       name: "Transportation",
       icon: Car,
-      count: "98 services",
+      // count: "98 services",
       color: "bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300",
     },
     {
       name: "Cooking",
       icon: Utensils,
-      count: "145 services",
+      // count: "145 services",
       color: "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300",
     },
     {
       name: "Childcare",
       icon: Baby,
-      count: "87 services",
+      // count: "87 services",
       color: "bg-pink-100 text-pink-700 dark:bg-pink-900 dark:text-pink-300",
     },
     {
       name: "Repairs",
       icon: Wrench,
-      count: "203 services",
+      // count: "203 services",
       color: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300",
     },
     {
       name: "Other",
       icon: Plus,
-      count: "312 services",
+      // count: "312 services",
       color: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300",
     },
   ]
@@ -92,9 +92,9 @@ export default function HomePage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             <div>
-              <Badge className="mb-4 bg-blue-100 text-blue-700 hover:bg-blue-100 dark:bg-blue-900 dark:text-blue-300 dark:hover:bg-blue-900">
+              {/* <Badge className="mb-4 bg-blue-100 text-blue-700 hover:bg-blue-100 dark:bg-blue-900 dark:text-blue-300 dark:hover:bg-blue-900">
                 🎉 Join 2,800+ community members
-              </Badge>
+              </Badge> */}
               <h1 className="text-4xl lg:text-6xl font-bold text-gray-900 dark:text-white mb-6">
                 Exchange Services with <span className="text-blue-600 dark:text-blue-400">Time Credits</span>
               </h1>

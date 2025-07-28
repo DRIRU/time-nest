@@ -9,6 +9,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import {
   Users,
   Clock,
   Star,
@@ -30,7 +38,9 @@ import {
   Home,
   Award,
   TrendingDown,
-  PieChart
+  PieChart,
+  Search,
+  X
 } from "lucide-react"
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart as RechartsPieChart, Cell, Pie } from "recharts"
 import { getOverviewStats } from "@/lib/service-requests-data"
@@ -85,6 +95,11 @@ export default function AdminDashboardPage() {
     endDate: new Date().toISOString().split('T')[0] // today
   })
   const [isLoadingReports, setIsLoadingReports] = useState(false)
+
+  // Modal and search state for moderator applications
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [searchTerm, setSearchTerm] = useState("")
+  const [statusFilter, setStatusFilter] = useState("all") // all, pending, approved, rejected
 
   useEffect(() => {
     // Check admin authentication only
@@ -284,6 +299,18 @@ export default function AdminDashboardPage() {
       loadReportData(newDateRange.startDate, newDateRange.endDate);
     }
   };
+
+  // Filter moderator applications based on search term and status
+  const filteredModApplications = modApplications.filter(application => {
+    const matchesSearch = searchTerm === "" || 
+      application.user_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      application.reason?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      application.experience?.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesStatus = statusFilter === "all" || application.status === statusFilter;
+    
+    return matchesSearch && matchesStatus;
+  });
   
   const handleApproveModRequest = async (requestId) => {
     try {
@@ -473,7 +500,7 @@ export default function AdminDashboardPage() {
           <TabsContent value="overview" className="space-y-6">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Platform Health */}
-              <Card className="dark:bg-gray-800 dark:border-gray-700">
+              {/* <Card className="dark:bg-gray-800 dark:border-gray-700">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Activity className="h-5 w-5" />
@@ -525,10 +552,10 @@ export default function AdminDashboardPage() {
                     </div>
                   </div>
                 </CardContent>
-              </Card>
+              </Card> */}
 
               {/* Recent Activity */}
-              <Card className="dark:bg-gray-800 dark:border-gray-700">
+              {/* <Card className="dark:bg-gray-800 dark:border-gray-700">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <BarChart3 className="h-5 w-5" />
@@ -544,11 +571,11 @@ export default function AdminDashboardPage() {
                     </div>
                   </div>
                 </CardContent>
-              </Card>
+              </Card> */}
             </div>
 
             {/* Quick Actions */}
-            <Card className="dark:bg-gray-800 dark:border-gray-700">
+            {/* <Card className="dark:bg-gray-800 dark:border-gray-700">
               <CardHeader>
                 <CardTitle>Quick Actions</CardTitle>
                 <CardDescription>Common administrative tasks</CardDescription>
@@ -573,7 +600,7 @@ export default function AdminDashboardPage() {
                   </Button>
                 </div>
               </CardContent>
-            </Card>
+            </Card> */}
             
             {/* Moderator Applications */}
             <Card className="dark:bg-gray-800 dark:border-gray-700">
@@ -602,7 +629,7 @@ export default function AdminDashboardPage() {
                       <p className="text-xs text-red-700">Rejected</p>
                     </div>
                   </div>
-                  <Button variant="outline" size="sm">
+                  <Button variant="outline" size="sm" onClick={() => setIsModalOpen(true)}>
                     View All
                   </Button>
                 </div>
@@ -659,6 +686,170 @@ export default function AdminDashboardPage() {
                 )}
               </CardContent>
             </Card>
+
+            {/* Moderator Applications Modal */}
+            <Dialog 
+              open={isModalOpen} 
+              onOpenChange={(open) => {
+                setIsModalOpen(open);
+                if (!open) {
+                  // Reset search and filters when modal closes
+                  setSearchTerm("");
+                  setStatusFilter("all");
+                }
+              }}
+            >
+              <DialogContent className="max-w-4xl max-h-[80vh] w-[95vw] overflow-hidden flex flex-col">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2">
+                    <Award className="h-5 w-5" />
+                    All Moderator Applications ({filteredModApplications.length})
+                  </DialogTitle>
+                  <DialogDescription>
+                    Review and manage all moderator applications from community members
+                  </DialogDescription>
+                </DialogHeader>
+                
+                {/* Search and Filter Controls */}
+                <div className="flex flex-col gap-4 py-4 border-b">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                    <Input
+                      placeholder="Search by name, reason, or experience..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-10"
+                    />
+                    {searchTerm && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setSearchTerm("")}
+                        className="absolute right-2 top-1/2 transform -translate-y-1/2 h-6 w-6 p-0"
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      variant={statusFilter === "all" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setStatusFilter("all")}
+                      className="text-xs"
+                    >
+                      All ({modApplications.length})
+                    </Button>
+                    <Button
+                      variant={statusFilter === "pending" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setStatusFilter("pending")}
+                      className="text-xs"
+                    >
+                      Pending ({modApplications.filter(app => app.status === "pending").length})
+                    </Button>
+                    <Button
+                      variant={statusFilter === "approved" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setStatusFilter("approved")}
+                      className="text-xs"
+                    >
+                      Approved ({modApplications.filter(app => app.status === "approved").length})
+                    </Button>
+                    <Button
+                      variant={statusFilter === "rejected" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setStatusFilter("rejected")}
+                      className="text-xs"
+                    >
+                      Rejected ({modApplications.filter(app => app.status === "rejected").length})
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Applications List */}
+                <div className="flex-1 overflow-y-auto">
+                  {filteredModApplications.length === 0 ? (
+                    <div className="text-center py-8">
+                      <Award className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                      <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+                        {searchTerm || statusFilter !== "all" ? "No matching applications" : "No applications yet"}
+                      </h3>
+                      <p className="text-gray-600 dark:text-gray-400">
+                        {searchTerm || statusFilter !== "all" 
+                          ? "Try adjusting your search or filter criteria."
+                          : "When users apply to become moderators, their applications will appear here."
+                        }
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4 pr-2">
+                      {filteredModApplications.map((application) => (
+                        <div key={application.request_id} className="border rounded-lg p-4 bg-white dark:bg-gray-800">
+                          <div className="flex justify-between items-start mb-3">
+                            <div>
+                              <h4 className="font-medium text-lg">{application.user_name}</h4>
+                              <p className="text-sm text-gray-500">
+                                Applied on {new Date(application.submitted_at).toLocaleDateString()}
+                              </p>
+                            </div>
+                            <Badge className={
+                              application.status === "pending" ? "bg-yellow-100 text-yellow-800" :
+                              application.status === "approved" ? "bg-green-100 text-green-800" :
+                              "bg-red-100 text-red-800"
+                            }>
+                              {application.status === "pending" ? "Pending" :
+                               application.status === "approved" ? "Approved" :
+                               "Rejected"}
+                            </Badge>
+                          </div>
+                          
+                          <div className="space-y-3">
+                            <div>
+                              <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Reason for Application:</p>
+                              <p className="text-sm text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-700 p-3 rounded">
+                                {application.reason}
+                              </p>
+                            </div>
+                            
+                            {application.experience && (
+                              <div>
+                                <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Experience:</p>
+                                <p className="text-sm text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-700 p-3 rounded">
+                                  {application.experience}
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                          
+                          {application.status === "pending" && (
+                            <div className="flex justify-end gap-2 mt-4 pt-3 border-t">
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={() => handleRejectModRequest(application.request_id)}
+                                disabled={processingRequestId === application.request_id}
+                                className="text-red-600 border-red-200 hover:bg-red-50"
+                              >
+                                {processingRequestId === application.request_id ? "Processing..." : "Reject"}
+                              </Button>
+                              <Button 
+                                size="sm"
+                                onClick={() => handleApproveModRequest(application.request_id)}
+                                disabled={processingRequestId === application.request_id}
+                                className="bg-green-600 hover:bg-green-700"
+                              >
+                                {processingRequestId === application.request_id ? "Processing..." : "Approve"}
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </DialogContent>
+            </Dialog>
           </TabsContent>
 
           {/* Users Tab */}
@@ -1155,7 +1346,7 @@ export default function AdminDashboardPage() {
                       </div>
                     </div>
 
-                    <div className="flex justify-between items-center">
+                    {/* <div className="flex justify-between items-center">
                       <span className="text-sm text-gray-600 dark:text-gray-400">Database Status</span>
                       <Badge 
                         variant="secondary" 
@@ -1172,7 +1363,7 @@ export default function AdminDashboardPage() {
                         )}
                         {systemHealthData.database_status}
                       </Badge>
-                    </div>
+                    </div> */}
 
                     <div className="flex justify-between items-center">
                       <span className="text-sm text-gray-600 dark:text-gray-400">API Response Time</span>
@@ -1214,10 +1405,10 @@ export default function AdminDashboardPage() {
                     </div>
                   </div>
                   
-                  <Button variant="outline" className="w-full mt-4" onClick={refreshSystemHealth}>
+                  {/* <Button variant="outline" className="w-full mt-4" onClick={refreshSystemHealth}>
                     <Settings className="h-4 w-4 mr-2" />
                     Refresh System Health
-                  </Button>
+                  </Button> */}
                 </CardContent>
               </Card>
             </div>

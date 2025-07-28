@@ -127,8 +127,8 @@ def register_user(user_data: UserCreate, db: Session = Depends(get_db)):
             gender=user_data.gender,
             age=user_data.age,
             location=user_data.location,
-            time_credits=10.00,  # Start with 10 credits
-            total_credits_earned=10.00  # Count initial credits as earned
+            time_credits=0,  # Start with 10 credits
+            total_credits_earned=0  # Count initial credits as earned
         )
 
         db.add(new_user)

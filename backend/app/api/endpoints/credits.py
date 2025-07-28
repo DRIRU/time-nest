@@ -25,7 +25,7 @@ def get_user_balance(
         credit_manager = CreditManager(db)
         
         current_balance = credit_manager.get_user_balance(current_user.user_id)
-        
+        print(current_user.total_credits_earned)
         return BalanceResponse(
             user_id=current_user.user_id,
             current_balance=current_balance,
@@ -61,7 +61,7 @@ def get_user_balance_by_id(
             )
         
         current_balance = credit_manager.get_user_balance(user_id)
-        
+        # print(BalanceResponse)
         return BalanceResponse(
             user_id=user_id,
             current_balance=current_balance,
