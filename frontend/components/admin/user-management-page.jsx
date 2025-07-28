@@ -236,16 +236,13 @@ export default function UserManagementPage() {
         
         if (statusFilter !== "all") {
           filtered = filtered.filter(user => {
-            const isVerified = user.isVerified || user.phone_number
             switch (statusFilter) {
-              case "verified":
-                return isVerified
-              case "unverified":
-                return !isVerified
               case "active":
                 return user.status === "Active" || !user.status
-              case "inactive":
-                return user.status === "Inactive" || user.status === "Suspended"
+              case "suspended":
+                return user.status === "Suspended"
+              case "deactivated":
+                return user.status === "Deactivated"
               default:
                 return true
             }
@@ -283,16 +280,13 @@ export default function UserManagementPage() {
       
       if (statusFilter !== "all") {
         filtered = filtered.filter(user => {
-          const isVerified = user.isVerified || user.phone_number
           switch (statusFilter) {
-            case "verified":
-              return isVerified
-            case "unverified":
-              return !isVerified
             case "active":
               return user.status === "Active" || !user.status
-            case "inactive":
-              return user.status === "Inactive" || user.status === "Suspended"
+            case "suspended":
+              return user.status === "Suspended"
+            case "deactivated":
+              return user.status === "Deactivated"
             default:
               return true
           }
@@ -441,11 +435,19 @@ export default function UserManagementPage() {
   const getUserStatusBadge = (user) => {
     if (!user) return <Badge variant="outline">Unknown</Badge>
     
-    const isVerified = user.isVerified || user.phone_number // Backend users with phone are considered verified
-    if (isVerified) {
-      return <Badge className="bg-green-100 text-green-800">Verified</Badge>
+    // Show actual database status instead of verification status
+    const status = user.status || "Active" // Default to Active if no status is set
+    
+    switch (status) {
+      case "Active":
+        return <Badge className="bg-green-100 text-green-800">Active</Badge>
+      case "Suspended":
+        return <Badge className="bg-yellow-100 text-yellow-800">Suspended</Badge>
+      case "Deactivated":
+        return <Badge className="bg-red-100 text-red-800">Deactivated</Badge>
+      default:
+        return <Badge variant="outline">{status}</Badge>
     }
-    return <Badge variant="outline">Unverified</Badge>
   }
 
   const getUserDisplayName = (user) => {
@@ -554,16 +556,16 @@ export default function UserManagementPage() {
           <Card className="dark:bg-gray-800 dark:border-gray-700">
             <CardContent className="pt-6">
               <div className="text-center">
-                <p className="text-2xl font-bold text-orange-600">{stats.verified_users}</p>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Verified</p>
+                <p className="text-2xl font-bold text-green-600">{stats.verified_users || filteredUsers.filter(u => (u.status || "Active") === "Active").length}</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">Active Users</p>
               </div>
             </CardContent>
           </Card>
           <Card className="dark:bg-gray-800 dark:border-gray-700">
             <CardContent className="pt-6">
               <div className="text-center">
-                <p className="text-2xl font-bold text-indigo-600">{stats.verification_rate}</p>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Verification Rate</p>
+                <p className="text-2xl font-bold text-yellow-600">{filteredUsers.filter(u => u.status === "Suspended").length}</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">Suspended</p>
               </div>
             </CardContent>
           </Card>
@@ -588,10 +590,9 @@ export default function UserManagementPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="verified">Verified</SelectItem>
-                  <SelectItem value="unverified">Unverified</SelectItem>
                   <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="inactive">Inactive</SelectItem>
+                  <SelectItem value="suspended">Suspended</SelectItem>
+                  <SelectItem value="deactivated">Deactivated</SelectItem>
                 </SelectContent>
               </Select>
               <Select value={sortBy} onValueChange={setSortBy}>
@@ -816,13 +817,13 @@ export default function UserManagementPage() {
                                 <Edit className="h-4 w-4 mr-2" />
                                 Edit User
                               </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => handleUserAction('verify', user.id || user.user_id)}>
+                              <DropdownMenuItem onClick={() => handleUserAction('activate', user.id || user.user_id)}>
                                 <UserCheck className="h-4 w-4 mr-2" />
-                                {(user.isVerified || user.phone_number) ? 'Unverify' : 'Verify'}
+                                {user.status === "Active" || !user.status ? 'Deactivate' : 'Activate'}
                               </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => handleUserAction('suspend', user.id || user.user_id)}>
                                 <UserX className="h-4 w-4 mr-2" />
-                                Suspend User
+                                {user.status === "Suspended" ? 'Unsuspend User' : 'Suspend User'}
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
                               <DropdownMenuItem 

@@ -484,7 +484,7 @@ def update_user_profile(
 @router.get("/admin/users")
 def get_all_users_admin(
     search: Optional[str] = None,
-    user_status: Optional[str] = None,
+    status: Optional[str] = None,
     sort: Optional[str] = None,
     order: Optional[str] = "asc",
     skip: int = 0,
@@ -496,6 +496,7 @@ def get_all_users_admin(
     Get all users with search and filter capabilities (Admin only)
     """
     try:
+        print(status)
         query = db.query(User)
         
         # Apply search filter
@@ -508,17 +509,15 @@ def get_all_users_admin(
                 User.phone_number.ilike(search_filter) |
                 User.location.ilike(search_filter)
             )
-        
+        print(status)
         # Apply status filter
-        if user_status and user_status != "all":
-            if user_status == "verified":
-                query = query.filter(User.phone_number.isnot(None))
-            elif user_status == "unverified":
-                query = query.filter(User.phone_number.is_(None))
-            elif user_status == "active":
+        if status and status != "all":
+            if status == "active":
                 query = query.filter(User.status == "Active")
-            elif user_status == "inactive":
-                query = query.filter(User.status.in_(["Inactive", "Suspended"]))
+            elif status == "suspended":
+                query = query.filter(User.status == "Suspended")
+            elif status == "deactivated":
+                query = query.filter(User.status == "Deactivated")
         
         # Apply sorting
         if sort:
