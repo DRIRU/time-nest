@@ -119,9 +119,9 @@ export default function HomePage() {
             </div>
             <div className="relative">
               <img
-                src="/placeholder.svg?height=500&width=600"
+                src="/landing.png"
                 alt="Community members helping each other"
-                className="rounded-2xl shadow-2xl"
+                className="w-[600px] h-[500px] rounded-2xl shadow-2xl"
               />
               <div className="absolute -bottom-6 -left-6 bg-white dark:bg-gray-800 p-4 rounded-xl shadow-lg border dark:border-gray-700">
                 <div className="flex items-center space-x-3">
