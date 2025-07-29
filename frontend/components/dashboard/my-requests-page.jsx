@@ -30,7 +30,8 @@ import {
   getAllServiceRequests, 
   getProposalsForRequest, 
   submitProposal,
-  updateProposal
+  updateProposal,
+  deleteServiceRequest
 } from "@/lib/service-requests-data"
 import DashboardSidebar from "./dashboard-sidebar"
 import Link from "next/link"
@@ -50,6 +51,7 @@ export default function MyRequestsPage() {
   const [requestProposals, setRequestProposals] = useState({})
   const [loadingProposals, setLoadingProposals] = useState({})
   const [processingProposalId, setProcessingProposalId] = useState(null)
+  const [deletingRequestId, setDeletingRequestId] = useState(null)
 
   useEffect(() => {
     if (loading) return;
@@ -206,6 +208,34 @@ export default function MyRequestsPage() {
       alert(`Failed to withdraw proposal: ${error.message}`)
     } finally {
       setProcessingProposalId(null)
+    }
+  }
+  
+  const handleDeleteRequest = async (requestId) => {
+    // Check if the request has any proposals
+    const proposals = requestProposals[requestId]
+    if (proposals && proposals.length > 0) {
+      alert("Cannot delete request with existing proposals. Please handle all proposals first.")
+      return
+    }
+    
+    // Confirm deletion
+    const confirmed = window.confirm("Are you sure you want to delete this request? This action cannot be undone.")
+    if (!confirmed) return
+    
+    try {
+      setDeletingRequestId(requestId)
+      await deleteServiceRequest(requestId)
+      await fetchData() // Refresh the data
+      // If we were viewing proposals for this request, close the expansion
+      if (expandedRequestId === requestId) {
+        setExpandedRequestId(null)
+      }
+    } catch (error) {
+      console.error("Error deleting request:", error)
+      alert(`Failed to delete request: ${error.message}`)
+    } finally {
+      setDeletingRequestId(null)
     }
   }
   
@@ -408,11 +438,19 @@ export default function MyRequestsPage() {
                             <span>Due: {new Date(request.deadline).toLocaleDateString()}</span>
                           </div>
                           <div className="flex gap-2">
-                            <Button variant="outline" size="sm" className="h-9 w-9 p-0">
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button variant="outline" size="sm" className="h-9 w-9 p-0 text-red-500 hover:text-red-600">
-                              <Trash className="h-4 w-4" />
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="h-9 w-9 p-0 text-red-500 hover:text-red-600"
+                              onClick={() => handleDeleteRequest(request.id)}
+                              disabled={deletingRequestId === request.id || (requestProposals[request.id] && requestProposals[request.id].length > 0)}
+                              title={requestProposals[request.id] && requestProposals[request.id].length > 0 ? "Cannot delete request with existing proposals" : "Delete request"}
+                            >
+                              {deletingRequestId === request.id ? (
+                                <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-red-500"></div>
+                              ) : (
+                                <Trash className="h-4 w-4" />
+                              )}
                             </Button>
                           </div>
                         </CardFooter>

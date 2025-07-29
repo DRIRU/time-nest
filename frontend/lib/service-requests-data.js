@@ -615,3 +615,53 @@ export async function getServiceRequestsWithRatings() {
     return [];
   }
 }
+
+/**
+ * Deletes a service request
+ * @param {number} requestId - The ID of the request to delete
+ * @returns {Promise<Object>} Response from the server
+ */
+export async function deleteServiceRequest(requestId) {
+  try {
+    // Get the auth token from localStorage
+    const currentUser = JSON.parse(localStorage.getItem("currentUser") || "{}");
+    const token = currentUser?.accessToken;
+
+    if (!token) {
+      throw new Error("Authentication token not found. Please log in.");
+    }
+
+    const response = await fetch(`http://localhost:8000/api/v1/requests/${requestId}`, {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      },
+    });
+
+    if (!response.ok) {
+      let errorMessage = `Error deleting service request: ${response.status}`;
+      try {
+        const errorData = await response.json();
+        errorMessage = errorData.detail || errorMessage;
+      } catch (parseError) {
+        // If we can't parse the error response, use the status message
+        console.warn("Could not parse error response:", parseError);
+      }
+      throw new Error(errorMessage);
+    }
+
+    // Check if response has content before trying to parse JSON
+    const contentType = response.headers.get("content-type");
+    if (contentType && contentType.includes("application/json")) {
+      const text = await response.text();
+      return text ? JSON.parse(text) : { success: true };
+    } else {
+      // Return success for non-JSON responses (common for DELETE operations)
+      return { success: true };
+    }
+  } catch (error) {
+    console.error("Error deleting service request:", error);
+    throw error;
+  }
+}

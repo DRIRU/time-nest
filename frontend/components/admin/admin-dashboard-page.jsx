@@ -874,10 +874,10 @@ export default function AdminDashboardPage() {
                     <UserPlus className="h-4 w-4 mr-2" />
                     Add New User
                   </Button>
-                  <Button variant="outline" className="w-full justify-start">
+                  {/* <Button variant="outline" className="w-full justify-start">
                     <UserCheck className="h-4 w-4 mr-2" />
                     Verify Pending Users
-                  </Button>
+                  </Button> */}
                   <Button variant="outline" className="w-full justify-start" onClick={() => router.push("/admin/users")}>
                     <Eye className="h-4 w-4 mr-2" />
                     View All Users

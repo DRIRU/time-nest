@@ -52,7 +52,7 @@ import {
   Archive
 } from "lucide-react"
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart as RechartsPieChart, Cell, Pie } from "recharts"
-import { getPendingReports, getFlaggedContent, getModeratorStats, getModeratorActivity, updateReportStatus, moderateContent, isModeratorAuthenticated, getStoredModeratorData, logoutModerator, getModeratorUsers, getModeratorRecentUsers, getModeratorServices, getModeratorRequests, moderateService, moderateRequest, getAllReports } from "@/lib/moderator-data"
+import { getPendingReports, getFlaggedContent, getModeratorStats, getModeratorActivity, updateReportStatus, moderateContent, isModeratorAuthenticated, getStoredModeratorData, logoutModerator, getModeratorUsers, getModeratorRecentUsers, getModeratorServices, getModeratorRequests, moderateService, moderateRequest, getAllReports, getSuspendedUsers } from "@/lib/moderator-data"
 import { getServiceById } from "@/lib/services-data"
 
 // Utility function to get current time in Indian timezone
@@ -413,9 +413,68 @@ export default function ModeratorDashboardPage() {
           
           setFlaggedUsers(flaggedUsersFromReports)
           
-          // For now, suspended users will be empty as there's no endpoint
-          // In a real implementation, this would come from a user status endpoint
-          setSuspendedUsers([])
+          // Load suspended users from the backend
+          try {
+            const suspendedUsersResponse = await getSuspendedUsers({ status: 'Suspended' })
+            const suspendedUsersData = suspendedUsersResponse?.users || []
+            setSuspendedUsers(suspendedUsersData)
+            console.log(`Loaded ${suspendedUsersData?.length || 0} suspended users`)
+            
+            // Also load total users count
+            const allUsersResponse = await getSuspendedUsers({}) // No status filter = all users
+            const allUsersData = allUsersResponse?.users || []
+            const totalUsersCount = allUsersResponse?.total_count || allUsersData?.length || 0
+            console.log(`=== DASHBOARD DEBUG: Loaded ${totalUsersCount} total users ===`)
+            console.log("All users data:", allUsersData?.slice(0, 3)) // Log first 3 users
+            
+            // Update stats with actual suspended users count and total users count
+            console.log("=== DASHBOARD DEBUG: Setting stats ===")
+            console.log("Suspended count:", suspendedUsersData?.length || 0)
+            console.log("Total count:", totalUsersCount)
+            
+            setStats(prev => {
+              const newStats = {
+                ...prev,
+                users: {
+                  ...prev.users,
+                  suspended: suspendedUsersData?.length || 0,
+                  total: totalUsersCount
+                }
+              }
+              console.log("=== DASHBOARD DEBUG: New stats being set ===", newStats)
+              return newStats
+            })
+          } catch (suspendedError) {
+            console.error("Error loading suspended users:", suspendedError)
+            setSuspendedUsers([])
+            
+            // Try to get total users count even if suspended users failed
+            try {
+              const allUsersResponse = await getSuspendedUsers({}) // No status filter = all users
+              const totalUsersCount = allUsersResponse?.total_count || allUsersResponse?.users?.length || 0
+              
+              // Set suspended count to 0 on error, but update total count
+              setStats(prev => ({
+                ...prev,
+                users: {
+                  ...prev.users,
+                  suspended: 0,
+                  total: totalUsersCount
+                }
+              }))
+            } catch (totalUsersError) {
+              console.error("Error loading total users count:", totalUsersError)
+              // Set both counts to 0 on complete failure
+              setStats(prev => ({
+                ...prev,
+                users: {
+                  ...prev.users,
+                  suspended: 0,
+                  total: 0
+                }
+              }))
+            }
+          }
           
           console.log(`Loaded ${transformedRecentUsers.length} recent users and ${flaggedUsersFromReports.length} flagged users`)
           
@@ -435,7 +494,56 @@ export default function ModeratorDashboardPage() {
             }
           ])
 
-          setSuspendedUsers([])
+          // Try to load suspended users even in error case
+          try {
+            const suspendedUsersResponse = await getSuspendedUsers({ status: 'Suspended' })
+            const suspendedUsersData = suspendedUsersResponse?.users || []
+            setSuspendedUsers(suspendedUsersData)
+            
+            // Also load total users count
+            const allUsersResponse = await getSuspendedUsers({}) // No status filter = all users
+            const totalUsersCount = allUsersResponse?.total_count || allUsersResponse?.users?.length || 0
+            
+            // Update stats with actual suspended users count and total count
+            setStats(prev => ({
+              ...prev,
+              users: {
+                ...prev.users,
+                suspended: suspendedUsersData?.length || 0,
+                total: totalUsersCount
+              }
+            }))
+          } catch (suspendedError) {
+            console.error("Error loading suspended users in fallback:", suspendedError)
+            setSuspendedUsers([])
+            
+            // Try to get total users count even if suspended users failed
+            try {
+              const allUsersResponse = await getSuspendedUsers({}) // No status filter = all users
+              const totalUsersCount = allUsersResponse?.total_count || allUsersResponse?.users?.length || 0
+              
+              // Set suspended count to 0 on error, but update total count
+              setStats(prev => ({
+                ...prev,
+                users: {
+                  ...prev.users,
+                  suspended: 0,
+                  total: totalUsersCount
+                }
+              }))
+            } catch (totalUsersError) {
+              console.error("Error loading total users count in fallback:", totalUsersError)
+              // Set both counts to 0 on complete failure
+              setStats(prev => ({
+                ...prev,
+                users: {
+                  ...prev.users,
+                  suspended: 0,
+                  total: 0
+                }
+              }))
+            }
+          }
           setRecentUsers([
             {
               id: 2,
@@ -519,7 +627,56 @@ export default function ModeratorDashboardPage() {
           }
         ])
 
-        setSuspendedUsers([])
+        // Try to load suspended users even in final fallback
+        try {
+          const suspendedUsersResponse = await getSuspendedUsers({ status: 'Suspended' })
+          const suspendedUsersData = suspendedUsersResponse?.users || []
+          setSuspendedUsers(suspendedUsersData)
+          
+          // Also load total users count
+          const allUsersResponse = await getSuspendedUsers({}) // No status filter = all users
+          const totalUsersCount = allUsersResponse?.total_count || allUsersResponse?.users?.length || 0
+          
+          // Update stats with actual suspended users count and total count
+          setStats(prev => ({
+            ...prev,
+            users: {
+              ...prev.users,
+              suspended: suspendedUsersData?.length || 0,
+              total: totalUsersCount
+            }
+          }))
+        } catch (suspendedError) {
+          console.error("Error loading suspended users in final fallback:", suspendedError)
+          setSuspendedUsers([])
+          
+          // Try to get total users count even if suspended users failed
+          try {
+            const allUsersResponse = await getSuspendedUsers({}) // No status filter = all users
+            const totalUsersCount = allUsersResponse?.total_count || allUsersResponse?.users?.length || 0
+            
+            // Set suspended count to 0 on error, but update total count
+            setStats(prev => ({
+              ...prev,
+              users: {
+                ...prev.users,
+                suspended: 0,
+                total: totalUsersCount
+              }
+            }))
+          } catch (totalUsersError) {
+            console.error("Error loading total users count in final fallback:", totalUsersError)
+            // Set both counts to 0 on complete failure
+            setStats(prev => ({
+              ...prev,
+              users: {
+                ...prev.users,
+                suspended: 0,
+                total: 0
+              }
+            }))
+          }
+        }
         setRecentUsers([
           {
             id: 2,
@@ -721,33 +878,42 @@ export default function ModeratorDashboardPage() {
         // Update local state based on action
         if (action === 'suspend') {
           setFlaggedUsers(prev => prev.filter(user => user.id !== userId))
-          const userToSuspend = flaggedUsers.find(user => user.id === userId)
-          if (userToSuspend) {
-            setSuspendedUsers(prev => [...prev, {
-              ...userToSuspend,
-              status: "suspended",
-              suspendedReason: "Moderator action",
-              suspendedDate: new Date().toISOString(),
-              suspendedBy: moderatorUser?.email || "Moderator"
-            }])
+          // Refresh suspended users list from backend
+          try {
+            const updatedSuspendedUsersResponse = await getSuspendedUsers({ status: 'Suspended' })
+            const updatedSuspendedUsers = updatedSuspendedUsersResponse?.users || []
+            setSuspendedUsers(updatedSuspendedUsers)
+            
+            // Update stats with actual count
+            setStats(prev => ({
+              ...prev,
+              users: {
+                ...prev.users,
+                flagged: prev.users.flagged - 1,
+                suspended: updatedSuspendedUsers?.length || 0
+              }
+            }))
+          } catch (refreshError) {
+            console.error("Error refreshing suspended users:", refreshError)
           }
-          setStats(prev => ({
-            ...prev,
-            users: {
-              ...prev.users,
-              flagged: prev.users.flagged - 1,
-              suspended: prev.users.suspended + 1
-            }
-          }))
         } else if (action === 'unsuspend') {
-          setSuspendedUsers(prev => prev.filter(user => user.id !== userId))
-          setStats(prev => ({
-            ...prev,
-            users: {
-              ...prev.users,
-              suspended: prev.users.suspended - 1
-            }
-          }))
+          // Refresh suspended users list from backend
+          try {
+            const updatedSuspendedUsersResponse = await getSuspendedUsers({ status: 'Suspended' })
+            const updatedSuspendedUsers = updatedSuspendedUsersResponse?.users || []
+            setSuspendedUsers(updatedSuspendedUsers)
+            
+            // Update stats with actual count
+            setStats(prev => ({
+              ...prev,
+              users: {
+                ...prev.users,
+                suspended: updatedSuspendedUsers?.length || 0
+              }
+            }))
+          } catch (refreshError) {
+            console.error("Error refreshing suspended users:", refreshError)
+          }
         } else if (action === 'activate') {
           // User status changed from deactivated to active - no specific local state updates needed
           console.log(`User ${userId} activated successfully`)
@@ -1387,37 +1553,6 @@ export default function ModeratorDashboardPage() {
     )
   }
 
-  const quickStats = [
-    {
-      title: "Pending Reports",
-      value: stats.reports.pending,
-      icon: AlertTriangle,
-      color: "text-red-600",
-      bgColor: "bg-red-100"
-    },
-    // {
-    //   title: "Flagged Users",
-    //   value: stats.users.flagged,
-    //   icon: Flag,
-    //   color: "text-orange-600",
-    //   bgColor: "bg-orange-100"
-    // },
-    {
-      title: "Content Reviews",
-      value: stats.content.flagged,
-      icon: FileText,
-      color: "text-blue-600",
-      bgColor: "bg-blue-100"
-    },
-    {
-      title: "Resolved Today",
-      value: stats.reports.resolved,
-      icon: CheckCircle,
-      color: "text-green-600",
-      bgColor: "bg-green-100"
-    }
-  ]
-
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Header */}
@@ -1464,25 +1599,6 @@ export default function ModeratorDashboardPage() {
           </p>
         </div>
 
-        {/* Quick Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          {quickStats.map((stat, index) => (
-            <Card key={index} className="dark:bg-gray-800 dark:border-gray-700">
-              <CardContent className="pt-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">{stat.title}</p>
-                    <p className="text-2xl font-bold">{stat.value}</p>
-                  </div>
-                  <div className={`p-3 rounded-full ${stat.bgColor}`}>
-                    <stat.icon className={`h-6 w-6 ${stat.color}`} />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-
         {/* Main Dashboard Tabs */}
         <Tabs defaultValue="reports" className="space-y-6">
           <TabsList className="grid w-full grid-cols-3">
@@ -1517,13 +1633,13 @@ export default function ModeratorDashboardPage() {
                         <div className="flex justify-between items-start mb-3">
                           <div className="flex-1">
                             <div className="flex items-center gap-2 mb-2">
-                              <Badge className={
+                              {/* <Badge className={
                                 report.severity === "High" ? "bg-red-100 text-red-800" :
                                 report.severity === "Medium" ? "bg-orange-100 text-orange-800" :
                                 "bg-yellow-100 text-yellow-800"
                               }>
                                 {report.severity}
-                              </Badge>
+                              </Badge> */}
                               <span className="font-medium">{report.type}</span>
                               {report.admin_notes && (
                                 <Badge variant="secondary" className="bg-blue-100 text-blue-800 text-xs">
@@ -1609,13 +1725,13 @@ export default function ModeratorDashboardPage() {
                               <Badge className="bg-orange-100 text-orange-800">
                                 Under Review
                               </Badge>
-                              <Badge className={
+                              {/* <Badge className={
                                 report.severity === "High" ? "bg-red-100 text-red-800" :
                                 report.severity === "Medium" ? "bg-orange-100 text-orange-800" :
                                 "bg-yellow-100 text-yellow-800"
                               }>
                                 {report.severity}
-                              </Badge>
+                              </Badge> */}
                               <span className="font-medium">{report.type}</span>
                               {report.admin_notes && (
                                 <Badge variant="secondary" className="bg-blue-100 text-blue-800 text-xs">
@@ -1716,58 +1832,55 @@ export default function ModeratorDashboardPage() {
 
           {/* Content Tab */}
           <TabsContent value="content" className="space-y-6">
-            {/* Content Management Actions */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Card className="dark:bg-gray-800 dark:border-gray-700">
-                <CardHeader>
-                  <CardTitle>Content Management</CardTitle>
-                  <CardDescription>
-                    Search and manage services and requests on the platform
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <Button 
-                    variant="outline" 
-                    className="w-full justify-start"
-                    onClick={handleSearchContent}
-                  >
-                    <Search className="h-4 w-4 mr-2" />
-                    Search Services & Requests
-                  </Button>
-                  <Button variant="outline" className="w-full justify-start">
-                    <Filter className="h-4 w-4 mr-2" />
-                    Filter by Category
-                  </Button>
-                  <Button variant="outline" className="w-full justify-start">
-                    <History className="h-4 w-4 mr-2" />
-                    View Content History
-                  </Button>
-                </CardContent>
-              </Card>
-
-              <Card className="dark:bg-gray-800 dark:border-gray-700">
-                <CardHeader>
-                  <CardTitle>Quick Stats</CardTitle>
-                  <CardDescription>
-                    Overview of platform content
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">Services:</span>
-                    <span className="font-medium">{allServices.length}</span>
+            {/* Content Management & Stats */}
+            <Card className="dark:bg-gray-800 dark:border-gray-700">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <BarChart3 className="h-5 w-5" />
+                  Content Overview & Management
+                </CardTitle>
+                <CardDescription>
+                  Platform content statistics and management actions
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Stats Section */}
+                  <div className="space-y-4">
+                    <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Platform Statistics</h3>
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-center p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                        <span className="text-sm text-gray-600 dark:text-gray-300">Services:</span>
+                        <span className="font-semibold text-blue-600 dark:text-blue-400">{allServices.length}</span>
+                      </div>
+                      <div className="flex justify-between items-center p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                        <span className="text-sm text-gray-600 dark:text-gray-300">Requests:</span>
+                        <span className="font-semibold text-green-600 dark:text-green-400">{allRequests.length}</span>
+                      </div>
+                      <div className="flex justify-between items-center p-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
+                        <span className="text-sm text-gray-600 dark:text-gray-300">Suspended Content:</span>
+                        <span className="font-semibold text-red-600 dark:text-red-400">{flaggedContent.length}</span>
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">Requests:</span>
-                    <span className="font-medium">{allRequests.length}</span>
+                  
+                  {/* Management Actions Section */}
+                  <div className="space-y-4">
+                    <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Management Actions</h3>
+                    <div className="space-y-3">
+                      <Button 
+                        variant="outline" 
+                        className="w-full justify-start bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700"
+                        onClick={handleSearchContent}
+                      >
+                        <Search className="h-4 w-4 mr-2" />
+                        Search Services & Requests
+                      </Button>
+                    </div>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">Suspended Content:</span>
-                    <span className="font-medium text-red-600">{flaggedContent.length}</span>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+                </div>
+              </CardContent>
+            </Card>
 
             {/* Suspended Content */}
             <Card className="dark:bg-gray-800 dark:border-gray-700">
@@ -1880,192 +1993,98 @@ export default function ModeratorDashboardPage() {
 
           {/* Users Tab */}
           <TabsContent value="users" className="space-y-6">
-            {/* User Actions */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Card className="dark:bg-gray-800 dark:border-gray-700">
-                <CardHeader>
-                  <CardTitle>Moderation Actions</CardTitle>
-                  <CardDescription>
-                    Quick actions for user moderation and oversight
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <Button 
-                    variant="outline" 
-                    className="w-full justify-start"
-                    onClick={handleSearchUsers}
-                  >
-                    <Search className="h-4 w-4 mr-2" />
-                    Search Users
-                  </Button>
-                  <Button variant="outline" className="w-full justify-start">
-                    <Filter className="h-4 w-4 mr-2" />
-                    Filter Flagged Users
-                  </Button>
-                  <Button variant="outline" className="w-full justify-start">
-                    <History className="h-4 w-4 mr-2" />
-                    View Action History
-                  </Button>
-                  <Button variant="outline" className="w-full justify-start">
-                    <Info className="h-4 w-4 mr-2" />
-                    User Reports
-                  </Button>
-                </CardContent>
-              </Card>
-
-            </div>
-
-            {/* Flagged Users */}
+            {/* User Management */}
             <Card className="dark:bg-gray-800 dark:border-gray-700">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <AlertTriangle className="h-5 w-5" />
-                  Flagged Users ({flaggedUsers.length})
+                  <Users className="h-5 w-5" />
+                  User Management & Oversight
                 </CardTitle>
                 <CardDescription>
-                  Users that have been flagged and require moderation review
+                  Manage user actions and view suspended accounts
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                {flaggedUsers.length === 0 ? (
-                  <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-                    <CheckCircle className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                    <p>No flagged users</p>
-                  </div>
-                ) : (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* Moderation Actions Section */}
                   <div className="space-y-4">
-                    {flaggedUsers.map(user => (
-                      <div key={user.id} className="border rounded-lg p-4 bg-gray-50 dark:bg-gray-700">
-                        <div className="flex justify-between items-start mb-3">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-2">
-                              <Badge className="bg-orange-100 text-orange-800">
-                                Flagged
-                              </Badge>
-                              <span className="font-medium">{user.username}</span>
-                            </div>
-                            <p className="text-sm text-gray-600 dark:text-gray-300 mb-2">
-                              <strong>Email:</strong> {user.email}
-                            </p>
-                            <p className="text-sm text-gray-600 dark:text-gray-300 mb-2">
-                              <strong>Reason:</strong> {user.flaggedReason}
-                            </p>
-                            <p className="text-sm text-gray-600 dark:text-gray-300 mb-2">
-                              <strong>Reports:</strong> {user.reportCount} report(s)
-                            </p>
-                            <p className="text-xs text-gray-500">
-                              Flagged: {formatDateIST(user.flaggedDate)}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex justify-end gap-2">
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => handleUserAction(user.id, "unflag")}
-                            disabled={processingUserId === user.id}
-                            className="text-green-600 border-green-200 hover:bg-green-50"
-                          >
-                            <Check className="h-4 w-4 mr-1" />
-                            Clear Flag
-                          </Button>
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            className="text-blue-600 border-blue-200 hover:bg-blue-50"
-                          >
-                            <Eye className="h-4 w-4 mr-1" />
-                            View Profile
-                          </Button>
-                          <Button 
-                            size="sm"
-                            onClick={() => handleUserAction(user.id, "suspend")}
-                            disabled={processingUserId === user.id}
-                            className="bg-red-600 hover:bg-red-700"
-                          >
-                            <UserMinus className="h-4 w-4 mr-1" />
-                            Suspend
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
+                    <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Quick Actions</h3>
+                    <div className="space-y-3">
+                      <Button 
+                        variant="outline" 
+                        className="w-full justify-start bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700"
+                        onClick={handleSearchUsers}
+                      >
+                        <Search className="h-4 w-4 mr-2" />
+                        Search Users
+                      </Button>
+                    </div>
                   </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Suspended Users */}
-            <Card className="dark:bg-gray-800 dark:border-gray-700">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <UserX className="h-5 w-5" />
-                  Suspended Users ({suspendedUsers.length})
-                </CardTitle>
-                <CardDescription>
-                  Users currently under suspension
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {suspendedUsers.length === 0 ? (
-                  <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-                    <CheckCircle className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                    <p>No suspended users</p>
-                  </div>
-                ) : (
+                  
+                  {/* Suspended Users Section */}
                   <div className="space-y-4">
-                    {suspendedUsers.map(user => (
-                      <div key={user.id} className="border rounded-lg p-4 bg-red-50 dark:bg-red-900/20">
-                        <div className="flex justify-between items-start mb-3">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-2">
-                              <Badge className="bg-red-100 text-red-800">
-                                Suspended
-                              </Badge>
-                              <span className="font-medium">{user.username}</span>
-                            </div>
-                            <p className="text-sm text-gray-600 dark:text-gray-300 mb-2">
-                              <strong>Email:</strong> {user.email}
-                            </p>
-                            <p className="text-sm text-gray-600 dark:text-gray-300 mb-2">
-                              <strong>Reason:</strong> {user.suspendedReason}
-                            </p>
-                            <p className="text-sm text-gray-600 dark:text-gray-300 mb-2">
-                              <strong>Suspended By:</strong> {user.suspendedBy}
-                            </p>
-                            <p className="text-xs text-gray-500">
-                              Suspended: {formatDateIST(user.suspendedDate)}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex justify-end gap-2">
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            className="text-blue-600 border-blue-200 hover:bg-blue-50"
-                          >
-                            <Eye className="h-4 w-4 mr-1" />
-                            View Profile
-                          </Button>
-                          <Button 
-                            size="sm"
-                            onClick={() => handleUserAction(user.id, "unsuspend")}
-                            disabled={processingUserId === user.id}
-                            className="bg-green-600 hover:bg-green-700"
-                          >
-                            <UserCheck className="h-4 w-4 mr-1" />
-                            Unsuspend
-                          </Button>
-                        </div>
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">Suspended Users</h3>
+                      <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">
+                        {suspendedUsers.length} users
+                      </Badge>
+                    </div>
+                    {suspendedUsers.length === 0 ? (
+                      <div className="text-center py-6 text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+                        <CheckCircle className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                        <p className="text-sm">No suspended users</p>
                       </div>
-                    ))}
+                    ) : (
+                      <div className="space-y-3 max-h-60 overflow-y-auto">
+                        {suspendedUsers.map(user => (
+                          <div key={user.id} className="border rounded-lg p-3 bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800">
+                            <div className="flex justify-between items-start mb-2">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <Badge className="bg-red-100 text-red-800 text-xs">
+                                    Suspended
+                                  </Badge>
+                                  <span className="text-sm font-medium">{user.username}</span>
+                                </div>
+                                <p className="text-xs text-gray-600 dark:text-gray-300">
+                                  {user.email}
+                                </p>
+                                <p className="text-xs text-gray-500 mt-1">
+                                  {formatDateIST(user.suspendedDate)}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="flex justify-end gap-1">
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                className="text-blue-600 border-blue-200 hover:bg-blue-50 h-7 px-2"
+                              >
+                                <Eye className="h-3 w-3 mr-1" />
+                                View
+                              </Button>
+                              <Button 
+                                size="sm"
+                                onClick={() => handleUserAction(user.id, "unsuspend")}
+                                disabled={processingUserId === user.id}
+                                className="bg-green-600 hover:bg-green-700 h-7 px-2"
+                              >
+                                <UserCheck className="h-3 w-3 mr-1" />
+                                Unsuspend
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                )}
+                </div>
               </CardContent>
             </Card>
 
             {/* User Statistics */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <Card className="dark:bg-gray-800 dark:border-gray-700">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* <Card className="dark:bg-gray-800 dark:border-gray-700">
                 <CardContent className="pt-6">
                   <div className="text-center">
                     <h3 className="text-2xl font-bold text-blue-600">{stats.users.total}</h3>
@@ -2076,19 +2095,11 @@ export default function ModeratorDashboardPage() {
               <Card className="dark:bg-gray-800 dark:border-gray-700">
                 <CardContent className="pt-6">
                   <div className="text-center">
-                    <h3 className="text-2xl font-bold text-orange-600">{stats.users.flagged}</h3>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">Flagged Users</p>
-                  </div>
-                </CardContent>
-              </Card>
-              <Card className="dark:bg-gray-800 dark:border-gray-700">
-                <CardContent className="pt-6">
-                  <div className="text-center">
                     <h3 className="text-2xl font-bold text-red-600">{stats.users.suspended}</h3>
                     <p className="text-sm text-gray-600 dark:text-gray-400">Suspended</p>
                   </div>
                 </CardContent>
-              </Card>
+              </Card> */}
             </div>
           </TabsContent>
 
@@ -2701,16 +2712,6 @@ export default function ModeratorDashboardPage() {
                     <div>
                       <Label className="text-sm font-medium text-gray-600">Report Type</Label>
                       <p className="text-sm">{selectedReport.type}</p>
-                    </div>
-                    <div>
-                      <Label className="text-sm font-medium text-gray-600">Severity</Label>
-                      <Badge className={
-                        selectedReport.severity === "High" ? "bg-red-100 text-red-800" :
-                        selectedReport.severity === "Medium" ? "bg-orange-100 text-orange-800" :
-                        "bg-yellow-100 text-yellow-800"
-                      }>
-                        {selectedReport.severity}
-                      </Badge>
                     </div>
                     <div>
                       <Label className="text-sm font-medium text-gray-600">Submitted</Label>

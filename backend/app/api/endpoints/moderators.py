@@ -572,6 +572,75 @@ def moderate_user_action(
             detail="An error occurred while performing the user action"
         )
 
+# User Management Endpoints
+
+@router.get("/users", response_model=dict)
+def get_users_for_moderation(
+    status: Optional[str] = None,
+    search: Optional[str] = None,
+    current_moderator = Depends(get_current_moderator),
+    db: Session = Depends(get_db)
+):
+    """Get users for moderation purposes"""
+    from ...db.models.user import User
+    
+    print(f"=== DEBUG: get_users_for_moderation called ===")
+    print(f"Status filter: {status}")
+    print(f"Search filter: {search}")
+    
+    # First, let's get the total count of all users
+    total_users_count = db.query(User).count()
+    print(f"Total users in database: {total_users_count}")
+    
+    query = db.query(User)
+    
+    if status:
+        print(f"Filtering by status: {status}")
+        query = query.filter(User.status == status)
+    
+    if search:
+        search_term = f"%{search}%"
+        query = query.filter(
+            (User.first_name.ilike(search_term)) |
+            (User.last_name.ilike(search_term)) |
+            (User.email.ilike(search_term))
+        )
+    
+    users = query.order_by(desc(User.date_joined)).all()
+    print(f"Query returned {len(users)} users")
+    
+    # Let's also check what statuses exist in the database
+    all_statuses = db.query(User.status).distinct().all()
+    print(f"Available user statuses in database: {[status[0] for status in all_statuses]}")
+    
+    result_users = []
+    for user in users:
+        result_users.append({
+            "id": user.user_id,
+            "username": f"{user.first_name} {user.last_name}",
+            "email": user.email,
+            "first_name": user.first_name,
+            "last_name": user.last_name,
+            "status": user.status,
+            "created_at": user.date_joined,
+            "last_login": user.last_login,
+            "phone_number": user.phone_number,
+            "location": user.location,
+            "time_credits": float(user.time_credits) if user.time_credits else 0.0
+        })
+    
+    # Return both the users and the total count
+    response = {
+        "users": result_users,
+        "total_count": total_users_count,
+        "filtered_count": len(result_users)
+    }
+    
+    print(f"Returning {len(result_users)} filtered users out of {total_users_count} total users")
+    print("=== END DEBUG ===")
+    
+    return response
+
 # Content Management Endpoints
 
 @router.get("/services", response_model=List[dict])

@@ -1268,3 +1268,52 @@ export async function moderateRequest(requestId, action) {
     throw error;
   }
 }
+
+/**
+ * Get suspended users for moderation dashboard
+ * @param {Object} filters - Filter parameters (status, search)
+ * @returns {Promise<Array>} List of suspended users
+ */
+export async function getSuspendedUsers(filters = {}) {
+  try {
+    const moderatorData = getStoredModeratorData();
+    const token = moderatorData?.accessToken;
+
+    if (!token) {
+      throw new Error("Authentication token not found. Please log in as moderator.");
+    }
+
+    const queryParams = new URLSearchParams();
+    if (filters.status) queryParams.append('status', filters.status);
+    if (filters.search) queryParams.append('search', filters.search);
+
+    const url = `http://localhost:8000/api/v1/moderators/users?${queryParams}`;
+    console.log(`=== FRONTEND DEBUG: Calling ${url} ===`);
+    console.log("Filters:", filters);
+
+    const response = await fetch(url, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      }
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error("API Error:", errorData);
+      throw new Error(errorData.detail || "Failed to fetch users");
+    }
+
+    const result = await response.json();
+    console.log(`=== FRONTEND DEBUG: Received response ===`);
+    console.log("Full response:", result);
+    console.log("Users count:", result?.users?.length || 0);
+    console.log("Total count:", result?.total_count || 0);
+    
+    return result;
+  } catch (error) {
+    console.error("Error fetching suspended users:", error);
+    throw error;
+  }
+}
