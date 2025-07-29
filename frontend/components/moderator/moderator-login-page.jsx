@@ -165,13 +165,13 @@ export default function ModeratorLoginPage() {
             </form>
 
             {/* Demo Credentials */}
-            <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+            {/* <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
               <h4 className="text-sm font-medium text-blue-900 dark:text-blue-100 mb-2">Demo Credentials:</h4>
               <p className="text-xs text-blue-800 dark:text-blue-200">
                 <strong>Email:</strong> moderator@timenest.com<br />
                 <strong>Password:</strong> moderator123
               </p>
-            </div>
+            </div> */}
 
             {/* Footer Links */}
             <div className="mt-6 text-center space-y-2">

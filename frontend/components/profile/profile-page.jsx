@@ -263,27 +263,39 @@ export default function ProfilePage() {
                 </Button>
                 
                 {/* Show application status if exists */}
-                {modApplications.length > 0 && (
-                  <div className="mt-4 p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20">
-                    <h3 className="text-sm font-medium text-blue-800 dark:text-blue-300 mb-1">
-                      Moderator Application
-                    </h3>
-                    <Badge className={
-                      modApplications[0].status === "pending" ? "bg-yellow-100 text-yellow-800" :
-                      modApplications[0].status === "approved" ? "bg-green-100 text-green-800" :
-                      "bg-red-100 text-red-800"
-                    }>
-                      {modApplications[0].status === "pending" ? "Pending Review" :
-                       modApplications[0].status === "approved" ? "Approved" :
-                       "Rejected"}
-                    </Badge>
-                    <p className="text-xs text-blue-700 dark:text-blue-400 mt-1">
-                      {modApplications[0].submitted_at ? 
-                        `Submitted on ${new Date(modApplications[0].submitted_at).toLocaleDateString()}` : 
-                        "Recently submitted"}
-                    </p>
-                  </div>
-                )}
+                {modApplications.length > 0 && (() => {
+                  // Get the latest application by sorting by submitted_at date
+                  const latestApplication = modApplications.sort((a, b) => 
+                    new Date(b.submitted_at) - new Date(a.submitted_at)
+                  )[0];
+                  
+                  return (
+                    <div className="mt-4 p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20">
+                      <h3 className="text-sm font-medium text-blue-800 dark:text-blue-300 mb-1">
+                        Moderator Application
+                      </h3>
+                      <Badge className={
+                        latestApplication.status === "pending" ? "bg-yellow-100 text-yellow-800" :
+                        latestApplication.status === "approved" ? "bg-green-100 text-green-800" :
+                        "bg-red-100 text-red-800"
+                      }>
+                        {latestApplication.status === "pending" ? "Pending Review" :
+                         latestApplication.status === "approved" ? "Approved" :
+                         "Rejected"}
+                      </Badge>
+                      <p className="text-xs text-blue-700 dark:text-blue-400 mt-1">
+                        {latestApplication.submitted_at ? 
+                          `Submitted on ${new Date(latestApplication.submitted_at).toLocaleDateString()}` : 
+                          "Recently submitted"}
+                      </p>
+                      {modApplications.length > 1 && (
+                        <p className="text-xs text-blue-600 dark:text-blue-500 mt-1">
+                          Total applications: {modApplications.length}
+                        </p>
+                      )}
+                    </div>
+                  );
+                })()}
               </CardContent>
             </Card>
           </div>

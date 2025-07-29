@@ -517,14 +517,13 @@ export async function deleteUserAdmin(token, userId, handleTokenExpired = null) 
 }
 
 // Get recent users for admin dashboard
-export async function getRecentUsersAdmin(token, limit = 3, handleTokenExpired = null) {
+export async function getRecentUsersAdmin(token, limit = 5, handleTokenExpired = null) {
   try {
     const queryParams = new URLSearchParams({
       skip: '0',
-      limit: limit.toString()
-      // Temporarily remove sorting to test basic functionality
-      // sort: 'created_at',
-      // order: 'desc'
+      limit: limit.toString(),
+      sort: 'created_at',   // Backend expects 'created_at' to sort by date_joined field
+      order: 'desc'         // Descending order (latest first)
     });
     
     const response = await fetch(`http://localhost:8000/api/v1/users/admin/users?${queryParams}`, {
@@ -540,31 +539,60 @@ export async function getRecentUsersAdmin(token, limit = 3, handleTokenExpired =
     }
     
     const data = await response.json();
-    return data.users || data || [];
+    const users = data.users || data || [];
+    
+    // Additional client-side sorting as backup to ensure proper ordering
+    const sortedUsers = users.sort((a, b) => {
+      const dateA = new Date(a.date_joined || a.created_at || a.createdAt || 0);
+      const dateB = new Date(b.date_joined || b.created_at || b.createdAt || 0);
+      return dateB - dateA; // Descending order (latest first)
+    });
+    
+    return sortedUsers;
   } catch (error) {
     console.error("Error fetching recent users:", error);
-    // Return demo data as fallback
+    // Return demo data as fallback with proper date ordering
+    const currentTime = new Date();
     return [
       {
         id: "demo1",
         firstName: "Sarah",
         lastName: "Miller",
         role: "service_provider",
-        createdAt: new Date().toISOString()
+        createdAt: new Date(currentTime.getTime() - 1 * 24 * 60 * 60 * 1000).toISOString(), // 1 day ago
+        date_joined: new Date(currentTime.getTime() - 1 * 24 * 60 * 60 * 1000).toISOString()
       },
       {
         id: "demo2", 
         firstName: "Mike",
         lastName: "Johnson",
         role: "customer",
-        createdAt: new Date().toISOString()
+        createdAt: new Date(currentTime.getTime() - 2 * 24 * 60 * 60 * 1000).toISOString(), // 2 days ago
+        date_joined: new Date(currentTime.getTime() - 2 * 24 * 60 * 60 * 1000).toISOString()
       },
       {
         id: "demo3",
         firstName: "Emily", 
         lastName: "Davis",
         role: "service_provider",
-        createdAt: new Date().toISOString()
+        createdAt: new Date(currentTime.getTime() - 3 * 24 * 60 * 60 * 1000).toISOString(), // 3 days ago
+        date_joined: new Date(currentTime.getTime() - 3 * 24 * 60 * 60 * 1000).toISOString()
+      },
+      {
+        id: "demo4",
+        firstName: "John", 
+        lastName: "Smith",
+        role: "customer",
+        createdAt: new Date(currentTime.getTime() - 4 * 24 * 60 * 60 * 1000).toISOString(), // 4 days ago
+        date_joined: new Date(currentTime.getTime() - 4 * 24 * 60 * 60 * 1000).toISOString()
+      },
+      {
+        id: "demo5",
+        firstName: "Anna", 
+        lastName: "Brown",
+        role: "service_provider",
+        createdAt: new Date(currentTime.getTime() - 5 * 24 * 60 * 60 * 1000).toISOString(), // 5 days ago
+        date_joined: new Date(currentTime.getTime() - 5 * 24 * 60 * 60 * 1000).toISOString()
       }
     ];
   }

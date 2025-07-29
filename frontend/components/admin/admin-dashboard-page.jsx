@@ -209,7 +209,7 @@ export default function AdminDashboardPage() {
         
         // Fetch recent users
         try {
-          const recent = await getRecentUsersAdmin(adminUser.accessToken, 3);
+          const recent = await getRecentUsersAdmin(adminUser.accessToken, 5);
           setRecentUsers(Array.isArray(recent) ? recent : (recent?.users || []));
         } catch (error) {
           console.error("Error fetching recent users:", error);
