@@ -154,7 +154,7 @@ export default function ServiceRequestCard({ request }) {
             </div>
             <div>
               <p className="text-sm font-medium text-foreground">{request.user.name}</p>
-              <div className="flex items-center">
+              {/* <div className="flex items-center">
                 {typeof request.user.rating === 'number' && request.user.totalReviews > 0 ? (
                   <>
                     <div className="flex items-center">
@@ -174,7 +174,7 @@ export default function ServiceRequestCard({ request }) {
                 ) : (
                   <span className="text-xs text-muted-foreground">No rating</span>
                 )}
-              </div>
+              </div> */}
             </div>
           </div>
           <Link href={`/requests/${request.id}`} className="text-sm font-medium text-primary hover:text-primary">

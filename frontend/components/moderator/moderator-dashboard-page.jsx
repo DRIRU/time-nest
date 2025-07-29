@@ -52,7 +52,75 @@ import {
   Archive
 } from "lucide-react"
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart as RechartsPieChart, Cell, Pie } from "recharts"
-import { getPendingReports, getFlaggedContent, getModeratorStats, getModeratorActivity, updateReportStatus, moderateContent, isModeratorAuthenticated, getStoredModeratorData, logoutModerator, getModeratorUsers, getModeratorRecentUsers, getModeratorServices, getModeratorRequests, moderateService, moderateRequest } from "@/lib/moderator-data"
+import { getPendingReports, getFlaggedContent, getModeratorStats, getModeratorActivity, updateReportStatus, moderateContent, isModeratorAuthenticated, getStoredModeratorData, logoutModerator, getModeratorUsers, getModeratorRecentUsers, getModeratorServices, getModeratorRequests, moderateService, moderateRequest, getAllReports } from "@/lib/moderator-data"
+import { getServiceById } from "@/lib/services-data"
+
+// Utility function to get current time in Indian timezone
+const getCurrentISTTime = () => {
+  // Get current UTC time and convert to IST
+  const now = new Date()
+  const utc = now.getTime() + (now.getTimezoneOffset() * 60000)
+  const istOffset = 5.5 // IST is UTC+5:30
+  const istTime = new Date(utc + (istOffset * 3600000))
+  
+  return istTime.toLocaleString('en-IN', {
+    year: 'numeric',
+    month: 'numeric',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: true
+  }) + ' IST'
+}
+
+// Utility function to format dates in Indian timezone
+const formatDateIST = (dateString, options = {}) => {
+  if (!dateString) return 'N/A'
+  
+  try {
+    // Parse the input date
+    const inputDate = new Date(dateString)
+    
+    // Check if it's a valid date
+    if (isNaN(inputDate.getTime())) {
+      console.error('Invalid date:', dateString)
+      return 'Invalid Date'
+    }
+    
+    // Convert to IST manually
+    const utc = inputDate.getTime() + (inputDate.getTimezoneOffset() * 60000)
+    const istOffset = 5.5 // IST is UTC+5:30
+    const istTime = new Date(utc + (istOffset * 3600000))
+    
+    // Format in Indian style
+    const formatted = istTime.toLocaleString('en-IN', {
+      year: 'numeric',
+      month: 'numeric',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: true
+    })
+    
+    return formatted + ' IST'
+    
+  } catch (error) {
+    console.error('Error formatting date:', error, 'Input:', dateString)
+    return 'Invalid Date'
+  }
+}
+
+// Utility function to format dates in Indian timezone (date only)
+const formatDateOnlyIST = (dateString) => {
+  return formatDateIST(dateString, {
+    timeZone: 'Asia/Kolkata',
+    year: 'numeric',
+    month: 'numeric',
+    day: 'numeric'
+  })
+}
 import Link from "next/link"
 
 export default function ModeratorDashboardPage() {
@@ -62,6 +130,7 @@ export default function ModeratorDashboardPage() {
   const [stats, setStats] = useState({
     reports: {
       pending: 0,
+      under_review: 0,
       resolved: 0,
       total: 0
     },
@@ -79,6 +148,8 @@ export default function ModeratorDashboardPage() {
   
   // Sample data for demonstration
   const [pendingReports, setPendingReports] = useState([])
+  const [underReviewReports, setUnderReviewReports] = useState([])
+  const [selectedService, setSelectedService] = useState(null)
   const [flaggedContent, setFlaggedContent] = useState([])
   const [recentActivity, setRecentActivity] = useState([])
   
@@ -117,6 +188,12 @@ export default function ModeratorDashboardPage() {
   })
   const [isLoadingReports, setIsLoadingReports] = useState(false)
 
+  // Investigation modal state
+  const [showInvestigationModal, setShowInvestigationModal] = useState(false)
+  const [selectedReport, setSelectedReport] = useState(null)
+  const [investigationNotes, setInvestigationNotes] = useState("")
+  const [isInvestigating, setIsInvestigating] = useState(false)
+
   useEffect(() => {
     // Check moderator authentication using the utility functions
     if (!isModeratorAuthenticated()) {
@@ -137,14 +214,17 @@ export default function ModeratorDashboardPage() {
     async function loadModeratorStats() {
       try {
         // Load stats and data using the moderator data functions
-        const [statsData, reportsData, contentData, activityData] = await Promise.all([
+        const [statsData, reportsData, underReviewData, contentData, activityData, suspendedServices, suspendedRequests] = await Promise.all([
           getModeratorStats(moderatorUser.accessToken),
           getPendingReports(moderatorUser.accessToken),
+          getAllReports({ status: 'under_review' }),
           getFlaggedContent(moderatorUser.accessToken),
-          getModeratorActivity(moderatorUser.accessToken, 5)
+          getModeratorActivity(moderatorUser.accessToken, 5),
+          getModeratorServices({ status: 'suspended' }),
+          getModeratorRequests({ status: 'suspended' })
         ])
         
-        console.log("Loaded moderator data:", { statsData, reportsData, contentData, activityData })
+        console.log("Loaded moderator data:", { statsData, reportsData, underReviewData, contentData, activityData, suspendedServices, suspendedRequests })
         
         // Ensure all reports have proper IDs
         const validReports = (Array.isArray(reportsData) ? reportsData : []).map((report, index) => ({
@@ -157,7 +237,26 @@ export default function ModeratorDashboardPage() {
           reason: report.category || "No reason specified",
           description: report.description || "No description provided",
           timestamp: report.created_at || new Date().toISOString(),
-          status: report.status || "pending"
+          status: report.status || "pending",
+          admin_notes: report.admin_notes || null,
+          updated_at: report.updated_at || null
+        }))
+
+        // Process under review reports
+        const validUnderReviewReports = (Array.isArray(underReviewData) ? underReviewData : []).map((report, index) => ({
+          ...report,
+          id: report.id || report.report_id || `under-review-${index}`,
+          type: report.report_type || report.type || "Unknown",
+          severity: report.severity || "Medium",
+          reportedUser: report.reported_user_name || report.reported_user?.username || "Unknown User",
+          reportedBy: report.reporter_name || report.reporter?.username || "System",
+          reason: report.category || "No reason specified",
+          description: report.description || "No description provided",
+          timestamp: report.created_at || new Date().toISOString(),
+          status: report.status || "under_review",
+          reviewStarted: report.review_started || report.updated_at || new Date().toISOString(),
+          admin_notes: report.admin_notes || null,
+          updated_at: report.updated_at || null
         }))
 
         // Ensure all content has proper IDs
@@ -172,6 +271,39 @@ export default function ModeratorDashboardPage() {
           timestamp: item.timestamp || new Date().toISOString(),
           status: item.status || "pending"
         }))
+
+        // Process suspended services
+        const validSuspendedServices = (Array.isArray(suspendedServices) ? suspendedServices : []).map((service, index) => ({
+          id: service.id || `suspended-service-${index}`,
+          type: "Service",
+          title: service.title || service.service_name || "Unknown Service",
+          content: service.description || "No description",
+          author: service.provider_name || service.user?.username || "Unknown Provider",
+          flaggedBy: "Moderator",
+          reason: service.suspension_reason || "Violated terms of service",
+          timestamp: service.suspended_at || service.updated_at || new Date().toISOString(),
+          status: "suspended",
+          originalId: service.id,
+          serviceData: service
+        }))
+
+        // Process suspended requests
+        const validSuspendedRequests = (Array.isArray(suspendedRequests) ? suspendedRequests : []).map((request, index) => ({
+          id: request.id || `suspended-request-${index}`,
+          type: "Request",
+          title: request.title || request.service_title || "Unknown Request",
+          content: request.description || "No description",
+          author: request.requester_name || request.user?.username || "Unknown Requester",
+          flaggedBy: "Moderator",
+          reason: request.suspension_reason || "Violated terms of service",
+          timestamp: request.suspended_at || request.updated_at || new Date().toISOString(),
+          status: "suspended",
+          originalId: request.id,
+          requestData: request
+        }))
+
+        // Combine all suspended content
+        const allSuspendedContent = [...validContent, ...validSuspendedServices, ...validSuspendedRequests]
 
         // Ensure all activities have proper IDs
         const validActivity = (Array.isArray(activityData) ? activityData : []).map((act, index) => ({
@@ -309,8 +441,26 @@ export default function ModeratorDashboardPage() {
         
         setStats(statsData)
         setPendingReports(validReports)
-        setFlaggedContent(validContent)
+        setUnderReviewReports(validUnderReviewReports)
+        setFlaggedContent(allSuspendedContent)
         setRecentActivity(validActivity)
+
+        // Update stats to include actual under review count and suspended content
+        setStats(prev => ({
+          ...prev,
+          reports: {
+            ...prev.reports,
+            under_review: validUnderReviewReports.length,
+            pending: validReports.length,
+            total: prev.reports.total || (validReports.length + validUnderReviewReports.length + prev.reports.resolved)
+          },
+          content: {
+            ...prev.content,
+            flagged: allSuspendedContent.length,
+            services: validSuspendedServices.length,
+            comments: validSuspendedRequests.length
+          }
+        }))
 
       } catch (error) {
         console.error("Error loading moderator stats:", error)
@@ -375,10 +525,10 @@ export default function ModeratorDashboardPage() {
     loadModeratorStats()
   }, [moderatorUser])
 
-  const handleReportAction = async (reportId, action) => {
+  const handleReportAction = async (reportId, action, notes = "") => {
     try {
-      // Use the actual API function
-      await updateReportStatus(reportId, action, moderatorUser?.accessToken)
+      // Use the actual API function with notes
+      await updateReportStatus(reportId, action, notes)
       
       // Update local state
       setPendingReports(prev => 
@@ -389,15 +539,29 @@ export default function ModeratorDashboardPage() {
         ).filter(report => report.status === "pending")
       )
 
-      // Update stats
-      setStats(prev => ({
-        ...prev,
-        reports: {
-          ...prev.reports,
-          pending: prev.reports.pending - 1,
-          resolved: action === "resolved" ? prev.reports.resolved + 1 : prev.reports.resolved
+      // Update stats - handle both pending and under review reports
+      setStats(prev => {
+        // Check if this is a pending report or under review report
+        const isPendingReport = pendingReports.some(r => r.id === reportId)
+        const isUnderReviewReport = underReviewReports.some(r => r.id === reportId)
+        
+        let updatedStats = { ...prev.reports }
+        
+        if (isPendingReport) {
+          updatedStats.pending = prev.reports.pending - 1
+        } else if (isUnderReviewReport) {
+          updatedStats.under_review = prev.reports.under_review - 1
         }
-      }))
+        
+        if (action === "resolved") {
+          updatedStats.resolved = prev.reports.resolved + 1
+        }
+        
+        return {
+          ...prev,
+          reports: updatedStats
+        }
+      })
 
       console.log(`Report ${reportId} ${action} successfully`)
 
@@ -407,15 +571,108 @@ export default function ModeratorDashboardPage() {
     }
   }
 
+  const handleInvestigateReport = async (report) => {
+    try {
+      setIsInvestigating(true)
+      
+      // Update report status to under_review
+      await updateReportStatus(report.id, "under_review", moderatorUser?.accessToken)
+      
+      // Update local state to reflect status change and remove from pending list
+      setPendingReports(prev => 
+        prev.filter(r => r.id !== report.id)
+      )
+
+      // Add to under review list (check if not already exists)
+      const underReviewReport = {...report, status: "under_review", reviewStarted: new Date().toISOString()}
+      setUnderReviewReports(prev => {
+        // Check if report already exists in under review list
+        const exists = prev.some(r => r.id === underReviewReport.id)
+        if (exists) {
+          return prev // Don't add duplicate
+        }
+        return [...prev, underReviewReport]
+      })
+
+      // Update stats to reflect one less pending report and one more under review
+      setStats(prev => ({
+        ...prev,
+        reports: {
+          ...prev.reports,
+          pending: prev.reports.pending - 1,
+          under_review: prev.reports.under_review + 1
+        }
+      }))
+
+      // Fetch service details if report is about a service
+      let serviceDetails = null
+      if (report.reported_service_id) {
+        try {
+          serviceDetails = await getServiceById(report.reported_service_id)
+        } catch (error) {
+          console.warn(`Failed to fetch service details for service ID ${report.reported_service_id}:`, error)
+        }
+      }
+
+      // Set selected report, service, and show modal
+      setSelectedReport(underReviewReport)
+      setSelectedService(serviceDetails)
+      setShowInvestigationModal(true)
+      
+      console.log(`Report ${report.id} status changed to under_review`)
+
+    } catch (error) {
+      console.error(`Error updating report status:`, error)
+      alert(`Failed to update report status: ${error.message}`)
+    } finally {
+      setIsInvestigating(false)
+    }
+  }
+
   const handleContentAction = async (contentId, action) => {
     try {
-      // Use the actual API function
-      await moderateContent(contentId, action, moderatorUser?.accessToken)
+      // Find the content item to determine its type
+      const contentItem = flaggedContent.find(item => item.originalId === contentId || item.id === contentId)
       
-      // Update local state
+      if (!contentItem) {
+        throw new Error("Content not found")
+      }
+
+      let apiResponse
+      
+      // Handle different content types and actions
+      if (contentItem.type === "Service") {
+        // Use service moderation API
+        if (action === "unsuspend") {
+          apiResponse = await moderateService(contentId, "activate", moderatorUser?.accessToken)
+        } else if (action === "permanently_remove") {
+          apiResponse = await moderateService(contentId, "delete", moderatorUser?.accessToken)
+        }
+      } else if (contentItem.type === "Request") {
+        // Use request moderation API
+        if (action === "unsuspend") {
+          apiResponse = await moderateRequest(contentId, "activate", moderatorUser?.accessToken)
+        } else if (action === "permanently_remove") {
+          apiResponse = await moderateRequest(contentId, "delete", moderatorUser?.accessToken)
+        }
+      } else {
+        // For other content types, use the original moderateContent function
+        apiResponse = await moderateContent(contentId, action, moderatorUser?.accessToken)
+      }
+      
+      // Update local state - remove the item from suspended content
       setFlaggedContent(prev => 
-        prev.filter(content => content.id !== contentId)
+        prev.filter(content => content.originalId !== contentId && content.id !== contentId)
       )
+
+      // Update stats
+      setStats(prev => ({
+        ...prev,
+        content: {
+          ...prev.content,
+          flagged: prev.content.flagged - 1
+        }
+      }))
 
       console.log(`Content ${contentId} ${action} successfully`)
 
@@ -1099,7 +1356,7 @@ export default function ModeratorDashboardPage() {
 
   const formatDate = (dateString) => {
     if (!dateString) return "Unknown"
-    return new Date(dateString).toLocaleDateString()
+    return formatDateOnlyIST(dateString)
   }
 
   const handleLogout = () => {
@@ -1256,6 +1513,12 @@ export default function ModeratorDashboardPage() {
                                 {report.severity}
                               </Badge>
                               <span className="font-medium">{report.type}</span>
+                              {report.admin_notes && (
+                                <Badge variant="secondary" className="bg-blue-100 text-blue-800 text-xs">
+                                  <FileText className="h-3 w-3 mr-1" />
+                                  Has Notes
+                                </Badge>
+                              )}
                             </div>
                             <p className="text-sm text-gray-600 dark:text-gray-300 mb-2">
                               <strong>Reported User:</strong> {report.reportedUser}
@@ -1267,7 +1530,7 @@ export default function ModeratorDashboardPage() {
                               {report.description}
                             </p>
                             <p className="text-xs text-gray-500 mt-2">
-                              Submitted: {new Date(report.created_at).toLocaleString()}
+                              Submitted: {formatDateIST(report.created_at)}
                             </p>
                           </div>
                         </div>
@@ -1284,10 +1547,12 @@ export default function ModeratorDashboardPage() {
                           <Button 
                             variant="outline" 
                             size="sm"
+                            onClick={() => handleInvestigateReport(report)}
+                            disabled={isInvestigating}
                             className="text-orange-600 border-orange-200 hover:bg-orange-50"
                           >
                             <Eye className="h-4 w-4 mr-1" />
-                            Investigate
+                            {isInvestigating ? "Investigating..." : "Investigate"}
                           </Button>
                           <Button 
                             size="sm"
@@ -1305,8 +1570,103 @@ export default function ModeratorDashboardPage() {
               </CardContent>
             </Card>
 
+            {/* Under Review Reports */}
+            <Card className="dark:bg-gray-800 dark:border-gray-700">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Clock className="h-5 w-5" />
+                  Under Review ({underReviewReports.length})
+                </CardTitle>
+                <CardDescription>
+                  Reports currently being investigated
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {underReviewReports.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                    <Clock className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p>No reports under review</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {underReviewReports.map(report => (
+                      <div key={report.id} className="border rounded-lg p-4 bg-orange-50 dark:bg-orange-900/20">
+                        <div className="flex justify-between items-start mb-3">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-2">
+                              <Badge className="bg-orange-100 text-orange-800">
+                                Under Review
+                              </Badge>
+                              <Badge className={
+                                report.severity === "High" ? "bg-red-100 text-red-800" :
+                                report.severity === "Medium" ? "bg-orange-100 text-orange-800" :
+                                "bg-yellow-100 text-yellow-800"
+                              }>
+                                {report.severity}
+                              </Badge>
+                              <span className="font-medium">{report.type}</span>
+                              {report.admin_notes && (
+                                <Badge variant="secondary" className="bg-blue-100 text-blue-800 text-xs">
+                                  <FileText className="h-3 w-3 mr-1" />
+                                  Has Notes
+                                </Badge>
+                              )}
+                            </div>
+                            <p className="text-sm text-gray-600 dark:text-gray-300 mb-2">
+                              <strong>Reported User:</strong> {report.reportedUser}
+                            </p>
+                            <p className="text-sm text-gray-600 dark:text-gray-300 mb-2">
+                              <strong>Reported By:</strong> {report.reportedBy}
+                            </p>
+                            <p className="text-sm text-gray-700 dark:text-gray-300">
+                              {report.description}
+                            </p>
+                            <div className="flex gap-4 mt-2">
+                              <p className="text-xs text-gray-500">
+                                Submitted: {formatDateIST(report.created_at)}
+                              </p>
+                              {report.reviewStarted && (
+                                <p className="text-xs text-orange-600">
+                                  Review Started: {formatDateIST(report.reviewStarted)}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex justify-end gap-2">
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => {
+                              setSelectedReport(report)
+                              setShowInvestigationModal(true)
+                            }}
+                            className="text-blue-600 border-blue-200 hover:bg-blue-50"
+                          >
+                            <Eye className="h-4 w-4 mr-1" />
+                            Continue Investigation
+                          </Button>
+                          <Button 
+                            size="sm"
+                            onClick={() => {
+                              handleReportAction(report.id, "resolved")
+                              setUnderReviewReports(prev => prev.filter(r => r.id !== report.id))
+                            }}
+                            className="bg-green-600 hover:bg-green-700"
+                          >
+                            <Check className="h-4 w-4 mr-1" />
+                            Resolve
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
             {/* Report Statistics */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               <Card className="dark:bg-gray-800 dark:border-gray-700">
                 <CardContent className="pt-6">
                   <div className="text-center">
@@ -1320,6 +1680,14 @@ export default function ModeratorDashboardPage() {
                   <div className="text-center">
                     <h3 className="text-2xl font-bold text-orange-600">{stats.reports.pending}</h3>
                     <p className="text-sm text-gray-600 dark:text-gray-400">Pending Review</p>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card className="dark:bg-gray-800 dark:border-gray-700">
+                <CardContent className="pt-6">
+                  <div className="text-center">
+                    <h3 className="text-2xl font-bold text-purple-600">{stats.reports.under_review}</h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">Under Review</p>
                   </div>
                 </CardContent>
               </Card>
@@ -1382,29 +1750,29 @@ export default function ModeratorDashboardPage() {
                     <span className="font-medium">{allRequests.length}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">Flagged Content:</span>
+                    <span className="text-sm text-gray-600">Suspended Content:</span>
                     <span className="font-medium text-red-600">{flaggedContent.length}</span>
                   </div>
                 </CardContent>
               </Card>
             </div>
 
-            {/* Flagged Content */}
+            {/* Suspended Content */}
             <Card className="dark:bg-gray-800 dark:border-gray-700">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Flag className="h-5 w-5" />
-                  Flagged Content ({flaggedContent.length})
+                  Suspended Content ({flaggedContent.length})
                 </CardTitle>
                 <CardDescription>
-                  Content that has been flagged by users and requires moderation
+                  Content that has been suspended by moderators and requires review
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 {flaggedContent.length === 0 ? (
                   <div className="text-center py-8 text-gray-500 dark:text-gray-400">
                     <CheckCircle className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                    <p>No flagged content</p>
+                    <p>No suspended content</p>
                   </div>
                 ) : (
                   <div className="space-y-4">
@@ -1413,10 +1781,21 @@ export default function ModeratorDashboardPage() {
                         <div className="flex justify-between items-start mb-3">
                           <div className="flex-1">
                             <div className="flex items-center gap-2 mb-2">
-                              <Badge variant="outline">{content.type}</Badge>
+                              <Badge variant="outline" className={
+                                content.type === "Service" ? "bg-blue-100 text-blue-800" :
+                                content.type === "Request" ? "bg-green-100 text-green-800" :
+                                "bg-gray-100 text-gray-800"
+                              }>
+                                {content.type}
+                              </Badge>
                               <span className="font-medium">
-                                {content.title || `${content.type} by ${content.author}`}
+                                {content.title}
                               </span>
+                              {content.status === "suspended" && (
+                                <Badge variant="destructive" className="ml-2">
+                                  Suspended
+                                </Badge>
+                              )}
                             </div>
                             <p className="text-sm text-gray-600 dark:text-gray-300 mb-2">
                               <strong>Author:</strong> {content.author}
@@ -1426,11 +1805,11 @@ export default function ModeratorDashboardPage() {
                             </p>
                             {content.content && (
                               <p className="text-sm text-gray-700 dark:text-gray-300 mb-2">
-                                "{content.content}"
+                                <strong>Description:</strong> "{content.content.substring(0, 100)}{content.content.length > 100 ? '...' : ''}"
                               </p>
                             )}
                             <p className="text-xs text-gray-500">
-                              Flagged: {new Date(content.flaggedAt).toLocaleString()}
+                              Suspended: {formatDateIST(content.timestamp)}
                             </p>
                           </div>
                         </div>
@@ -1438,20 +1817,20 @@ export default function ModeratorDashboardPage() {
                           <Button 
                             variant="outline" 
                             size="sm"
-                            onClick={() => handleContentAction(content.id, "approved")}
+                            onClick={() => handleContentAction(content.originalId || content.id, "unsuspend")}
                             className="text-green-600 border-green-200 hover:bg-green-50"
                           >
                             <Check className="h-4 w-4 mr-1" />
-                            Approve
+                            Unsuspend
                           </Button>
                           <Button 
                             variant="outline" 
                             size="sm"
-                            onClick={() => handleContentAction(content.id, "removed")}
+                            onClick={() => handleContentAction(content.originalId || content.id, "permanently_remove")}
                             className="text-red-600 border-red-200 hover:bg-red-50"
                           >
                             <X className="h-4 w-4 mr-1" />
-                            Remove
+                            Remove Permanently
                           </Button>
                         </div>
                       </div>
@@ -1566,7 +1945,7 @@ export default function ModeratorDashboardPage() {
                               <strong>Reports:</strong> {user.reportCount} report(s)
                             </p>
                             <p className="text-xs text-gray-500">
-                              Flagged: {new Date(user.flaggedDate).toLocaleString()}
+                              Flagged: {formatDateIST(user.flaggedDate)}
                             </p>
                           </div>
                         </div>
@@ -1645,7 +2024,7 @@ export default function ModeratorDashboardPage() {
                               <strong>Suspended By:</strong> {user.suspendedBy}
                             </p>
                             <p className="text-xs text-gray-500">
-                              Suspended: {new Date(user.suspendedDate).toLocaleString()}
+                              Suspended: {formatDateIST(user.suspendedDate)}
                             </p>
                           </div>
                         </div>
@@ -1735,7 +2114,7 @@ export default function ModeratorDashboardPage() {
                               <p className="text-sm text-gray-600 dark:text-gray-300">{activity.description}</p>
                             </div>
                             <span className="text-xs text-gray-500">
-                              {new Date(activity.timestamp).toLocaleString()}
+                              {formatDateIST(activity.timestamp)}
                             </span>
                           </div>
                         </div>
@@ -2271,6 +2650,366 @@ export default function ModeratorDashboardPage() {
               </CardContent>
             </Card>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Investigation Modal */}
+      <Dialog open={showInvestigationModal} onOpenChange={(open) => {
+        setShowInvestigationModal(open)
+        if (!open) {
+          setSelectedService(null)
+          setInvestigationNotes("")
+        }
+      }}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Eye className="h-5 w-5" />
+              Report Investigation
+            </DialogTitle>
+            <DialogDescription>
+              Detailed view of the report for investigation. Status has been updated to "Under Review".
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedReport && (
+            <div className="space-y-6">
+              {/* Report Summary */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Report Summary</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-sm font-medium text-gray-600">Report ID</Label>
+                      <p className="text-sm font-mono">{selectedReport.id}</p>
+                    </div>
+                    <div>
+                      <Label className="text-sm font-medium text-gray-600">Status</Label>
+                      <Badge className="ml-2 bg-orange-100 text-orange-800">Under Review</Badge>
+                    </div>
+                    <div>
+                      <Label className="text-sm font-medium text-gray-600">Report Type</Label>
+                      <p className="text-sm">{selectedReport.type}</p>
+                    </div>
+                    <div>
+                      <Label className="text-sm font-medium text-gray-600">Severity</Label>
+                      <Badge className={
+                        selectedReport.severity === "High" ? "bg-red-100 text-red-800" :
+                        selectedReport.severity === "Medium" ? "bg-orange-100 text-orange-800" :
+                        "bg-yellow-100 text-yellow-800"
+                      }>
+                        {selectedReport.severity}
+                      </Badge>
+                    </div>
+                    <div>
+                      <Label className="text-sm font-medium text-gray-600">Submitted</Label>
+                      <p className="text-sm">{formatDateIST(selectedReport.created_at)}</p>
+                    </div>
+                    <div>
+                      <Label className="text-sm font-medium text-gray-600">Reporter</Label>
+                      <p className="text-sm">{selectedReport.reportedBy}</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Reported User Details */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Reported User</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-start gap-4">
+                    <Avatar className="h-12 w-12">
+                      <AvatarImage src={selectedReport.reportedUserAvatar} />
+                      <AvatarFallback>
+                        {selectedReport.reportedUser?.charAt(0)?.toUpperCase() || 'U'}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1">
+                      <h3 className="font-medium">{selectedReport.reportedUser}</h3>
+                      <p className="text-sm text-gray-600">{selectedReport.reportedUserEmail || 'Email not available'}</p>
+                      <div className="mt-2 flex gap-2">
+                        <Badge variant="outline">{selectedReport.reportedUserRole || 'User'}</Badge>
+                        {selectedReport.reportedUserJoinDate && (
+                          <Badge variant="outline">
+                            Joined {formatDateOnlyIST(selectedReport.reportedUserJoinDate)}
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Report Details */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Report Details</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div>
+                    <Label className="text-sm font-medium text-gray-600">Description</Label>
+                    <div className="mt-1 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                      <p className="text-sm whitespace-pre-wrap">{selectedReport.description}</p>
+                    </div>
+                  </div>
+                  
+                  {selectedReport.additionalDetails && (
+                    <div>
+                      <Label className="text-sm font-medium text-gray-600">Additional Details</Label>
+                      <div className="mt-1 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                        <p className="text-sm whitespace-pre-wrap">{selectedReport.additionalDetails}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {selectedReport.attachments && selectedReport.attachments.length > 0 && (
+                    <div>
+                      <Label className="text-sm font-medium text-gray-600">Attachments</Label>
+                      <div className="mt-1 space-y-2">
+                        {selectedReport.attachments.map((attachment, index) => (
+                          <div key={index} className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-gray-800 rounded">
+                            <FileText className="h-4 w-4" />
+                            <span className="text-sm">{attachment.name}</span>
+                            <Button variant="outline" size="sm" className="ml-auto">
+                              View
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Service Details - Only show if report is about a service */}
+              {selectedService && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">Reported Service Details</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label className="text-sm font-medium text-gray-600">Service Title</Label>
+                        <p className="text-sm font-medium">{selectedService.title}</p>
+                      </div>
+                      <div>
+                        <Label className="text-sm font-medium text-gray-600">Provider</Label>
+                        <div className="flex items-center gap-2">
+                          <Avatar className="h-6 w-6">
+                            <AvatarImage src={selectedService.providerImage} />
+                            <AvatarFallback>
+                              {selectedService.provider?.charAt(0)?.toUpperCase() || 'P'}
+                            </AvatarFallback>
+                          </Avatar>
+                          <span className="text-sm">{selectedService.provider}</span>
+                        </div>
+                      </div>
+                      <div>
+                        <Label className="text-sm font-medium text-gray-600">Category</Label>
+                        <Badge variant="outline">{selectedService.category}</Badge>
+                      </div>
+                      <div>
+                        <Label className="text-sm font-medium text-gray-600">Time Credits</Label>
+                        <p className="text-sm">{selectedService.timeCredits} credits</p>
+                      </div>
+                      <div>
+                        <Label className="text-sm font-medium text-gray-600">Location</Label>
+                        <p className="text-sm">{selectedService.location}</p>
+                      </div>
+                      <div>
+                        <Label className="text-sm font-medium text-gray-600">Rating</Label>
+                        <div className="flex items-center gap-1">
+                          <span className="text-sm">{selectedService.rating}</span>
+                          <span className="text-yellow-500">★</span>
+                          <span className="text-sm text-gray-500">({selectedService.totalReviews} reviews)</span>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <Label className="text-sm font-medium text-gray-600">Service Description</Label>
+                      <div className="mt-1 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                        <p className="text-sm">{selectedService.description}</p>
+                      </div>
+                    </div>
+
+                    {selectedService.tags && selectedService.tags.length > 0 && (
+                      <div>
+                        <Label className="text-sm font-medium text-gray-600">Tags</Label>
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {selectedService.tags.map((tag, index) => (
+                            <Badge key={index} variant="secondary" className="text-xs">
+                              {tag}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label className="text-sm font-medium text-gray-600">What's Included</Label>
+                        <p className="text-sm text-gray-700">{selectedService.whatIncluded}</p>
+                      </div>
+                      <div>
+                        <Label className="text-sm font-medium text-gray-600">Requirements</Label>
+                        <p className="text-sm text-gray-700">{selectedService.requirements}</p>
+                      </div>
+                    </div>
+
+                    {selectedService.availability && selectedService.availability.length > 0 && (
+                      <div>
+                        <Label className="text-sm font-medium text-gray-600">Availability</Label>
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {selectedService.availability.map((slot, index) => (
+                            <Badge key={index} variant="outline" className="text-xs">
+                              {slot}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Investigation Notes */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Investigation Notes</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {/* Display existing notes if available */}
+                    {selectedReport.admin_notes && (
+                      <div>
+                        <Label className="text-sm font-medium text-gray-600">Previous Investigation Notes</Label>
+                        <div className="mt-1 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                          <p className="text-sm whitespace-pre-wrap text-blue-900 dark:text-blue-100">
+                            {selectedReport.admin_notes}
+                          </p>
+                          <p className="text-xs text-blue-600 dark:text-blue-400 mt-2">
+                            Last updated: {selectedReport.updated_at_display || formatDateIST(selectedReport.updated_at || selectedReport.created_at)}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                    
+                    <div>
+                      <Label htmlFor="investigation-notes">
+                        {selectedReport.admin_notes ? "Add Additional Investigation Notes" : "Add Investigation Notes"}
+                      </Label>
+                      <textarea
+                        id="investigation-notes"
+                        className="mt-1 w-full p-3 border border-gray-300 rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        rows={4}
+                        placeholder="Add your investigation findings, actions taken, or notes for future reference..."
+                        value={investigationNotes}
+                        onChange={(e) => setInvestigationNotes(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Action Buttons */}
+              <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t">
+                <Button
+                  onClick={() => {
+                    // Combine existing notes with new notes
+                    let combinedNotes = investigationNotes
+                    if (selectedReport.admin_notes && investigationNotes.trim()) {
+                      combinedNotes = selectedReport.admin_notes + '\n\n--- Additional Notes ---\n' + investigationNotes
+                    } else if (selectedReport.admin_notes && !investigationNotes.trim()) {
+                      combinedNotes = selectedReport.admin_notes
+                    }
+                    
+                    handleReportAction(selectedReport.id, "resolved", combinedNotes)
+                    // Remove from under review list
+                    setUnderReviewReports(prev => prev.filter(r => r.id !== selectedReport.id))
+                    setShowInvestigationModal(false)
+                    setInvestigationNotes("")
+                    setSelectedService(null)
+                  }}
+                  className="bg-green-600 hover:bg-green-700"
+                >
+                  <Check className="h-4 w-4 mr-2" />
+                  Mark as Resolved
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    // Combine existing notes with new notes
+                    let combinedNotes = investigationNotes
+                    if (selectedReport.admin_notes && investigationNotes.trim()) {
+                      combinedNotes = selectedReport.admin_notes + '\n\n--- Additional Notes ---\n' + investigationNotes
+                    } else if (selectedReport.admin_notes && !investigationNotes.trim()) {
+                      combinedNotes = selectedReport.admin_notes
+                    }
+                    
+                    handleReportAction(selectedReport.id, "dismissed", combinedNotes)
+                    // Remove from under review list
+                    setUnderReviewReports(prev => prev.filter(r => r.id !== selectedReport.id))
+                    setShowInvestigationModal(false)
+                    setInvestigationNotes("")
+                    setSelectedService(null)
+                  }}
+                  className="text-gray-600 border-gray-200 hover:bg-gray-50"
+                >
+                  <X className="h-4 w-4 mr-2" />
+                  Dismiss Report
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={async () => {
+                    // Save investigation notes by updating the report with current status and notes
+                    if (investigationNotes.trim() || selectedReport.admin_notes) {
+                      try {
+                        // Combine existing notes with new notes
+                        let combinedNotes = investigationNotes
+                        if (selectedReport.admin_notes && investigationNotes.trim()) {
+                          combinedNotes = selectedReport.admin_notes + '\n\n--- Additional Notes ---\n' + investigationNotes
+                        } else if (selectedReport.admin_notes && !investigationNotes.trim()) {
+                          combinedNotes = selectedReport.admin_notes
+                        }
+                        
+                        await updateReportStatus(selectedReport.id, "under_review", combinedNotes)
+                        
+                        // Update the selected report with the new notes
+                        const currentISTTime = getCurrentISTTime()
+                        console.log('Current IST time:', currentISTTime)
+                        
+                        setSelectedReport(prev => ({
+                          ...prev,
+                          admin_notes: combinedNotes,
+                          updated_at: new Date().toISOString(), // Still store UTC for API
+                          updated_at_display: currentISTTime // Store IST for display
+                        }))
+                        
+                        console.log("Investigation notes saved successfully")
+                      } catch (error) {
+                        console.error("Error saving investigation notes:", error)
+                        alert("Failed to save investigation notes")
+                      }
+                    }
+                    // Keep report under review, just close modal
+                    setShowInvestigationModal(false)
+                    setInvestigationNotes("")
+                    setSelectedService(null)
+                  }}
+                  className="text-blue-600 border-blue-200 hover:bg-blue-50"
+                >
+                  <Archive className="h-4 w-4 mr-2" />
+                  Save & Continue Later
+                </Button>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>
