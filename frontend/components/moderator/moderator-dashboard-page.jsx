@@ -214,17 +214,27 @@ export default function ModeratorDashboardPage() {
     async function loadModeratorStats() {
       try {
         // Load stats and data using the moderator data functions
-        const [statsData, reportsData, underReviewData, contentData, activityData, suspendedServices, suspendedRequests] = await Promise.all([
+        const [statsData, reportsData, underReviewData, contentData, activityData, suspendedServices, suspendedRequests, allServicesData, allRequestsData] = await Promise.all([
           getModeratorStats(moderatorUser.accessToken),
           getPendingReports(moderatorUser.accessToken),
           getAllReports({ status: 'under_review' }),
           getFlaggedContent(moderatorUser.accessToken),
           getModeratorActivity(moderatorUser.accessToken, 5),
           getModeratorServices({ status: 'suspended' }),
-          getModeratorRequests({ status: 'suspended' })
+          getModeratorRequests({ status: 'suspended' }),
+          getModeratorServices(), // Get all services for total count
+          getModeratorRequests()  // Get all requests for total count
         ])
         
-        console.log("Loaded moderator data:", { statsData, reportsData, underReviewData, contentData, activityData, suspendedServices, suspendedRequests })
+        console.log("Loaded moderator data:", { statsData, reportsData, underReviewData, contentData, activityData, suspendedServices, suspendedRequests, allServicesData, allRequestsData })
+        
+        // Debug: Log suspended services and requests structure
+        if (suspendedServices && suspendedServices.length > 0) {
+          console.log("Sample suspended service:", suspendedServices[0])
+        }
+        if (suspendedRequests && suspendedRequests.length > 0) {
+          console.log("Sample suspended request:", suspendedRequests[0])
+        }
         
         // Ensure all reports have proper IDs
         const validReports = (Array.isArray(reportsData) ? reportsData : []).map((report, index) => ({
@@ -276,12 +286,11 @@ export default function ModeratorDashboardPage() {
         const validSuspendedServices = (Array.isArray(suspendedServices) ? suspendedServices : []).map((service, index) => ({
           id: service.id || `suspended-service-${index}`,
           type: "Service",
-          title: service.title || service.service_name || "Unknown Service",
+          title: service.title || service.service_name || service.name || "Unknown Service",
           content: service.description || "No description",
-          author: service.provider_name || service.user?.username || "Unknown Provider",
+          author: service.creator_name || service.provider_name || service.provider?.username || service.provider?.name || service.user?.username || service.user?.name || service.username || "Unknown Provider",
           flaggedBy: "Moderator",
-          reason: service.suspension_reason || "Violated terms of service",
-          timestamp: service.suspended_at || service.updated_at || new Date().toISOString(),
+          timestamp: service.suspended_at || service.updated_at || service.created_at || new Date().toISOString(),
           status: "suspended",
           originalId: service.id,
           serviceData: service
@@ -291,12 +300,11 @@ export default function ModeratorDashboardPage() {
         const validSuspendedRequests = (Array.isArray(suspendedRequests) ? suspendedRequests : []).map((request, index) => ({
           id: request.id || `suspended-request-${index}`,
           type: "Request",
-          title: request.title || request.service_title || "Unknown Request",
+          title: request.title || request.service_title || request.name || "Unknown Request",
           content: request.description || "No description",
-          author: request.requester_name || request.user?.username || "Unknown Requester",
+          author: request.creator_name || request.requester_name || request.requester?.username || request.requester?.name || request.user?.username || request.user?.name || request.username || "Unknown Requester",
           flaggedBy: "Moderator",
-          reason: request.suspension_reason || "Violated terms of service",
-          timestamp: request.suspended_at || request.updated_at || new Date().toISOString(),
+          timestamp: request.suspended_at || request.updated_at || request.created_at || new Date().toISOString(),
           status: "suspended",
           originalId: request.id,
           requestData: request
@@ -445,6 +453,10 @@ export default function ModeratorDashboardPage() {
         setFlaggedContent(allSuspendedContent)
         setRecentActivity(validActivity)
 
+        // Set all services and requests for Quick Stats
+        setAllServices(Array.isArray(allServicesData) ? allServicesData : [])
+        setAllRequests(Array.isArray(allRequestsData) ? allRequestsData : [])
+
         // Update stats to include actual under review count and suspended content
         setStats(prev => ({
           ...prev,
@@ -457,8 +469,8 @@ export default function ModeratorDashboardPage() {
           content: {
             ...prev.content,
             flagged: allSuspendedContent.length,
-            services: validSuspendedServices.length,
-            comments: validSuspendedRequests.length
+            services: (Array.isArray(allServicesData) ? allServicesData.length : 0),
+            comments: (Array.isArray(allRequestsData) ? allRequestsData.length : 0)
           }
         }))
 
@@ -1799,9 +1811,6 @@ export default function ModeratorDashboardPage() {
                             </div>
                             <p className="text-sm text-gray-600 dark:text-gray-300 mb-2">
                               <strong>Author:</strong> {content.author}
-                            </p>
-                            <p className="text-sm text-gray-600 dark:text-gray-300 mb-2">
-                              <strong>Reason:</strong> {content.reason}
                             </p>
                             {content.content && (
                               <p className="text-sm text-gray-700 dark:text-gray-300 mb-2">

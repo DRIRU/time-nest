@@ -416,8 +416,8 @@ def get_reports_for_moderator(
             detailed_reports.append(report_dict)
         
         logger.info(f"Moderator {current_moderator.moderator_id} accessed {len(detailed_reports)} reports with user details")
-        print(detailed_reports)
-        print("Hello")
+        # print(detailed_reports)
+        # print("Hello")
         return detailed_reports
         
     except Exception as e:
