@@ -215,8 +215,16 @@ export default function ListServicePage() {
         newErrors.availability = "Please select at least one availability option"
       }
 
-      if (postType === "request" && !formData.deadline) {
-        newErrors.deadline = "Deadline is required for requests"
+      if (postType === "request") {
+        if (!formData.deadline) {
+          newErrors.deadline = "Deadline is required for requests"
+        } else {
+          // Validate that deadline is not in the past
+          const today = new Date().toISOString().split("T")[0]
+          if (formData.deadline < today) {
+            newErrors.deadline = "Deadline cannot be in the past"
+          }
+        }
       }
     }
 
@@ -812,7 +820,7 @@ export default function ListServicePage() {
                     />
                   </div>
 
-                  <div className="space-y-2">
+                  {/* <div className="space-y-2">
                     <Label>Tags (Optional)</Label>
                     <div className="flex flex-wrap gap-2 mb-2">
                       {formData.tags.map((tag) => (
@@ -848,10 +856,10 @@ export default function ListServicePage() {
                     <p className="text-sm text-gray-500">
                       Add relevant tags to help users find your {postType} (e.g., beginner-friendly, online, weekend)
                     </p>
-                  </div>
+                  </div> */}
                   <div className="space-y-2">
 
-                    {postType === "request" && (
+                    {/* {postType === "request" && (
                       <>
                                           <Label>Required Skills (for requests)</Label>
                         <div className="flex flex-wrap gap-2 mb-2">
@@ -891,7 +899,7 @@ export default function ListServicePage() {
                           Landscaping)
                         </p>
                       </>
-                    )}
+                    )} */}
                   </div>
                 </CardContent>
               </Card>

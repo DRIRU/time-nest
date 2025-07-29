@@ -30,7 +30,7 @@ function ServiceListItem({ service }) {
               </span>
             </div>
           )}
-          {service.rating > 0 && (
+          {typeof service.rating === 'number' && service.totalReviews > 0 ? (
             <div className="mt-2">
               <span className="text-gray-500 dark:text-gray-400 text-xs flex items-center">
                 <svg className="h-4 w-4 mr-1 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
@@ -39,6 +39,10 @@ function ServiceListItem({ service }) {
                 <span className="text-yellow-400 font-medium">{service.rating.toFixed(1)}</span>
                 <span className="ml-1">({service.totalReviews || 0} reviews)</span>
               </span>
+            </div>
+          ) : (
+            <div className="mt-2">
+              <span className="text-gray-500 dark:text-gray-400 text-xs">No rating</span>
             </div>
           )}
         </div>

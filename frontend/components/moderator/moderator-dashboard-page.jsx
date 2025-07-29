@@ -1126,13 +1126,13 @@ export default function ModeratorDashboardPage() {
       color: "text-red-600",
       bgColor: "bg-red-100"
     },
-    {
-      title: "Flagged Users",
-      value: stats.users.flagged,
-      icon: Flag,
-      color: "text-orange-600",
-      bgColor: "bg-orange-100"
-    },
+    // {
+    //   title: "Flagged Users",
+    //   value: stats.users.flagged,
+    //   icon: Flag,
+    //   color: "text-orange-600",
+    //   bgColor: "bg-orange-100"
+    // },
     {
       title: "Content Reviews",
       value: stats.content.flagged,
@@ -1462,7 +1462,7 @@ export default function ModeratorDashboardPage() {
             </Card>
 
             {/* Content Statistics */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <Card className="dark:bg-gray-800 dark:border-gray-700">
                 <CardContent className="pt-6">
                   <div className="text-center">
@@ -1487,7 +1487,7 @@ export default function ModeratorDashboardPage() {
                   </div>
                 </CardContent>
               </Card>
-            </div>
+            </div> */}
           </TabsContent>
 
           {/* Users Tab */}

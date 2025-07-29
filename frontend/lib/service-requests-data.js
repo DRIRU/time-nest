@@ -492,6 +492,11 @@ export async function getAllServiceRequestsExcludingUser(options = {}) {
 function transformBackendRequestToFrontend(backendRequest) {
   if (!backendRequest) return null;
 
+  // Debug logging for date_joined
+  console.log("DEBUG - transformBackendRequestToFrontend:");
+  console.log("  backendRequest.creator_date_joined:", backendRequest.creator_date_joined);
+  console.log("  type:", typeof backendRequest.creator_date_joined);
+
   // Map urgency from backend to frontend format
   const urgencyMap = {
     low: "Low",
@@ -500,13 +505,14 @@ function transformBackendRequestToFrontend(backendRequest) {
     urgent: "Urgent"
   };
 
-  // Create a placeholder user object
+  // Create a user object with fetched rating
   const user = {
     id: backendRequest.creator_id?.toString(),
     name: backendRequest.creator_name || "Unknown",
     image: `/placeholder.svg?height=40&width=40&text=${backendRequest.creator_name?.charAt(0) || "U"}`,
-    rating: 4.5, // Placeholder
-    memberSince: "2023-01-01", // Placeholder
+    rating: 0.0, // Will be updated with actual rating if needed
+    date_joined: backendRequest.creator_date_joined, // Use actual date_joined from backend
+    memberSince: backendRequest.creator_date_joined, // Keep for backward compatibility
     completedProjects: 5, // Placeholder
     responseRate: "90%", // Placeholder
     location: backendRequest.location || "Unknown"
@@ -533,6 +539,79 @@ function transformBackendRequestToFrontend(backendRequest) {
     status: "Open", // Placeholder - not yet implemented in backend
     proposals: 0, // Placeholder - not yet implemented in backend
     user: user, // Add user object for components that expect it
-    creator_id: backendRequest.creator_id // Keep creator_id for authorization checks
+    creator_id: backendRequest.creator_id, // Keep creator_id for authorization checks
+    creator_date_joined: backendRequest.creator_date_joined // Add creator_date_joined for direct access
   };
+}
+
+/**
+ * Fetch user rating based on their services
+ * @param {number} userId - The ID of the user
+ * @returns {Promise<Object>} User rating data
+ */
+export async function fetchUserRating(userId) {
+  try {
+    console.log(`Fetching rating for user ID: ${userId}`);
+    const response = await fetch(`http://localhost:8000/api/v1/users/rating/${userId}`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      console.warn(`Failed to fetch user rating for user ${userId}: ${response.status}`);
+      return { average_rating: 0.0, total_reviews: 0 };
+    }
+
+    const ratingData = await response.json();
+    console.log(`Rating data for user ${userId}:`, ratingData);
+    return ratingData;
+  } catch (error) {
+    console.error(`Error fetching user rating for user ${userId}:`, error);
+    return { average_rating: 0.0, total_reviews: 0 };
+  }
+}
+
+/**
+ * Get all service requests with actual user ratings
+ * @returns {Promise<Array>} Service requests with real user ratings
+ */
+export async function getServiceRequestsWithRatings() {
+  try {
+    // First get all requests with placeholder ratings
+    const requests = await getAllServiceRequests();
+    
+    // Then fetch actual ratings for each unique user
+    const userRatings = new Map();
+    const userIds = [...new Set(requests.map(req => req.creator_id).filter(id => id))];
+    
+    // Fetch ratings for all unique users
+    await Promise.all(
+      userIds.map(async (userId) => {
+        const rating = await fetchUserRating(userId);
+        userRatings.set(userId, rating);
+      })
+    );
+    
+    // Update requests with actual ratings
+    return requests.map(request => {
+      if (request.creator_id && userRatings.has(request.creator_id)) {
+        const ratingData = userRatings.get(request.creator_id);
+        return {
+          ...request,
+          user: {
+            ...request.user,
+            rating: ratingData.average_rating,
+            totalReviews: ratingData.total_reviews
+          }
+        };
+      }
+      return request;
+    });
+    
+  } catch (error) {
+    console.error("Error fetching service requests with ratings:", error);
+    return [];
+  }
 }

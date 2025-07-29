@@ -240,6 +240,17 @@ export default function MyBookingsPage() {
     }
   }
 
+  const hasScheduledTimePassed = (scheduledDateTime) => {
+    try {
+      const scheduledDate = parseISO(scheduledDateTime)
+      const now = new Date()
+      return now >= scheduledDate
+    } catch (error) {
+      console.error("Error comparing scheduled time:", error)
+      return false
+    }
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -340,6 +351,7 @@ export default function MyBookingsPage() {
                   const isConfirmed = booking.status === "confirmed";
                   const isCompleted = booking.status === "completed";
                   const isCancelled = booking.status === "cancelled" || booking.status === "rejected";
+                  const canMarkComplete = isConfirmed && hasScheduledTimePassed(booking.scheduled_datetime);
                   
                   return (
                     <Card key={booking.booking_id} className="overflow-hidden">
@@ -383,13 +395,24 @@ export default function MyBookingsPage() {
                                 Cancel
                               </Button>
                             )}
-                            {isConfirmed && (
+                            {canMarkComplete && (
                               <Button 
                                 onClick={() => handleCompleteBooking(booking)}
                                 disabled={processingBookingId === booking.booking_id}
                               >
                                 <CheckCircle className="h-4 w-4 mr-2" />
                                 Mark Complete
+                              </Button>
+                            )}
+                            {isConfirmed && !canMarkComplete && (
+                              <Button 
+                                disabled={true}
+                                variant="outline"
+                                className="opacity-50 cursor-not-allowed"
+                                title="You can only mark this as complete after the scheduled time has passed"
+                              >
+                                <Clock className="h-4 w-4 mr-2" />
+                                Scheduled for {formatDateTime(booking.scheduled_datetime)}
                               </Button>
                             )}
                           </div>

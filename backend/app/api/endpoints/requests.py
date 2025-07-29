@@ -132,10 +132,22 @@ def get_requests(
         creator = db.query(User).filter(User.user_id == request.creator_id).first()
         creator_name = f"{creator.first_name} {creator.last_name}" if creator else "Unknown"
         
+        # Debug print for user data in list endpoint
+        if creator:
+            print(f"DEBUG - Creator data for request list item {request.request_id}:")
+            print(f"  user_id: {creator.user_id}")
+            print(f"  name: {creator.first_name} {creator.last_name}")
+            print(f"  email: {creator.email}")
+            print(f"  date_joined: {creator.date_joined}")
+            print(f"  date_joined type: {type(creator.date_joined)}")
+        else:
+            print(f"DEBUG - No creator found for request {request.request_id} with creator_id {request.creator_id}")
+        
         response_requests.append({
             "request_id": request.request_id,
             "creator_id": request.creator_id,
             "creator_name": creator_name,
+            "creator_date_joined": creator.date_joined if creator else None,
             "title": request.title,
             "description": request.description,
             "category": request.category,
@@ -149,7 +161,7 @@ def get_requests(
             "skills": request.get_skills_list(),
             "created_at": request.created_at
         })
-    
+    print(response_requests)
     return response_requests
 
 @router.get("/{request_id}", response_model=RequestResponse)
@@ -174,10 +186,22 @@ def get_request(
     creator = db.query(User).filter(User.user_id == request.creator_id).first()
     creator_name = f"{creator.first_name} {creator.last_name}" if creator else "Unknown"
     
+    # Debug print for user data
+    if creator:
+        print(f"DEBUG - Creator data for request {request_id}:")
+        print(f"  user_id: {creator.user_id}")
+        print(f"  name: {creator.first_name} {creator.last_name}")
+        print(f"  email: {creator.email}")
+        print(f"  date_joined: {creator.date_joined}")
+        print(f"  date_joined type: {type(creator.date_joined)}")
+    else:
+        print(f"DEBUG - No creator found for request {request_id} with creator_id {request.creator_id}")
+    
     response_data = {
         "request_id": request.request_id,
         "creator_id": request.creator_id,
         "creator_name": creator_name,
+        "creator_date_joined": creator.date_joined if creator else None,
         "title": request.title,
         "description": request.description,
         "category": request.category,

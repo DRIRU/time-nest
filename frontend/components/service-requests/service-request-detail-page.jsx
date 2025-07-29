@@ -181,9 +181,46 @@ export default function ServiceRequestDetailPage({ id, initialRequest = null }) 
     }
   }
 
-  const handleContactRequester = () => {
-    // Navigate to chat with the requester
-    router.push(`/chat/${request.user.id}?context=request&id=${id}&title=${encodeURIComponent(request.title)}`)
+  const handleContactRequester = async () => {
+    if (!isLoggedIn) {
+      alert("Please log in to contact the requester");
+      router.push(`/login?redirect=/requests/${id}`);
+      return;
+    }
+
+    // Get requester ID - try multiple fallbacks
+    const requesterId = request.user?.id || request.creator_id;
+    if (!requesterId) {
+      console.error("No requester ID found", { request });
+      alert("Unable to contact requester - missing user information");
+      return;
+    }
+
+    try {
+      console.log("Initiating chat with requester:", { 
+        requesterId, 
+        requestId: request.id, 
+        requestTitle: request.title 
+      });
+
+      // Use the proper chat initiation function
+      const { initiateRequestChat } = await import("@/lib/chat-data");
+      const conversation = await initiateRequestChat(
+        parseInt(request.id),
+        request.title,
+        parseInt(requesterId)
+      );
+      
+      // Navigate to the chat page with conversation ID
+      router.push(`/chat/${requesterId}?conversation_id=${conversation.conversation_id}`);
+    } catch (error) {
+      console.error("Error initiating chat:", error);
+      if (error.message.includes("User not found")) {
+        alert("The user you're trying to contact could not be found. Please try again later.");
+      } else {
+        alert("Failed to start conversation. Please try again.");
+      }
+    }
   }
   
   const handleSubmitProposal = async () => {
@@ -332,9 +369,9 @@ export default function ServiceRequestDetailPage({ id, initialRequest = null }) 
                         </Badge>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Button variant="outline" size="icon" onClick={() => setIsFavorited(!isFavorited)}>
+                        {/* <Button variant="outline" size="icon" onClick={() => setIsFavorited(!isFavorited)}>
                           <Heart className={`h-4 w-4 ${isFavorited ? "fill-red-500 text-red-500" : ""}`} />
-                        </Button>
+                        </Button> */}
                         <Button variant="outline" size="icon" onClick={handleShare}>
                           <Share2 className="h-4 w-4" />
                         </Button>
@@ -462,27 +499,24 @@ export default function ServiceRequestDetailPage({ id, initialRequest = null }) 
                         <div>
                           <h3 className="text-xl font-semibold text-gray-900 dark:text-white">{request.user.name}</h3>
                           <p className="text-gray-600 dark:text-gray-300">
-                            TimeNest Member since {new Date(request.user.memberSince || "2023-01-01").toLocaleDateString()}
+                            TimeNest Member since {request.creator_date_joined ? new Date(request.creator_date_joined).toLocaleDateString('en-GB') : "Unknown"}
                           </p>
-                          <div className="flex items-center mt-1">
+                          {/* <div className="flex items-center mt-1">
                             <Shield className="h-4 w-4 text-green-500 mr-1" />
                             <span className="text-sm text-green-600">Verified Member</span>
-                          </div>
+                          </div> */}
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                        <div className="text-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                          <p className="text-2xl font-bold text-blue-600">{request.user.completedProjects || 0}</p>
-                          <p className="text-sm text-gray-600 dark:text-gray-300">Projects Completed</p>
-                        </div>
-                        <div className="text-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                          <p className="text-2xl font-bold text-blue-600">{request.user.rating || 0}</p>
-                          <p className="text-sm text-gray-600 dark:text-gray-300">Average Rating</p>
-                        </div>
-                        <div className="text-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                          <p className="text-lg font-bold text-blue-600 break-words">{request.user.location}</p>
-                          <p className="text-sm text-gray-600 dark:text-gray-300">Location</p>
+                      <div className="mt-6">
+                        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-lg p-4 border border-blue-200 dark:border-blue-800">
+                          <div className="flex items-center">
+                            <MapPin className="h-5 w-5 text-blue-600 mr-3" />
+                            <div>
+                              <p className="text-sm font-medium text-blue-800 dark:text-blue-300">Location</p>
+                              <p className="text-lg font-semibold text-blue-900 dark:text-blue-200">{request.user.location}</p>
+                            </div>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -653,10 +687,10 @@ export default function ServiceRequestDetailPage({ id, initialRequest = null }) 
                   <span className="font-medium">{new Date(request.deadline).toLocaleDateString()}</span>
                 </div>
                 <Separator />
-                <div className="flex items-center text-green-600">
+                {/* <div className="flex items-center text-green-600">
                   <CheckCircle className="h-4 w-4 mr-2" />
                   <span className="text-sm">Verified Request</span>
-                </div>
+                </div> */}
               </CardContent>
             </Card>
 

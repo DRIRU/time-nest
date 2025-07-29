@@ -1,6 +1,6 @@
 import Layout from "@/components/layout/layout"
 import ServiceRequestsPage from "@/components/service-requests/service-requests-page"
-import { getAllServiceRequests } from "@/lib/service-requests-data"
+import { getServiceRequestsWithRatings } from "@/lib/service-requests-data"
 
 export const metadata = {
   title: "Service Requests | TimeNest",
@@ -9,8 +9,8 @@ export const metadata = {
 
 export default async function Requests() {
   try {
-    // Get requests from the backend
-    const requests = await getAllServiceRequests()
+    // Get requests from the backend with actual user ratings
+    const requests = await getServiceRequestsWithRatings()
     
     return (
       <Layout>

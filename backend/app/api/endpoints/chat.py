@@ -159,8 +159,14 @@ def create_conversation(
             return response_data
         
         # Verify the other user exists
+        logger.info(f"DEBUG - Looking for user with ID: {conversation_data.user2_id} (type: {type(conversation_data.user2_id)})")
         other_user = db.query(User).filter(User.user_id == conversation_data.user2_id).first()
+        logger.info(f"DEBUG - User query result: {other_user}")
         if not other_user:
+            logger.error(f"DEBUG - User not found with ID: {conversation_data.user2_id}")
+            # Check what users exist
+            all_users = db.query(User).limit(5).all()
+            logger.info(f"DEBUG - Available users: {[(u.user_id, u.first_name, u.last_name) for u in all_users]}")
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="User not found"

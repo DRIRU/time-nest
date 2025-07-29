@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Body
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy import func
 from typing import List, Optional, Optional
 from datetime import datetime, timedelta
 from decimal import Decimal
@@ -627,6 +628,26 @@ def admin_update_user_status(
     db.commit()
     db.refresh(user)
     return {"success": True, "user_id": user.user_id, "new_status": user.status}
+
+@router.get("/rating/{user_id}")
+def get_user_rating(user_id: int, db: Session = Depends(get_db)):
+    """
+    Get a user's average rating based on all ratings they received as a service provider
+    """
+    from ...db.models.rating import Rating
+    
+    # Calculate average rating where this user is the provider
+    rating_stats = db.query(
+        func.avg(Rating.rating).label('average_rating'),
+        func.count(Rating.rating_id).label('total_reviews')
+    ).filter(Rating.provider_id == user_id)\
+     .first()
+    print(f"Rating stats for user {user_id}: {rating_stats.average_rating}")
+    return {
+        'user_id': user_id,
+        'average_rating': float(rating_stats.average_rating) if rating_stats.average_rating else 0.0,
+        'total_reviews': rating_stats.total_reviews if rating_stats.total_reviews else 0
+    }
 
 # Dependency to get current user from token
 

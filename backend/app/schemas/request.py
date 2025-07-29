@@ -55,6 +55,7 @@ class RequestResponse(RequestBase):
     request_id: int
     creator_id: int
     creator_name: Optional[str] = None
+    creator_date_joined: Optional[datetime] = None
     created_at: datetime
 
     class Config:
