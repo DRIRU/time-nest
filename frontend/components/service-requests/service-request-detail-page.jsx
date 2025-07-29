@@ -637,7 +637,12 @@ export default function ServiceRequestDetailPage({ id, initialRequest = null }) 
                   </Button>
                 )}
 
-                <Button variant="outline" className="w-full" onClick={handleContactRequester}>
+                <Button 
+                  variant="outline" 
+                  className="w-full" 
+                  onClick={handleContactRequester}
+                  disabled={isLoggedIn && parseInt(request.creator_id) === parseInt(currentUser?.user_id)}
+                >
                   Contact Requester
                 </Button>
 

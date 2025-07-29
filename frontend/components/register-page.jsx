@@ -68,6 +68,7 @@ export default function RegisterPage() {
     if (!formData.firstName.trim()) errors.firstName = "First name is required"
     if (!formData.lastName.trim()) errors.lastName = "Last name is required"
     if (!formData.email.trim()) errors.email = "Email is required"
+    if (!formData.phoneNumber.trim()) errors.phoneNumber = "Phone number is required"
     if (!formData.password) errors.password = "Password is required"
     if (!formData.confirmPassword) errors.confirmPassword = "Please confirm your password"
     if (!formData.gender) errors.gender = "Please select your gender"
@@ -96,11 +97,12 @@ export default function RegisterPage() {
       errors.age = "Age must be between 13 and 120"
     }
 
-    // Phone number validation (optional but if provided, should be valid)
+    // Phone number validation (required and must be 10 digits)
     if (formData.phoneNumber) {
-      const phoneRegex = /^\+?[\d\s\-\(\)]{10,}$/
-      if (!phoneRegex.test(formData.phoneNumber)) {
-        errors.phoneNumber = "Please enter a valid phone number"
+      // Remove all non-digit characters for validation
+      const digitsOnly = formData.phoneNumber.replace(/\D/g, '')
+      if (digitsOnly.length !== 10) {
+        errors.phoneNumber = "Phone number must be exactly 10 digits"
       }
     }
 
@@ -132,7 +134,7 @@ export default function RegisterPage() {
           last_name: formData.lastName,
           email: formData.email,
           password: formData.password,
-          phone_number: formData.phoneNumber || null,
+          phone_number: formData.phoneNumber,
           gender: formData.gender,
           age: parseInt(formData.age),
           location: formData.location,
@@ -246,19 +248,21 @@ export default function RegisterPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="phoneNumber">Phone Number (Optional)</Label>
+              <Label htmlFor="phoneNumber">Phone Number</Label>
               <div className="relative">
                 <Phone className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                 <Input
                   id="phoneNumber"
                   name="phoneNumber"
                   type="tel"
-                  placeholder="+1 (555) 123-4567"
+                  placeholder="Phone Number"
                   className={`pl-10 ${fieldErrors.phoneNumber ? "border-red-500" : ""}`}
                   value={formData.phoneNumber}
                   onChange={handleInputChange}
+                  required
                 />
               </div>
+              <p className="text-xs text-gray-500">Enter a 10-digit phone number (numbers only)</p>
               {fieldErrors.phoneNumber && <p className="text-sm text-red-500">{fieldErrors.phoneNumber}</p>}
             </div>
 
