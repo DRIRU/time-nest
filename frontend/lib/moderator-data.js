@@ -1118,3 +1118,153 @@ export async function getModeratorApplications(token) {
     return [];
   }
 }
+
+// Content Management Functions
+
+/**
+ * Get services for content moderation
+ * @param {Object} filters - Filter parameters
+ * @returns {Promise<Array>} List of services
+ */
+export async function getModeratorServices(filters = {}) {
+  try {
+    const moderatorData = getStoredModeratorData();
+    const token = moderatorData?.accessToken;
+
+    if (!token) {
+      throw new Error("Authentication token not found. Please log in as moderator.");
+    }
+
+    const queryParams = new URLSearchParams();
+    if (filters.status) queryParams.append('status', filters.status);
+    if (filters.search) queryParams.append('search', filters.search);
+
+    const response = await fetch(`http://localhost:8000/api/v1/moderators/services?${queryParams}`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      }
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.detail || "Failed to fetch services");
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error("Error fetching services:", error);
+    throw error;
+  }
+}
+
+/**
+ * Get requests for content moderation
+ * @param {Object} filters - Filter parameters
+ * @returns {Promise<Array>} List of requests
+ */
+export async function getModeratorRequests(filters = {}) {
+  try {
+    const moderatorData = getStoredModeratorData();
+    const token = moderatorData?.accessToken;
+
+    if (!token) {
+      throw new Error("Authentication token not found. Please log in as moderator.");
+    }
+
+    const queryParams = new URLSearchParams();
+    if (filters.status) queryParams.append('status', filters.status);
+    if (filters.search) queryParams.append('search', filters.search);
+
+    const response = await fetch(`http://localhost:8000/api/v1/moderators/requests?${queryParams}`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      }
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.detail || "Failed to fetch requests");
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error("Error fetching requests:", error);
+    throw error;
+  }
+}
+
+/**
+ * Moderate a service (update status or delete)
+ * @param {number} serviceId - Service ID
+ * @param {string} action - Action to perform (activate, suspend, close, delete)
+ * @returns {Promise<Object>} Result of the moderation action
+ */
+export async function moderateService(serviceId, action) {
+  try {
+    const moderatorData = getStoredModeratorData();
+    const token = moderatorData?.accessToken;
+
+    if (!token) {
+      throw new Error("Authentication token not found. Please log in as moderator.");
+    }
+
+    const response = await fetch(`http://localhost:8000/api/v1/moderators/services/${serviceId}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      },
+      body: JSON.stringify({ action })
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.detail || "Failed to moderate service");
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error("Error moderating service:", error);
+    throw error;
+  }
+}
+
+/**
+ * Moderate a request (update status or delete)
+ * @param {number} requestId - Request ID
+ * @param {string} action - Action to perform (activate, suspend, close, delete)
+ * @returns {Promise<Object>} Result of the moderation action
+ */
+export async function moderateRequest(requestId, action) {
+  try {
+    const moderatorData = getStoredModeratorData();
+    const token = moderatorData?.accessToken;
+
+    if (!token) {
+      throw new Error("Authentication token not found. Please log in as moderator.");
+    }
+
+    const response = await fetch(`http://localhost:8000/api/v1/moderators/requests/${requestId}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      },
+      body: JSON.stringify({ action })
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.detail || "Failed to moderate request");
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error("Error moderating request:", error);
+    throw error;
+  }
+}

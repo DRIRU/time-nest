@@ -10,6 +10,11 @@ class RequestUrgencyEnum(Enum):
     high = "high"
     urgent = "urgent"
 
+class RequestStatusEnum(Enum):
+    active = "active"
+    suspended = "suspended"
+    closed = "closed"
+
 class Request(Base):
     __tablename__ = "requests"
 
@@ -31,6 +36,7 @@ class Request(Base):
     skills = Column(Text, nullable=True)   # Comma-separated
 
     created_at = Column(DateTime, default=datetime.utcnow)
+    status = Column(SQLAlchemyEnum(RequestStatusEnum), default=RequestStatusEnum.active, nullable=False)
 
     creator = relationship("User", backref="requests")
     

@@ -1,7 +1,13 @@
-from sqlalchemy import Column, Integer, String, Text, Numeric, Boolean, DateTime, ForeignKey
+from sqlalchemy import Column, Integer, String, Text, Numeric, Boolean, DateTime, ForeignKey, Enum as SQLAlchemyEnum
 from sqlalchemy.orm import relationship
+from enum import Enum
 from datetime import datetime
 from ..database import Base
+
+class ServiceStatusEnum(Enum):
+    active = "active"
+    suspended = "suspended"
+    closed = "closed"
 
 class Service(Base):
     __tablename__ = 'services'
@@ -27,6 +33,7 @@ class Service(Base):
     whats_included = Column(Text)
     requirements = Column(Text)
     tags = Column(Text)
+    status = Column(SQLAlchemyEnum(ServiceStatusEnum), default=ServiceStatusEnum.active, nullable=False)
 
     created_at = Column(DateTime, default=datetime.utcnow)
     # Relationship with the User model

@@ -244,7 +244,7 @@ export default function ServiceDetailPage({ initialService = null }) {
             <Card className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
               <CardContent className="p-6">
                 <div className="flex flex-col md:flex-row gap-6">
-                  <div className="w-full md:w-80 h-64 flex-shrink-0 bg-gradient-to-br from-blue-100 to-purple-100 dark:from-blue-900 dark:to-purple-900 rounded-lg flex items-center justify-center">
+                  {/* <div className="w-full md:w-80 h-64 flex-shrink-0 bg-gradient-to-br from-blue-100 to-purple-100 dark:from-blue-900 dark:to-purple-900 rounded-lg flex items-center justify-center">
                     <img
                       src={
                         service.image ||
@@ -253,7 +253,7 @@ export default function ServiceDetailPage({ initialService = null }) {
                       alt={service.title}
                       className="w-full h-full object-cover rounded-lg"
                     />
-                  </div>
+                  </div> */}
                   <div className="flex-grow">
                     <div className="flex items-start justify-between mb-4">
                       <div>
@@ -265,9 +265,9 @@ export default function ServiceDetailPage({ initialService = null }) {
                         </Badge>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Button variant="outline" size="icon" onClick={() => setIsFavorited(!isFavorited)}>
+                        {/* <Button variant="outline" size="icon" onClick={() => setIsFavorited(!isFavorited)}>
                           <Heart className={`h-4 w-4 ${isFavorited ? "fill-red-500 text-red-500" : ""}`} />
-                        </Button>
+                        </Button> */}
                         <Button variant="outline" size="icon" onClick={handleShare}>
                           <Share2 className="h-4 w-4" />
                         </Button>

@@ -571,3 +571,192 @@ def moderate_user_action(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An error occurred while performing the user action"
         )
+
+# Content Management Endpoints
+
+@router.get("/services", response_model=List[dict])
+def get_services_for_moderation(
+    status: Optional[str] = None,
+    search: Optional[str] = None,
+    current_moderator = Depends(get_current_moderator),
+    db: Session = Depends(get_db)
+):
+    """Get services for content moderation"""
+    from ...db.models.service import Service
+    from ...db.models.user import User
+    
+    query = db.query(Service).join(User, Service.creator_id == User.user_id)
+    
+    if status:
+        query = query.filter(Service.status == status)
+    
+    if search:
+        search_term = f"%{search}%"
+        query = query.filter(
+            (Service.title.ilike(search_term)) |
+            (Service.description.ilike(search_term)) |
+            (User.first_name.ilike(search_term)) |
+            (User.last_name.ilike(search_term)) |
+            (User.email.ilike(search_term))
+        )
+    
+    services = query.order_by(desc(Service.created_at)).all()
+    
+    result = []
+    for service in services:
+        result.append({
+            "id": service.service_id,
+            "type": "service",
+            "title": service.title,
+            "description": service.description,
+            "status": service.status,
+            "creator_name": f"{service.creator.first_name} {service.creator.last_name}",
+            "created_at": service.created_at,
+            "category": service.category,
+            "location": service.location
+        })
+    
+    return result
+
+@router.get("/requests", response_model=List[dict])
+def get_requests_for_moderation(
+    status: Optional[str] = None,
+    search: Optional[str] = None,
+    current_moderator = Depends(get_current_moderator),
+    db: Session = Depends(get_db)
+):
+    """Get requests for content moderation"""
+    from ...db.models.request import Request
+    from ...db.models.user import User
+    
+    query = db.query(Request).join(User, Request.creator_id == User.user_id)
+    
+    if status:
+        query = query.filter(Request.status == status)
+    
+    if search:
+        search_term = f"%{search}%"
+        query = query.filter(
+            (Request.title.ilike(search_term)) |
+            (Request.description.ilike(search_term)) |
+            (User.first_name.ilike(search_term)) |
+            (User.last_name.ilike(search_term)) |
+            (User.email.ilike(search_term))
+        )
+    
+    requests = query.order_by(desc(Request.created_at)).all()
+    
+    result = []
+    for request in requests:
+        result.append({
+            "id": request.request_id,
+            "type": "request",
+            "title": request.title,
+            "description": request.description,
+            "status": request.status,
+            "creator_name": f"{request.creator.first_name} {request.creator.last_name}",
+            "created_at": request.created_at,
+            "category": request.category,
+            "location": request.location,
+            "budget": str(request.budget) if request.budget else None
+        })
+    
+    return result
+
+@router.put("/services/{service_id}")
+def moderate_service(
+    service_id: int,
+    action: str = Body(..., embed=True),
+    current_moderator = Depends(get_current_moderator),
+    db: Session = Depends(get_db)
+):
+    """Moderate a service (update status or delete)"""
+    from ...db.models.service import Service
+    
+    service = db.query(Service).filter(Service.service_id == service_id).first()
+    
+    if not service:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Service not found"
+        )
+    
+    if action == "delete":
+        db.delete(service)
+        db.commit()
+        logger.info(f"Moderator {current_moderator.moderator_id} deleted service {service_id}")
+        return {"message": "Service deleted successfully"}
+    
+    # Map actions to status values
+    status_mapping = {
+        "activate": "active",
+        "suspend": "suspended", 
+        "close": "closed"
+    }
+    
+    if action not in status_mapping:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid action. Must be one of: {list(status_mapping.keys())} or 'delete'"
+        )
+    
+    service.status = status_mapping[action]
+    db.commit()
+    db.refresh(service)
+    
+    logger.info(f"Moderator {current_moderator.moderator_id} updated service {service_id} status to {service.status}")
+    
+    return {
+        "message": f"Service status updated to {service.status}",
+        "service_id": service_id,
+        "new_status": service.status
+    }
+
+@router.put("/requests/{request_id}")
+def moderate_request(
+    request_id: int,
+    action: str = Body(..., embed=True),
+    current_moderator = Depends(get_current_moderator),
+    db: Session = Depends(get_db)
+):
+    """Moderate a request (update status or delete)"""
+    from ...db.models.request import Request
+    
+    request = db.query(Request).filter(Request.request_id == request_id).first()
+    
+    if not request:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Request not found"
+        )
+    
+    if action == "delete":
+        db.delete(request)
+        db.commit()
+        logger.info(f"Moderator {current_moderator.moderator_id} deleted request {request_id}")
+        return {"message": "Request deleted successfully"}
+    
+    # Map actions to status values
+    status_mapping = {
+        "activate": "active",
+        "suspend": "suspended", 
+        "close": "closed"
+    }
+    
+    if action not in status_mapping:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid action. Must be one of: {list(status_mapping.keys())} or 'delete'"
+        )
+    
+    request.status = status_mapping[action]
+    db.commit()
+    db.refresh(request)
+    
+    logger.info(f"Moderator {current_moderator.moderator_id} updated request {request_id} status to {request.status}")
+    
+    return {
+        "message": f"Request status updated to {request.status}",
+        "request_id": request_id,
+        "new_status": request.status
+    }

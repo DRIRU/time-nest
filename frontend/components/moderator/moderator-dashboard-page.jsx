@@ -47,10 +47,12 @@ import {
   Mail,
   Phone,
   MapPin,
-  RefreshCw
+  RefreshCw,
+  Play,
+  Archive
 } from "lucide-react"
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart as RechartsPieChart, Cell, Pie } from "recharts"
-import { getPendingReports, getFlaggedContent, getModeratorStats, getModeratorActivity, updateReportStatus, moderateContent, isModeratorAuthenticated, getStoredModeratorData, logoutModerator, getModeratorUsers, getModeratorRecentUsers } from "@/lib/moderator-data"
+import { getPendingReports, getFlaggedContent, getModeratorStats, getModeratorActivity, updateReportStatus, moderateContent, isModeratorAuthenticated, getStoredModeratorData, logoutModerator, getModeratorUsers, getModeratorRecentUsers, getModeratorServices, getModeratorRequests, moderateService, moderateRequest } from "@/lib/moderator-data"
 import Link from "next/link"
 
 export default function ModeratorDashboardPage() {
@@ -87,6 +89,7 @@ export default function ModeratorDashboardPage() {
   const [filteredContent, setFilteredContent] = useState([])
   const [contentSearchTerm, setContentSearchTerm] = useState("")
   const [contentTypeFilter, setContentTypeFilter] = useState("all")
+  const [contentStatusFilter, setContentStatusFilter] = useState("all")
   const [contentSortBy, setContentSortBy] = useState("newest")
   const [contentLoading, setContentLoading] = useState(false)
   const [processingContentId, setProcessingContentId] = useState(null)
@@ -852,32 +855,25 @@ export default function ModeratorDashboardPage() {
   const loadAllContent = async () => {
     setContentLoading(true)
     try {
-      // Load services and requests
-      const [servicesResponse, requestsResponse] = await Promise.all([
-        fetch(`http://localhost:8000/api/v1/services`, {
-          headers: {
-            'Authorization': `Bearer ${moderatorUser?.accessToken}`
-          }
-        }),
-        fetch(`http://localhost:8000/api/v1/requests`, {
-          headers: {
-            'Authorization': `Bearer ${moderatorUser?.accessToken}`
-          }
-        })
+      // Use the new moderator-specific endpoints
+      const filters = {
+        status: contentStatusFilter !== 'all' ? contentStatusFilter : undefined,
+        search: contentSearchTerm || undefined
+      }
+      
+      const [servicesData, requestsData] = await Promise.all([
+        getModeratorServices(filters),
+        getModeratorRequests(filters)
       ])
 
-      const servicesData = servicesResponse.ok ? await servicesResponse.json() : []
-      const requestsData = requestsResponse.ok ? await requestsResponse.json() : []
-
-      // Transform services
-      const transformedServices = (servicesData?.services || servicesData || []).map(service => ({
-        id: service.id || service.service_id,
+      // Transform services (data should already be in the right format from the API)
+      const transformedServices = (servicesData || []).map(service => ({
+        id: service.id,
         title: service.title,
         description: service.description,
-        provider: service.provider_name || service.creator_name || "Unknown Provider",
-        provider_id: service.provider_id || service.creator_id,
+        provider: service.creator_name || "Unknown Provider",
+        provider_id: service.creator_id,
         category: service.category,
-        price: service.price,
         location: service.location,
         status: service.status || "active",
         created_at: service.created_at,
@@ -885,16 +881,16 @@ export default function ModeratorDashboardPage() {
       }))
 
       // Transform requests
-      const transformedRequests = (requestsData?.requests || requestsData || []).map(request => ({
-        id: request.id || request.request_id,
+      const transformedRequests = (requestsData || []).map(request => ({
+        id: request.id,
         title: request.title,
         description: request.description,
-        requester: request.requester_name || request.user_name || "Unknown Requester",
-        requester_id: request.requester_id || request.user_id,
+        requester: request.creator_name || "Unknown Requester",
+        requester_id: request.creator_id,
         category: request.category,
         budget: request.budget,
         location: request.location,
-        status: request.status || "open",
+        status: request.status || "active",
         created_at: request.created_at,
         type: "request"
       }))
@@ -1005,51 +1001,40 @@ export default function ModeratorDashboardPage() {
     
     setProcessingContentId(contentId)
     try {
-      const endpoint = contentType === 'service' ? 'services' : 'requests'
-      const response = await fetch(`http://localhost:8000/api/v1/${endpoint}/${contentId}`, {
-        method: action === 'delete' ? 'DELETE' : 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${moderatorUser?.accessToken}`
-        },
-        body: action !== 'delete' ? JSON.stringify({
-          status: action === 'approve' ? 'active' : 'suspended',
-          moderator_id: moderatorUser?.user_id || moderatorUser?.id
-        }) : undefined
-      })
-
-      if (response.ok) {
-        console.log(`Content ${contentId} ${action}ed successfully`)
-        
-        if (action === 'delete') {
-          // Remove from local state
-          if (contentType === 'service') {
-            setAllServices(prev => prev.filter(service => service.id !== contentId))
-          } else {
-            setAllRequests(prev => prev.filter(request => request.id !== contentId))
-          }
-          // Update filtered content
-          setFilteredContent(prev => prev.filter(item => item.id !== contentId))
-        } else {
-          // Update status in local state
-          const updateStatus = action === 'approve' ? 'active' : 'suspended'
-          if (contentType === 'service') {
-            setAllServices(prev => prev.map(service => 
-              service.id === contentId ? { ...service, status: updateStatus } : service
-            ))
-          } else {
-            setAllRequests(prev => prev.map(request => 
-              request.id === contentId ? { ...request, status: updateStatus } : request
-            ))
-          }
-          // Refresh filtered content
-          filterAndSortContent()
-        }
-        
+      let result
+      
+      if (contentType === 'service') {
+        result = await moderateService(contentId, action)
       } else {
-        throw new Error(`HTTP ${response.status}: Failed to ${action} content`)
+        result = await moderateRequest(contentId, action)
+      }
+      
+      if (action === 'delete') {
+        // Remove from local state
+        if (contentType === 'service') {
+          setAllServices(prev => prev.filter(service => service.id !== contentId))
+        } else {
+          setAllRequests(prev => prev.filter(request => request.id !== contentId))
+        }
+        setFilteredContent(prev => prev.filter(item => item.id !== contentId))
+      } else {
+        // Update status in local state
+        const newStatus = result.new_status
+        if (contentType === 'service') {
+          setAllServices(prev => prev.map(service => 
+            service.id === contentId ? { ...service, status: newStatus } : service
+          ))
+        } else {
+          setAllRequests(prev => prev.map(request => 
+            request.id === contentId ? { ...request, status: newStatus } : request
+          ))
+        }
+        // Refresh filtered content
+        filterAndSortContent()
       }
 
+      console.log(`Content ${contentId} ${action}ed successfully`)
+        
     } catch (error) {
       console.error(`Error ${action}ing content:`, error)
       alert(`Failed to ${action} content: ${error.message}`)
@@ -1071,7 +1056,7 @@ export default function ModeratorDashboardPage() {
     }, 500)
     
     return () => clearTimeout(timeoutId)
-  }, [contentSearchTerm, contentTypeFilter])
+  }, [contentSearchTerm, contentTypeFilter, contentStatusFilter])
 
   // Content sort effect
   useEffect(() => {
@@ -2104,6 +2089,17 @@ export default function ModeratorDashboardPage() {
                       <SelectItem value="request">Requests</SelectItem>
                     </SelectContent>
                   </Select>
+                  <Select value={contentStatusFilter} onValueChange={setContentStatusFilter}>
+                    <SelectTrigger className="w-full md:w-48">
+                      <SelectValue placeholder="Filter by status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Status</SelectItem>
+                      <SelectItem value="active">Active</SelectItem>
+                      <SelectItem value="suspended">Suspended</SelectItem>
+                      <SelectItem value="closed">Closed</SelectItem>
+                    </SelectContent>
+                  </Select>
                   <Select value={contentSortBy} onValueChange={setContentSortBy}>
                     <SelectTrigger className="w-full md:w-48">
                       <SelectValue placeholder="Sort by" />
@@ -2161,6 +2157,7 @@ export default function ModeratorDashboardPage() {
                                 <Badge variant="outline" className={
                                   item.status === 'active' ? 'bg-green-50 text-green-700' :
                                   item.status === 'suspended' ? 'bg-red-50 text-red-700' :
+                                  item.status === 'closed' ? 'bg-gray-50 text-gray-700' :
                                   'bg-gray-50 text-gray-700'
                                 }>
                                   {item.status}
@@ -2210,33 +2207,56 @@ export default function ModeratorDashboardPage() {
                               </Button>
                               
                               <div className="flex gap-1">
-                                {item.status === 'suspended' ? (
+                                {/* Activate button - show for suspended or closed content */}
+                                {(item.status === 'suspended' || item.status === 'closed') && (
                                   <Button 
                                     variant="outline" 
                                     size="sm"
-                                    onClick={() => handleContentManagementAction(item.id, 'approve', item.type)}
+                                    onClick={() => handleContentManagementAction(item.id, 'activate', item.type)}
                                     disabled={processingContentId === item.id}
                                     className="text-green-600 border-green-200 hover:bg-green-50"
+                                    title="Activate"
                                   >
-                                    <Check className="h-4 w-4" />
+                                    <Play className="h-4 w-4" />
                                   </Button>
-                                ) : (
+                                )}
+                                
+                                {/* Suspend button - show for active content */}
+                                {item.status === 'active' && (
                                   <Button 
                                     variant="outline" 
                                     size="sm"
                                     onClick={() => handleContentManagementAction(item.id, 'suspend', item.type)}
                                     disabled={processingContentId === item.id}
                                     className="text-orange-600 border-orange-200 hover:bg-orange-50"
+                                    title="Suspend"
                                   >
                                     <Ban className="h-4 w-4" />
                                   </Button>
                                 )}
+                                
+                                {/* Close button - show for active or suspended content */}
+                                {(item.status === 'active' || item.status === 'suspended') && (
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm"
+                                    onClick={() => handleContentManagementAction(item.id, 'close', item.type)}
+                                    disabled={processingContentId === item.id}
+                                    className="text-gray-600 border-gray-200 hover:bg-gray-50"
+                                    title="Close"
+                                  >
+                                    <Archive className="h-4 w-4" />
+                                  </Button>
+                                )}
+                                
+                                {/* Delete button - always available */}
                                 <Button 
                                   variant="outline" 
                                   size="sm"
                                   onClick={() => handleContentManagementAction(item.id, 'delete', item.type)}
                                   disabled={processingContentId === item.id}
                                   className="text-red-600 border-red-200 hover:bg-red-50"
+                                  title="Delete"
                                 >
                                   <X className="h-4 w-4" />
                                 </Button>
