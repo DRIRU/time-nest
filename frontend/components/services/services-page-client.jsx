@@ -23,6 +23,7 @@ import { Separator } from "@/components/ui/separator"
 import ServiceCard from "./service-card"
 import ServiceListItem from "./service-list-item"
 import { filterServices, getCategories } from "@/lib/database-services"
+import LocationAutocomplete from "../location-autocomplete"
 import { useAuth } from "@/contexts/auth-context"
 
 export default function ServicesPageClient({ initialServices, searchParams }) {
@@ -153,12 +154,12 @@ export default function ServicesPageClient({ initialServices, searchParams }) {
   }
 
   // Handle availability checkbox change
-  const handleAvailabilityChange = (day) => {
+  const handleAvailabilityChange = (timeSlot) => {
     setAvailability((prev) => {
-      if (prev.includes(day)) {
-        return prev.filter((d) => d !== day)
+      if (prev.includes(timeSlot)) {
+        return prev.filter((slot) => slot !== timeSlot)
       } else {
-        return [...prev, day]
+        return [...prev, timeSlot]
       }
     })
   }
@@ -223,16 +224,15 @@ export default function ServicesPageClient({ initialServices, searchParams }) {
                   <SelectItem value="3">3+ Stars</SelectItem>
                 </SelectContent>
               </Select>
-              <Select value={location} onValueChange={setLocation}>
-                <SelectTrigger className="w-32">
-                  <SelectValue placeholder="All Locations" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="any">All Locations</SelectItem>
-                  <SelectItem value="remote">Remote</SelectItem>
-                  <SelectItem value="local">Local Only</SelectItem>
-                </SelectContent>
-              </Select>
+              <div className="w-40">
+                <LocationAutocomplete
+                  name="filter-location"
+                  value={location === "any" ? "" : location}
+                  onChange={(value) => setLocation(value || "any")}
+                  placeholder="Any location"
+                />
+              </div>
+              {/* Commented out Filters button temporarily
               <Sheet>
                 <SheetTrigger asChild>
                   <Button
@@ -265,15 +265,23 @@ export default function ServicesPageClient({ initialServices, searchParams }) {
                     <div className="space-y-3">
                       <h3 className="text-sm font-medium">Availability</h3>
                       <div className="space-y-2">
-                        {["Weekdays", "Evenings", "Weekends"].map((day) => (
-                          <div key={day} className="flex items-center space-x-2">
+                        {[
+                          "Weekday Mornings",
+                          "Weekday Afternoons", 
+                          "Weekday Evenings",
+                          "Weekend Mornings",
+                          "Weekend Afternoons",
+                          "Weekend Evenings",
+                          "Flexible"
+                        ].map((timeSlot) => (
+                          <div key={timeSlot} className="flex items-center space-x-2">
                             <Checkbox
-                              id={day}
-                              checked={availability.includes(day)}
-                              onCheckedChange={() => handleAvailabilityChange(day)}
+                              id={timeSlot}
+                              checked={availability.includes(timeSlot)}
+                              onCheckedChange={() => handleAvailabilityChange(timeSlot)}
                             />
-                            <label htmlFor={day} className="text-sm">
-                              {day}
+                            <label htmlFor={timeSlot} className="text-sm">
+                              {timeSlot}
                             </label>
                           </div>
                         ))}
@@ -290,6 +298,7 @@ export default function ServicesPageClient({ initialServices, searchParams }) {
                   </SheetFooter>
                 </SheetContent>
               </Sheet>
+              */}
             </div>
           </form>
         </div>
@@ -325,9 +334,25 @@ export default function ServicesPageClient({ initialServices, searchParams }) {
                   />
                 </Badge>
               )}
+              {location && location !== "any" && (
+                <Badge variant="outline" className="flex items-center gap-1">
+                  {location}
+                  <X className="h-3 w-3 cursor-pointer" onClick={() => setLocation("any")} />
+                </Badge>
+              )}
+              {availability.length > 0 && availability.map((timeSlot) => (
+                <Badge key={timeSlot} variant="outline" className="flex items-center gap-1">
+                  {timeSlot}
+                  <X
+                    className="h-3 w-3 cursor-pointer"
+                    onClick={() => handleAvailabilityChange(timeSlot)}
+                  />
+                </Badge>
+              ))}
             </div>
           </div>
           <div className="flex items-center gap-4">
+            {/* Commented out sort dropdown temporarily
             <Select defaultValue="recommended">
               <SelectTrigger className="w-[180px]">
                 <SelectValue placeholder="Sort by" />
@@ -340,15 +365,16 @@ export default function ServicesPageClient({ initialServices, searchParams }) {
                 <SelectItem value="newest">Newest</SelectItem>
               </SelectContent>
             </Select>
+            */}
             <div className="flex border rounded-md">
               <Button
                 variant={viewMode === "grid" ? "default" : "ghost"}
                 size="icon"
                 onClick={() => setViewMode("grid")}
-                className="rounded-r-none"
               >
                 <Grid className="h-4 w-4" />
               </Button>
+              {/* Commented out list view button temporarily
               <Button
                 variant={viewMode === "list" ? "default" : "ghost"}
                 size="icon"
@@ -357,6 +383,7 @@ export default function ServicesPageClient({ initialServices, searchParams }) {
               >
                 <List className="h-4 w-4" />
               </Button>
+              */}
             </div>
           </div>
         </div>

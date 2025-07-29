@@ -169,12 +169,12 @@ export default function ServicesPage() {
   }
 
   // Handle availability checkbox change
-  const handleAvailabilityChange = (day) => {
+  const handleAvailabilityChange = (timeSlot) => {
     setAvailability((prev) => {
-      if (prev.includes(day)) {
-        return prev.filter((d) => d !== day)
+      if (prev.includes(timeSlot)) {
+        return prev.filter((slot) => slot !== timeSlot)
       } else {
-        return [...prev, day]
+        return [...prev, timeSlot]
       }
     })
   }
@@ -297,15 +297,23 @@ export default function ServicesPage() {
                   <div className="space-y-3">
                     <h3 className="text-sm font-medium">Availability</h3>
                     <div className="space-y-2">
-                      {["Weekdays", "Evenings", "Weekends"].map((day) => (
-                        <div key={day} className="flex items-center space-x-2">
+                      {[
+                        "Weekday Mornings",
+                        "Weekday Afternoons", 
+                        "Weekday Evenings",
+                        "Weekend Mornings",
+                        "Weekend Afternoons",
+                        "Weekend Evenings",
+                        "Flexible"
+                      ].map((timeSlot) => (
+                        <div key={timeSlot} className="flex items-center space-x-2">
                           <Checkbox
-                            id={day}
-                            checked={availability.includes(day)}
-                            onCheckedChange={() => handleAvailabilityChange(day)}
+                            id={timeSlot}
+                            checked={availability.includes(timeSlot)}
+                            onCheckedChange={() => handleAvailabilityChange(timeSlot)}
                           />
-                          <label htmlFor={day} className="text-sm">
-                            {day}
+                          <label htmlFor={timeSlot} className="text-sm">
+                            {timeSlot}
                           </label>
                         </div>
                       ))}
@@ -365,6 +373,15 @@ export default function ServicesPage() {
                     <X className="h-3 w-3 cursor-pointer" onClick={() => setLocation("any")} />
                   </Badge>
                 )}
+                {availability.length > 0 && availability.map((timeSlot) => (
+                  <Badge key={timeSlot} variant="outline" className="flex items-center gap-1">
+                    {timeSlot}
+                    <X
+                      className="h-3 w-3 cursor-pointer"
+                      onClick={() => handleAvailabilityChange(timeSlot)}
+                    />
+                  </Badge>
+                ))}
               </div>
             </div>
             <div className="flex items-center gap-4">
