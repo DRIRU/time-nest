@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Body
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
@@ -503,4 +503,71 @@ def get_report_stats_for_moderator(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An error occurred while fetching report statistics"
+        )
+
+
+# User moderation actions
+@router.post("/users/{user_id}/action")
+def moderate_user_action(
+    user_id: int,
+    action: str = Body(..., embed=True),
+    reason: str = Body(None, embed=True),
+    moderator_id: int = Body(None, embed=True),
+    current_moderator: Moderator = Depends(get_current_moderator),
+    db: Session = Depends(get_db)
+):
+    """
+    Take moderation action on a user (suspend, unsuspend, etc.)
+    """
+    try:
+        print("user id",user_id)
+        # Get the user to moderate
+        user = db.query(User).filter(User.user_id == user_id).first()
+        print(user)
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found"
+            )
+        
+        # Validate action
+        valid_actions = ["suspend", "unsuspend", "deactivate", "activate"]
+        if action not in valid_actions:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid action. Must be one of: {', '.join(valid_actions)}"
+            )
+        
+        # Apply the action
+        if action == "suspend":
+            user.status = "Suspended"
+        elif action == "unsuspend":
+            user.status = "Active"
+        elif action == "deactivate":
+            user.status = "Deactivated"
+        elif action == "activate":
+            user.status = "Active"
+        
+        # Save the changes
+        db.commit()
+        db.refresh(user)
+        
+        logger.info(f"Moderator {current_moderator.moderator_id} performed action '{action}' on user {user_id}")
+        
+        return {
+            "message": f"User {action} action completed successfully",
+            "user_id": user_id,
+            "new_status": user.status,
+            "action": action,
+            "moderator_id": current_moderator.moderator_id
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error performing user action: {str(e)}")
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An error occurred while performing the user action"
         )

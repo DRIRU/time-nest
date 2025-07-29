@@ -41,6 +41,7 @@ import {
   AlertCircle,
   UserMinus,
   UserX,
+  UserPlus,
   History,
   Info,
   Mail,
@@ -78,6 +79,17 @@ export default function ModeratorDashboardPage() {
   const [pendingReports, setPendingReports] = useState([])
   const [flaggedContent, setFlaggedContent] = useState([])
   const [recentActivity, setRecentActivity] = useState([])
+  
+  // Content management state
+  const [showContentSearch, setShowContentSearch] = useState(false)
+  const [allServices, setAllServices] = useState([])
+  const [allRequests, setAllRequests] = useState([])
+  const [filteredContent, setFilteredContent] = useState([])
+  const [contentSearchTerm, setContentSearchTerm] = useState("")
+  const [contentTypeFilter, setContentTypeFilter] = useState("all")
+  const [contentSortBy, setContentSortBy] = useState("newest")
+  const [contentLoading, setContentLoading] = useState(false)
+  const [processingContentId, setProcessingContentId] = useState(null)
   
   // User management state
   const [flaggedUsers, setFlaggedUsers] = useState([])
@@ -224,7 +236,7 @@ export default function ModeratorDashboardPage() {
               first_name: user.first_name,
               last_name: user.last_name,
               email: user.email,
-              joinedDate: user.created_at || user.createdAt || user.joinDate,
+              joinedDate: user.date_joined || user.created_at || user.createdAt || user.joinDate,
               role: user.role
             }))
           
@@ -417,7 +429,7 @@ export default function ModeratorDashboardPage() {
     try {
       // Use real API call for user moderation actions
       // This endpoint may need to be implemented on the backend
-      const response = await fetch(`http://localhost:8000/api/v1/moderator/users/${userId}/action`, {
+      const response = await fetch(`http://localhost:8000/api/v1/moderators/users/${userId}/action`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -464,6 +476,12 @@ export default function ModeratorDashboardPage() {
               suspended: prev.users.suspended - 1
             }
           }))
+        } else if (action === 'activate') {
+          // User status changed from deactivated to active - no specific local state updates needed
+          console.log(`User ${userId} activated successfully`)
+        } else if (action === 'deactivate') {
+          // User status changed from active to deactivated - no specific local state updates needed
+          console.log(`User ${userId} deactivated successfully`)
         } else if (action === 'unflag' || action === 'flag') {
           if (action === 'unflag') {
             setFlaggedUsers(prev => prev.filter(user => user.id !== userId))
@@ -508,6 +526,10 @@ export default function ModeratorDashboardPage() {
               suspendedBy: moderatorUser?.email || "Moderator"
             }])
           }
+        } else if (action === 'unsuspend') {
+          setSuspendedUsers(prev => prev.filter(user => user.id !== userId))
+        } else if (action === 'activate' || action === 'deactivate') {
+          console.log(`${action} action applied locally for user ${userId}`)
         } else if (action === 'unflag') {
           setFlaggedUsers(prev => prev.filter(user => user.id !== userId))
         }
@@ -673,8 +695,8 @@ export default function ModeratorDashboardPage() {
         phone_number: user.phone_number || user.phone,
         location: user.location?.city ? `${user.location.city}, ${user.location.state}` : user.location,
         role: user.role,
-        isVerified: user.isVerified || user.verified || false,
-        created_at: user.created_at || user.createdAt || user.joinDate,
+        status: user.status || 'Active', // Use status instead of isVerified
+        date_joined: user.date_joined || user.created_at || user.createdAt || user.joinDate, // Use date_joined field
         profile: {
           rating: user.profile?.rating || user.rating,
           reviewCount: user.profile?.reviewCount || user.review_count || 0,
@@ -767,10 +789,12 @@ export default function ModeratorDashboardPage() {
     if (statusFilter !== "all") {
       filtered = filtered.filter(user => {
         switch (statusFilter) {
-          case "verified":
-            return user.isVerified
-          case "unverified":
-            return !user.isVerified
+          case "active":
+            return user.status === "Active"
+          case "suspended":
+            return user.status === "Suspended"
+          case "deactivated":
+            return user.status === "Deactivated"
           case "providers":
             return user.role === "service_provider"
           case "seekers":
@@ -785,9 +809,9 @@ export default function ModeratorDashboardPage() {
     filtered.sort((a, b) => {
       switch (sortBy) {
         case "newest":
-          return new Date(b.created_at) - new Date(a.created_at)
+          return new Date(b.date_joined) - new Date(a.date_joined)
         case "oldest":
-          return new Date(a.created_at) - new Date(b.created_at)
+          return new Date(a.date_joined) - new Date(b.date_joined)
         case "name":
           return (a.first_name || "").localeCompare(b.first_name || "")
         case "email":
@@ -824,6 +848,238 @@ export default function ModeratorDashboardPage() {
     }
   }, [sortBy, allUsers])
 
+  // Content management functions
+  const loadAllContent = async () => {
+    setContentLoading(true)
+    try {
+      // Load services and requests
+      const [servicesResponse, requestsResponse] = await Promise.all([
+        fetch(`http://localhost:8000/api/v1/services`, {
+          headers: {
+            'Authorization': `Bearer ${moderatorUser?.accessToken}`
+          }
+        }),
+        fetch(`http://localhost:8000/api/v1/requests`, {
+          headers: {
+            'Authorization': `Bearer ${moderatorUser?.accessToken}`
+          }
+        })
+      ])
+
+      const servicesData = servicesResponse.ok ? await servicesResponse.json() : []
+      const requestsData = requestsResponse.ok ? await requestsResponse.json() : []
+
+      // Transform services
+      const transformedServices = (servicesData?.services || servicesData || []).map(service => ({
+        id: service.id || service.service_id,
+        title: service.title,
+        description: service.description,
+        provider: service.provider_name || service.creator_name || "Unknown Provider",
+        provider_id: service.provider_id || service.creator_id,
+        category: service.category,
+        price: service.price,
+        location: service.location,
+        status: service.status || "active",
+        created_at: service.created_at,
+        type: "service"
+      }))
+
+      // Transform requests
+      const transformedRequests = (requestsData?.requests || requestsData || []).map(request => ({
+        id: request.id || request.request_id,
+        title: request.title,
+        description: request.description,
+        requester: request.requester_name || request.user_name || "Unknown Requester",
+        requester_id: request.requester_id || request.user_id,
+        category: request.category,
+        budget: request.budget,
+        location: request.location,
+        status: request.status || "open",
+        created_at: request.created_at,
+        type: "request"
+      }))
+
+      setAllServices(transformedServices)
+      setAllRequests(transformedRequests)
+      
+      // Combine all content
+      const allContent = [...transformedServices, ...transformedRequests]
+      setFilteredContent(allContent)
+
+      console.log(`Loaded ${transformedServices.length} services and ${transformedRequests.length} requests`)
+
+    } catch (error) {
+      console.error("Error loading content:", error)
+      
+      // Fallback to mock data
+      const mockServices = [
+        {
+          id: 1,
+          title: "House Cleaning Service",
+          description: "Professional house cleaning with eco-friendly products",
+          provider: "John Smith",
+          provider_id: 1,
+          category: "Cleaning",
+          price: 50,
+          location: "New York, NY",
+          status: "active",
+          created_at: "2024-01-15T10:00:00Z",
+          type: "service"
+        }
+      ]
+      
+      const mockRequests = [
+        {
+          id: 1,
+          title: "Need a Plumber",
+          description: "Kitchen sink is leaking and needs repair",
+          requester: "Jane Doe",
+          requester_id: 2,
+          category: "Plumbing",
+          budget: 100,
+          location: "Los Angeles, CA",
+          status: "open",
+          created_at: "2024-02-01T14:00:00Z",
+          type: "request"
+        }
+      ]
+
+      setAllServices(mockServices)
+      setAllRequests(mockRequests)
+      setFilteredContent([...mockServices, ...mockRequests])
+      
+    } finally {
+      setContentLoading(false)
+    }
+  }
+
+  const handleSearchContent = () => {
+    setShowContentSearch(true)
+    if (allServices.length === 0 && allRequests.length === 0) {
+      loadAllContent()
+    }
+  }
+
+  const filterAndSortContent = () => {
+    let filtered = [...allServices, ...allRequests]
+
+    // Apply search filter
+    if (contentSearchTerm) {
+      const term = contentSearchTerm.toLowerCase()
+      filtered = filtered.filter(item => 
+        item.title?.toLowerCase().includes(term) ||
+        item.description?.toLowerCase().includes(term) ||
+        item.provider?.toLowerCase().includes(term) ||
+        item.requester?.toLowerCase().includes(term) ||
+        item.category?.toLowerCase().includes(term) ||
+        item.location?.toLowerCase().includes(term)
+      )
+    }
+
+    // Apply type filter
+    if (contentTypeFilter !== "all") {
+      filtered = filtered.filter(item => item.type === contentTypeFilter)
+    }
+
+    // Apply sorting
+    filtered.sort((a, b) => {
+      switch (contentSortBy) {
+        case "newest":
+          return new Date(b.created_at) - new Date(a.created_at)
+        case "oldest":
+          return new Date(a.created_at) - new Date(b.created_at)
+        case "title":
+          return (a.title || "").localeCompare(b.title || "")
+        case "category":
+          return (a.category || "").localeCompare(b.category || "")
+        default:
+          return 0
+      }
+    })
+
+    setFilteredContent(filtered)
+  }
+
+  const handleContentManagementAction = async (contentId, action, contentType) => {
+    if (processingContentId === contentId) return
+    
+    setProcessingContentId(contentId)
+    try {
+      const endpoint = contentType === 'service' ? 'services' : 'requests'
+      const response = await fetch(`http://localhost:8000/api/v1/${endpoint}/${contentId}`, {
+        method: action === 'delete' ? 'DELETE' : 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${moderatorUser?.accessToken}`
+        },
+        body: action !== 'delete' ? JSON.stringify({
+          status: action === 'approve' ? 'active' : 'suspended',
+          moderator_id: moderatorUser?.user_id || moderatorUser?.id
+        }) : undefined
+      })
+
+      if (response.ok) {
+        console.log(`Content ${contentId} ${action}ed successfully`)
+        
+        if (action === 'delete') {
+          // Remove from local state
+          if (contentType === 'service') {
+            setAllServices(prev => prev.filter(service => service.id !== contentId))
+          } else {
+            setAllRequests(prev => prev.filter(request => request.id !== contentId))
+          }
+          // Update filtered content
+          setFilteredContent(prev => prev.filter(item => item.id !== contentId))
+        } else {
+          // Update status in local state
+          const updateStatus = action === 'approve' ? 'active' : 'suspended'
+          if (contentType === 'service') {
+            setAllServices(prev => prev.map(service => 
+              service.id === contentId ? { ...service, status: updateStatus } : service
+            ))
+          } else {
+            setAllRequests(prev => prev.map(request => 
+              request.id === contentId ? { ...request, status: updateStatus } : request
+            ))
+          }
+          // Refresh filtered content
+          filterAndSortContent()
+        }
+        
+      } else {
+        throw new Error(`HTTP ${response.status}: Failed to ${action} content`)
+      }
+
+    } catch (error) {
+      console.error(`Error ${action}ing content:`, error)
+      alert(`Failed to ${action} content: ${error.message}`)
+    } finally {
+      setProcessingContentId(null)
+    }
+  }
+
+  // Content search effect
+  useEffect(() => {
+    if (!showContentSearch || !moderatorUser) return
+    
+    const timeoutId = setTimeout(() => {
+      if ((allServices.length === 0 && allRequests.length === 0) || contentSearchTerm !== '' || contentTypeFilter !== 'all') {
+        loadAllContent()
+      } else {
+        filterAndSortContent()
+      }
+    }, 500)
+    
+    return () => clearTimeout(timeoutId)
+  }, [contentSearchTerm, contentTypeFilter])
+
+  // Content sort effect
+  useEffect(() => {
+    if (allServices.length > 0 || allRequests.length > 0) {
+      filterAndSortContent()
+    }
+  }, [contentSortBy, allServices, allRequests])
+
   // Helper functions
   const getUserDisplayName = (user) => {
     if (!user) return "Unknown User"
@@ -833,10 +1089,17 @@ export default function ModeratorDashboardPage() {
   const getUserStatusBadge = (user) => {
     if (!user) return null
     
-    if (user.isVerified) {
-      return <Badge className="bg-green-100 text-green-800">Verified</Badge>
-    } else {
-      return <Badge variant="outline" className="bg-yellow-50 text-yellow-800">Unverified</Badge>
+    const status = user.status || 'Active'
+    
+    switch (status.toLowerCase()) {
+      case 'active':
+        return <Badge className="bg-green-100 text-green-800">Active</Badge>
+      case 'suspended':
+        return <Badge className="bg-red-100 text-red-800">Suspended</Badge>
+      case 'deactivated':
+        return <Badge variant="outline" className="bg-gray-100 text-gray-800">Deactivated</Badge>
+      default:
+        return <Badge className="bg-green-100 text-green-800">Active</Badge>
     }
   }
 
@@ -1088,6 +1351,59 @@ export default function ModeratorDashboardPage() {
 
           {/* Content Tab */}
           <TabsContent value="content" className="space-y-6">
+            {/* Content Management Actions */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <Card className="dark:bg-gray-800 dark:border-gray-700">
+                <CardHeader>
+                  <CardTitle>Content Management</CardTitle>
+                  <CardDescription>
+                    Search and manage services and requests on the platform
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <Button 
+                    variant="outline" 
+                    className="w-full justify-start"
+                    onClick={handleSearchContent}
+                  >
+                    <Search className="h-4 w-4 mr-2" />
+                    Search Services & Requests
+                  </Button>
+                  <Button variant="outline" className="w-full justify-start">
+                    <Filter className="h-4 w-4 mr-2" />
+                    Filter by Category
+                  </Button>
+                  <Button variant="outline" className="w-full justify-start">
+                    <History className="h-4 w-4 mr-2" />
+                    View Content History
+                  </Button>
+                </CardContent>
+              </Card>
+
+              <Card className="dark:bg-gray-800 dark:border-gray-700">
+                <CardHeader>
+                  <CardTitle>Quick Stats</CardTitle>
+                  <CardDescription>
+                    Overview of platform content
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-600">Services:</span>
+                    <span className="font-medium">{allServices.length}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-600">Requests:</span>
+                    <span className="font-medium">{allRequests.length}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-600">Flagged Content:</span>
+                    <span className="font-medium text-red-600">{flaggedContent.length}</span>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
             {/* Flagged Content */}
             <Card className="dark:bg-gray-800 dark:border-gray-700">
               <CardHeader>
@@ -1518,10 +1834,9 @@ export default function ModeratorDashboardPage() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All Status</SelectItem>
-                      <SelectItem value="verified">Verified</SelectItem>
-                      <SelectItem value="unverified">Unverified</SelectItem>
-                      <SelectItem value="providers">Providers</SelectItem>
-                      <SelectItem value="seekers">Seekers</SelectItem>
+                      <SelectItem value="active">Active</SelectItem>
+                      <SelectItem value="suspended">Suspended</SelectItem>
+                      <SelectItem value="deactivated">Deactivated</SelectItem>
                     </SelectContent>
                   </Select>
                   <Select value={sortBy} onValueChange={setSortBy}>
@@ -1606,7 +1921,7 @@ export default function ModeratorDashboardPage() {
                                   )}
                                   <div className="flex items-center">
                                     <Calendar className="h-3 w-3 mr-2" />
-                                    Joined: {formatDate(user.created_at)}
+                                    Joined: {user.date_joined ? formatDate(user.date_joined) : 'N/A'}
                                   </div>
                                   {user.profile?.rating && (
                                     <div className="flex items-center">
@@ -1625,8 +1940,7 @@ export default function ModeratorDashboardPage() {
                                     size="sm"
                                     onClick={() => setSelectedUser(user)}
                                   >
-                                    <Eye className="h-4 w-4 mr-1" />
-                                    View Details
+                                    <Eye className="h-4 w-4" />
                                   </Button>
                                 </DialogTrigger>
                                 <DialogContent className="max-w-2xl">
@@ -1708,23 +2022,223 @@ export default function ModeratorDashboardPage() {
                               </Dialog>
                               
                               <div className="flex gap-1">
+                                {user.status?.toLowerCase() === 'suspended' ? (
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm"
+                                    onClick={() => handleUserAction(user.id, 'unsuspend')}
+                                    disabled={processingUserId === user.id}
+                                    className="text-green-600 border-green-200 hover:bg-green-50"
+                                  >
+                                    <UserCheck className="h-4 w-4" />
+                                  </Button>
+                                ) : user.status?.toLowerCase() === 'deactivated' ? (
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm"
+                                    onClick={() => handleUserAction(user.id, 'activate')}
+                                    disabled={processingUserId === user.id}
+                                    className="text-blue-600 border-blue-200 hover:bg-blue-50"
+                                  >
+                                    <UserPlus className="h-4 w-4" />
+                                  </Button>
+                                ) : (
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm"
+                                    onClick={() => handleUserAction(user.id, 'suspend')}
+                                    disabled={processingUserId === user.id}
+                                    className="text-red-600 border-red-200 hover:bg-red-50"
+                                  >
+                                    <Ban className="h-4 w-4" />
+                                  </Button>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Content Search Dialog */}
+      <Dialog open={showContentSearch} onOpenChange={setShowContentSearch}>
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Search className="h-5 w-5" />
+              Content Search & Management
+            </DialogTitle>
+            <DialogDescription>
+              Search, view, and moderate services and requests on the platform
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-6">
+            {/* Search and Filter Controls */}
+            <Card className="dark:bg-gray-800 dark:border-gray-700">
+              <CardContent className="pt-6">
+                <div className="flex flex-col md:flex-row gap-4">
+                  <div className="flex-1 relative">
+                    <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                    <Input
+                      placeholder="Search content by title, description, provider, category..."
+                      value={contentSearchTerm}
+                      onChange={(e) => setContentSearchTerm(e.target.value)}
+                      className="pl-10"
+                    />
+                  </div>
+                  <Select value={contentTypeFilter} onValueChange={setContentTypeFilter}>
+                    <SelectTrigger className="w-full md:w-48">
+                      <SelectValue placeholder="Filter by type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Content</SelectItem>
+                      <SelectItem value="service">Services</SelectItem>
+                      <SelectItem value="request">Requests</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select value={contentSortBy} onValueChange={setContentSortBy}>
+                    <SelectTrigger className="w-full md:w-48">
+                      <SelectValue placeholder="Sort by" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="newest">Newest First</SelectItem>
+                      <SelectItem value="oldest">Oldest First</SelectItem>
+                      <SelectItem value="title">Title A-Z</SelectItem>
+                      <SelectItem value="category">Category A-Z</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button variant="outline" onClick={loadAllContent} disabled={contentLoading}>
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Refresh
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Content List */}
+            <Card className="dark:bg-gray-800 dark:border-gray-700">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  Content ({filteredContent.length})
+                  {contentLoading && (
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                  )}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="max-h-96 overflow-y-auto">
+                  {contentLoading ? (
+                    <div className="flex items-center justify-center py-8">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                      <span className="ml-2 text-gray-600 dark:text-gray-400">Loading content...</span>
+                    </div>
+                  ) : filteredContent.length === 0 ? (
+                    <div className="text-center py-8">
+                      <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                      <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">No content found</h3>
+                      <p className="text-gray-600 dark:text-gray-400">
+                        Try adjusting your search or filter criteria.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {filteredContent.map((item) => (
+                        <div key={`${item.type}-${item.id}`} className="border rounded-lg p-4 bg-gray-50 dark:bg-gray-700">
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-2">
+                                <Badge className={item.type === 'service' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'}>
+                                  {item.type === 'service' ? 'Service' : 'Request'}
+                                </Badge>
+                                <Badge variant="outline" className={
+                                  item.status === 'active' ? 'bg-green-50 text-green-700' :
+                                  item.status === 'suspended' ? 'bg-red-50 text-red-700' :
+                                  'bg-gray-50 text-gray-700'
+                                }>
+                                  {item.status}
+                                </Badge>
+                                <h4 className="font-medium">{item.title}</h4>
+                              </div>
+                              <div className="space-y-1 text-sm text-gray-600 dark:text-gray-300">
+                                <p className="mb-2">{item.description}</p>
+                                <div className="flex items-center">
+                                  <User className="h-3 w-3 mr-2" />
+                                  {item.type === 'service' ? item.provider : item.requester}
+                                </div>
+                                <div className="flex items-center">
+                                  <MapPin className="h-3 w-3 mr-2" />
+                                  {item.location || 'Location not specified'}
+                                </div>
+                                <div className="flex items-center">
+                                  <Calendar className="h-3 w-3 mr-2" />
+                                  {item.category}
+                                </div>
+                                {item.type === 'service' && item.price && (
+                                  <div className="flex items-center">
+                                    <span className="h-3 w-3 mr-2">$</span>
+                                    ${item.price}
+                                  </div>
+                                )}
+                                {item.type === 'request' && item.budget && (
+                                  <div className="flex items-center">
+                                    <span className="h-3 w-3 mr-2">$</span>
+                                    Budget: ${item.budget}
+                                  </div>
+                                )}
+                                <div className="flex items-center">
+                                  <Calendar className="h-3 w-3 mr-2" />
+                                  Created: {formatDate(item.created_at)}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="flex flex-col gap-2 ml-4">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="text-blue-600 border-blue-200 hover:bg-blue-50"
+                              >
+                                <Eye className="h-4 w-4 mr-1" />
+                                View
+                              </Button>
+                              
+                              <div className="flex gap-1">
+                                {item.status === 'suspended' ? (
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm"
+                                    onClick={() => handleContentManagementAction(item.id, 'approve', item.type)}
+                                    disabled={processingContentId === item.id}
+                                    className="text-green-600 border-green-200 hover:bg-green-50"
+                                  >
+                                    <Check className="h-4 w-4" />
+                                  </Button>
+                                ) : (
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm"
+                                    onClick={() => handleContentManagementAction(item.id, 'suspend', item.type)}
+                                    disabled={processingContentId === item.id}
+                                    className="text-orange-600 border-orange-200 hover:bg-orange-50"
+                                  >
+                                    <Ban className="h-4 w-4" />
+                                  </Button>
+                                )}
                                 <Button 
                                   variant="outline" 
                                   size="sm"
-                                  onClick={() => handleUserAction(user.id, 'flag')}
-                                  disabled={processingUserId === user.id}
-                                  className="text-orange-600 border-orange-200 hover:bg-orange-50"
-                                >
-                                  <Flag className="h-4 w-4" />
-                                </Button>
-                                <Button 
-                                  variant="outline" 
-                                  size="sm"
-                                  onClick={() => handleUserAction(user.id, 'suspend')}
-                                  disabled={processingUserId === user.id}
+                                  onClick={() => handleContentManagementAction(item.id, 'delete', item.type)}
+                                  disabled={processingContentId === item.id}
                                   className="text-red-600 border-red-200 hover:bg-red-50"
                                 >
-                                  <Ban className="h-4 w-4" />
+                                  <X className="h-4 w-4" />
                                 </Button>
                               </div>
                             </div>
