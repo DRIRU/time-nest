@@ -332,7 +332,41 @@ export default function UserManagementPage() {
       setShowDeleteModal(true)
       return
     }
-    
+    // Implement suspend and deactivate actions
+    if ((action === 'suspend' || action === 'activate' || action === 'deactivate') && adminUser?.accessToken) {
+      const user = users.find(u => (u.id || u.user_id) === userId)
+      if (!user) return
+      let newStatus = user.status
+      if (action === 'suspend') {
+        newStatus = user.status === 'Suspended' ? 'Active' : 'Suspended'
+      } else if (action === 'deactivate') {
+        newStatus = 'Deactivated'
+      } else if (action === 'activate') {
+        newStatus = 'Active'
+      }
+      try {
+        const response = await fetch(`http://localhost:8000/api/v1/users/admin/update-status/${userId}`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${adminUser.accessToken}`
+          },
+          body: JSON.stringify({ status: newStatus })
+        })
+        if (response.ok) {
+          // Optionally show a toast or alert
+          // alert(`User status updated to ${newStatus}`)
+          // Refresh user list
+          searchUsers()
+        } else {
+          const errorData = await response.json()
+          alert(`Failed to update user status: ${errorData.detail || 'Unknown error'}`)
+        }
+      } catch (error) {
+        alert(`Failed to update user status: ${error.message}`)
+      }
+      return
+    }
     // Placeholder for other user actions
     console.log(`${action} user ${userId}`)
     // Here you would call the appropriate API endpoint

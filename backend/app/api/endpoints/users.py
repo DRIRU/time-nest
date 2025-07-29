@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Body
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from typing import List, Optional, Optional
@@ -587,6 +587,7 @@ def delete_user_admin(user_id: int, db: Session = Depends(get_db)):
     Delete a user (Admin only)
     """
     try:
+        print("userid: ", user_id)
         # Find the user
         user = db.query(User).filter(User.user_id == user_id).first()
         if not user:
@@ -608,6 +609,24 @@ def delete_user_admin(user_id: int, db: Session = Depends(get_db)):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An error occurred while deleting the user"
         )
+
+@router.patch("/admin/update-status/{user_id}")
+def admin_update_user_status(
+    user_id: int,
+    status: str = Body(..., embed=True),
+    db: Session = Depends(get_db),
+    current_admin = Depends(get_current_admin_dependency)
+):
+    """
+    Admin: Update a user's status (Active, Suspended, Deactivated)
+    """
+    user = db.query(User).filter(User.user_id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    user.status = status
+    db.commit()
+    db.refresh(user)
+    return {"success": True, "user_id": user.user_id, "new_status": user.status}
 
 # Dependency to get current user from token
 
