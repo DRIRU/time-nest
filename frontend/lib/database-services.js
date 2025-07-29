@@ -578,7 +578,9 @@ function transformBackendServiceToFrontend(backendService) {
     providerStats: { // Placeholder - not yet implemented in backend
       totalServices: 1,
       responseTime: "Within 24 hours",
-      memberSince: new Date().toLocaleDateString("en-US", { month: "long", year: "numeric" }),
+      memberSince: backendService.creator_date_joined 
+        ? new Date(backendService.creator_date_joined).toLocaleDateString("en-US", { month: "long", year: "numeric" })
+        : new Date().toLocaleDateString("en-US", { month: "long", year: "numeric" }),
       completionRate: "New provider",
     },
     creator_id: backendService.creator_id, // Keep the creator ID for authorization checks

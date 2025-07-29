@@ -319,20 +319,31 @@ export default function ServiceDetailPage({ initialService = null }) {
                       <div className="grid md:grid-cols-2 gap-4 mt-6">
                         <div>
                           <h4 className="font-medium mb-2 text-gray-900 dark:text-white">What's Included:</h4>
-                          <ul className="space-y-1 text-sm text-gray-600 dark:text-gray-300">
-                            <li className="flex items-center">
-                              <CheckCircle className="h-4 w-4 text-green-500 mr-2" />
-                              Professional consultation
-                            </li>
-                            <li className="flex items-center">
-                              <CheckCircle className="h-4 w-4 text-green-500 mr-2" />
-                              Personalized guidance
-                            </li>
-                            <li className="flex items-center">
-                              <CheckCircle className="h-4 w-4 text-green-500 mr-2" />
-                              Follow-up support
-                            </li>
-                          </ul>
+                          {service.whatIncluded ? (
+                            <div className="text-sm text-gray-700 dark:text-gray-200 leading-relaxed">
+                              {service.whatIncluded.split('\n').map((line, index) => (
+                                <div key={index} className="flex items-start mb-1">
+                                  <CheckCircle className="h-4 w-4 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
+                                  <span>{line.trim()}</span>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <ul className="space-y-1 text-sm text-gray-600 dark:text-gray-300">
+                              <li className="flex items-center">
+                                <CheckCircle className="h-4 w-4 text-green-500 mr-2" />
+                                Professional consultation
+                              </li>
+                              <li className="flex items-center">
+                                <CheckCircle className="h-4 w-4 text-green-500 mr-2" />
+                                Personalized guidance
+                              </li>
+                              <li className="flex items-center">
+                                <CheckCircle className="h-4 w-4 text-green-500 mr-2" />
+                                Follow-up support
+                              </li>
+                            </ul>
+                          )}
                         </div>
                         <div>
                           <h4 className="font-medium mb-2 text-gray-900 dark:text-white">Availability:</h4>
@@ -476,11 +487,13 @@ export default function ServiceDetailPage({ initialService = null }) {
                         </Avatar>
                         <div>
                           <h3 className="text-xl font-semibold text-gray-900 dark:text-white">{service.provider}</h3>
-                          <p className="text-gray-600 dark:text-gray-300">TimeNest Member since 2023</p>
-                          <div className="flex items-center mt-1">
+                          <p className="text-gray-600 dark:text-gray-300">
+                            TimeNest Member since {service.providerStats?.memberSince || "2023"}
+                          </p>
+                          {/* <div className="flex items-center mt-1">
                             <Shield className="h-4 w-4 text-green-500 mr-1" />
                             <span className="text-sm text-green-600">Verified Provider</span>
-                          </div>
+                          </div> */}
                         </div>
                       </div>
 
@@ -579,10 +592,10 @@ export default function ServiceDetailPage({ initialService = null }) {
                   <span className="font-medium">{service.location}</span>
                 </div>
                 <Separator />
-                <div className="flex items-center text-green-600">
+                {/* <div className="flex items-center text-green-600">
                   <CheckCircle className="h-4 w-4 mr-2" />
                   <span className="text-sm">Verified Service</span>
-                </div>
+                </div> */}
               </CardContent>
             </Card>
 

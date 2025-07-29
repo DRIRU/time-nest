@@ -59,14 +59,21 @@ def format_service_response(service: Service, db: Session, creator_name: str = N
     rating_stats = get_service_rating_stats(db, service.service_id)
     
     # If creator_name is not provided, get it from the database
+    creator_date_joined = None
     if creator_name is None:
         creator = db.query(User).filter(User.user_id == service.creator_id).first()
         creator_name = f"{creator.first_name} {creator.last_name}" if creator else "Unknown"
-    
+        creator_date_joined = creator.date_joined if creator else None
+    else:
+        # If creator_name is provided, we still need to get the date_joined
+        creator = db.query(User).filter(User.user_id == service.creator_id).first()
+        creator_date_joined = creator.date_joined if creator else None
+
     return {
         "service_id": service.service_id,
         "creator_id": service.creator_id,
         "creator_name": creator_name,
+        "creator_date_joined": creator_date_joined,
         "title": service.title,
         "description": service.description,
         "category": service.category,

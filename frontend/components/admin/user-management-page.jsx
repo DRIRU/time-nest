@@ -847,10 +847,10 @@ export default function UserManagementPage() {
                             <DropdownMenuContent>
                               <DropdownMenuLabel>Actions</DropdownMenuLabel>
                               <DropdownMenuSeparator />
-                              <DropdownMenuItem onClick={() => handleUserAction('edit', user.id || user.user_id)}>
+                              {/* <DropdownMenuItem onClick={() => handleUserAction('edit', user.id || user.user_id)}>
                                 <Edit className="h-4 w-4 mr-2" />
                                 Edit User
-                              </DropdownMenuItem>
+                              </DropdownMenuItem> */}
                               <DropdownMenuItem onClick={() => handleUserAction('activate', user.id || user.user_id)}>
                                 <UserCheck className="h-4 w-4 mr-2" />
                                 {user.status === "Active" || !user.status ? 'Deactivate' : 'Activate'}

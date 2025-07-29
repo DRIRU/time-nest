@@ -703,7 +703,7 @@ export default function ListServicePage() {
           {/* Step 3: Additional Information */}
           {currentStep === 3 && (
             <div className="space-y-6">
-              <Card>
+              {/* <Card>
                 <CardHeader>
                   <CardTitle>{postType === "service" ? "Service Images" : "Reference Images"}</CardTitle>
                   <CardDescription>
@@ -766,7 +766,7 @@ export default function ListServicePage() {
                     </div>
                   )}
                 </CardContent>
-              </Card>
+              </Card> */}
 
               <Card>
                 <CardHeader>
@@ -850,9 +850,10 @@ export default function ListServicePage() {
                     </p>
                   </div>
                   <div className="space-y-2">
-                    <Label>Required Skills (for requests)</Label>
+
                     {postType === "request" && (
                       <>
+                                          <Label>Required Skills (for requests)</Label>
                         <div className="flex flex-wrap gap-2 mb-2">
                           {formData.skills?.map((skill) => (
                             <Badge key={skill} variant="secondary" className="flex items-center gap-1">
