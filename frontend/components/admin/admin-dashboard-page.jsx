@@ -1056,8 +1056,8 @@ export default function AdminDashboardPage() {
                       <p className="text-sm text-gray-600 dark:text-gray-400">Total Transactions</p>
                       <p className="text-2xl font-bold">{reportStats.totalTransactions}</p>
                       <p className="text-xs text-green-600 flex items-center">
-                        <TrendingUp className="h-3 w-3 mr-1" />
-                        Real-time data
+                        {/* <TrendingUp className="h-3 w-3 mr-1" />
+                        Real-time data */}
                       </p>
                     </div>
                     <div className="p-3 rounded-full bg-blue-100">
@@ -1074,8 +1074,8 @@ export default function AdminDashboardPage() {
                       <p className="text-sm text-gray-600 dark:text-gray-400">Reports Filed</p>
                       <p className="text-2xl font-bold">{reportStats.totalReports}</p>
                       <p className="text-xs text-blue-600 flex items-center">
-                        <Activity className="h-3 w-3 mr-1" />
-                        Live data
+                        {/* <Activity className="h-3 w-3 mr-1" /> */}
+                        {/* Live data */}
                       </p>
                     </div>
                     <div className="p-3 rounded-full bg-orange-100">

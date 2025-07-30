@@ -12,7 +12,8 @@ import {
   User, 
   LogOut,
   Menu,
-  X
+  X,
+  Flag
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/contexts/auth-context"
@@ -42,6 +43,11 @@ export default function DashboardSidebar() {
       name: "My Requests",
       href: "/dashboard/my-requests",
       icon: FileText,
+    },
+    {
+      name: "My Reports",
+      href: "/dashboard/my-reports",
+      icon: Flag,
     },
     {
       name: "Profile",

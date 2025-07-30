@@ -753,7 +753,64 @@ export default function ModeratorDashboardPage() {
       )
 
       // Add to under review list (check if not already exists)
-      const underReviewReport = {...report, status: "under_review", reviewStarted: new Date().toISOString()}
+      let underReviewReport = {...report, status: "under_review", reviewStarted: new Date().toISOString()}
+      
+      // Try to fetch actual user details if we have reported_user_id
+      if (report.reported_user_id) {
+        try {
+          console.log("Attempting to fetch user details for reported_user_id:", report.reported_user_id);
+          
+          // Use the admin users endpoint with search to find the user
+          const response = await fetch(`http://localhost:8000/api/v1/users/admin/users?search=${report.reported_user_id}&limit=1`, {
+            method: "GET",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${moderatorUser?.accessToken}`
+            }
+          });
+
+          console.log("API Response status:", response.status);
+          console.log("API Response ok:", response.ok);
+
+          if (response.ok) {
+            const userData = await response.json();
+            console.log("Raw API response data:", userData);
+            console.log("Response is array:", Array.isArray(userData));
+            console.log("Response length:", userData?.length);
+            
+            if (userData && userData.length > 0) {
+              const user = userData[0];
+              console.log("First user object:", user);
+              console.log("User email:", user.email);
+              console.log("User first_name:", user.first_name);
+              console.log("User last_name:", user.last_name);
+              console.log("User role:", user.role);
+              console.log("User created_at:", user.created_at);
+              
+              // Add actual user details to the report
+              underReviewReport = {
+                ...underReviewReport,
+                reportedUserEmail: user.email,
+                reportedUser: `${user.first_name} ${user.last_name}`.trim() || user.email,
+                reportedUserRole: user.role || 'User',
+                reportedUserJoinDate: user.created_at
+              };
+              
+              console.log("Updated report with user data:", underReviewReport);
+            } else {
+              console.log("No user data found in response");
+            }
+          } else {
+            const errorText = await response.text();
+            console.log("API Error response:", errorText);
+          }
+        } catch (error) {
+          console.warn("Failed to fetch user details:", error);
+        }
+      } else {
+        console.log("No reported_user_id found in report:", report);
+      }
+      
       setUnderReviewReports(prev => {
         // Check if report already exists in under review list
         const exists = prev.some(r => r.id === underReviewReport.id)
@@ -2740,7 +2797,7 @@ export default function ModeratorDashboardPage() {
                     </Avatar>
                     <div className="flex-1">
                       <h3 className="font-medium">{selectedReport.reportedUser}</h3>
-                      <p className="text-sm text-gray-600">{selectedReport.reportedUserEmail || 'Email not available'}</p>
+                      {/* <p className="text-sm text-gray-600">{selectedReport.reportedUserEmail || 'Email not available'}</p> */}
                       <div className="mt-2 flex gap-2">
                         <Badge variant="outline">{selectedReport.reportedUserRole || 'User'}</Badge>
                         {selectedReport.reportedUserJoinDate && (

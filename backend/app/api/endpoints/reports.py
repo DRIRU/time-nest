@@ -11,7 +11,7 @@ from ...db.models.service import Service
 from ...db.models.request import Request
 from ...db.models.admin import Admin
 from ...schemas.report import ReportCreate, ReportResponse, ReportUpdate, ReportSummary, ReportStats
-from .users import get_current_user_dependency
+from .users import get_current_user_dependency, get_current_admin_dependency
 
 router = APIRouter(tags=["reports"])
 
@@ -276,6 +276,116 @@ async def get_user_report_stats(
         recent_reports_received=detailed_received
     )
 
+@router.get("/stats/weekly")
+async def get_weekly_reports_stats(
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    db: Session = Depends(get_db),
+    current_admin: User = Depends(get_current_admin_dependency)
+):
+    """Get weekly reports statistics for admin dashboard charts"""
+    
+    # Admin check is now handled by get_current_admin_dependency
+    
+    from datetime import datetime, timedelta
+    
+    # If no date range provided, use last 7 days
+    if not start_date or not end_date:
+        end_date_obj = datetime.now()
+        start_date_obj = end_date_obj - timedelta(days=6)  # 7 days total including today
+    else:
+        try:
+            start_date_obj = datetime.fromisoformat(start_date)
+            end_date_obj = datetime.fromisoformat(end_date)
+        except ValueError:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid date format. Use YYYY-MM-DD"
+            )
+    
+    # Generate the weekly data based on the actual date range
+    weekly_data = []
+    days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+    
+    # Instead of forcing a single week, let's count reports by day of week within the date range
+    day_counts = {day: 0 for day in days}
+    
+    # Get all reports within the date range
+    reports_in_range = db.query(Report).filter(
+        Report.created_at >= start_date_obj,
+        Report.created_at <= end_date_obj + timedelta(days=1)  # Include end date
+    ).all()
+    
+    # Count reports by day of week
+    for report in reports_in_range:
+        day_of_week = report.created_at.strftime('%a')  # Get day abbreviation (Mon, Tue, etc.)
+        if day_of_week in day_counts:
+            day_counts[day_of_week] += 1
+    
+    # Create the response data
+    for day in days:
+        weekly_data.append({
+            'day': day,
+            'reports': day_counts[day]
+        })
+    
+    return {
+        'weekly_reports': weekly_data,
+        'date_range': {
+            'start_date': start_date_obj.strftime('%Y-%m-%d'),
+            'end_date': end_date_obj.strftime('%Y-%m-%d')
+        }
+    }
+
+@router.get("/stats/summary")
+async def get_reports_summary(
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    db: Session = Depends(get_db),
+    current_admin: User = Depends(get_current_admin_dependency)
+):
+    """Get basic reports statistics (total count, etc.)"""
+    
+    from datetime import datetime, timedelta
+    
+    # If no date range provided, get all reports
+    if start_date and end_date:
+        try:
+            start_date_obj = datetime.fromisoformat(start_date)
+            end_date_obj = datetime.fromisoformat(end_date)
+            
+            total_reports = db.query(Report).filter(
+                Report.created_at >= start_date_obj,
+                Report.created_at <= end_date_obj + timedelta(days=1)
+            ).count()
+        except ValueError:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid date format. Use YYYY-MM-DD"
+            )
+    else:
+        total_reports = db.query(Report).count()
+    
+    # Get status breakdown
+    pending_reports = db.query(Report).filter(Report.status == 'pending').count()
+    under_review_reports = db.query(Report).filter(Report.status == 'under_review').count()
+    resolved_reports = db.query(Report).filter(Report.status == 'resolved').count()
+    dismissed_reports = db.query(Report).filter(Report.status == 'dismissed').count()
+    escalated_reports = db.query(Report).filter(Report.status == 'escalated').count()
+    
+    return {
+        'total_reports': total_reports,
+        'pending_reports': pending_reports,
+        'under_review_reports': under_review_reports,
+        'resolved_reports': resolved_reports,
+        'dismissed_reports': dismissed_reports,
+        'escalated_reports': escalated_reports,
+        'date_range': {
+            'start_date': start_date,
+            'end_date': end_date
+        } if start_date and end_date else None
+    }
+
 # Helper functions
 async def get_report_with_details(report_id: int, db: Session) -> ReportResponse:
     """Get a report with all related details"""
@@ -323,7 +433,8 @@ async def get_report_with_details(report_id: int, db: Session) -> ReportResponse
     )
 
 def is_admin(user: User) -> bool:
-    """Check if user is an admin (you'll need to implement this based on your admin system)"""
-    # This is a placeholder - implement based on your admin authentication system
-    # For now, returning False to allow testing with regular users
-    return False
+    """Check if user is an admin"""
+    # Check if user email is in the admin list
+    # You can expand this logic based on your admin system
+    admin_emails = ["admin@timenest.com", "admin@example.com"]
+    return user.email in admin_emails if user and user.email else False
