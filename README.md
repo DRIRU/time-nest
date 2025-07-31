@@ -130,25 +130,7 @@ This project is licensed under the MIT License.
 -   Moderator management by admin
 -   Moderator accounts use existing user credentials (no separate password)
 
-## Cache Clearing
 
-If you encounter stale data or build issues, clear caches as follows:
-
-### Frontend (Next.js)
-
-```
-rm -rf .next
-npm run dev
-```
-
-### Backend (Python/FastAPI)
-
-```
-find . -type d -name "__pycache__" -exec rm -rf {} +
-find . -name "*.pyc" -delete
-```
-
-Also clear browser cache (Ctrl+F5) if UI changes do not appear.
 
 ## To Do
 
