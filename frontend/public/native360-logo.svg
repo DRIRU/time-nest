@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 200" fill="none" role="img" aria-labelledby="native360-logo-title">
+  <title id="native360-logo-title">Native360 Community Services</title>
+  <!-- Background circle -->
+  <circle cx="80" cy="100" r="60" fill="#1a5c38"/>
+  <!-- 360 arc ring -->
+  <circle cx="80" cy="100" r="46" stroke="#f5c842" stroke-width="5" fill="none" stroke-dasharray="230 60" stroke-dashoffset="-15"/>
+  <!-- Leaf / nature icon -->
+  <path d="M80 65 C95 75 102 90 95 108 C88 125 70 128 62 115 C55 103 60 82 80 65Z" fill="#f5c842"/>
+  <path d="M80 65 C65 80 62 98 72 112" stroke="#1a5c38" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+  <!-- Company name -->
+  <text x="158" y="88" font-family="Georgia, 'Times New Roman', serif" font-size="42" font-weight="700" fill="#1a5c38" letter-spacing="-1">Native</text>
+  <text x="158" y="138" font-family="Georgia, 'Times New Roman', serif" font-size="52" font-weight="700" fill="#f5c842" letter-spacing="-1">360</text>
+  <!-- Tagline -->
+  <text x="158" y="162" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#4a7c59" letter-spacing="3">COMMUNITY SERVICES</text>
+</svg>
